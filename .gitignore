@@ -1,41 +1,78 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Ignore everything
+/*
+/app/**
+/Components/**
+/lib/**
+/prisma/**
+/public/**
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# --- Sensitive data ---
+.env
+.env.*
+*.pem
+*.key
 
-# testing
-/coverage
-
-# next.js
+# --- Build / runtime ---
 /.next/
 /out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+/build/
+/coverage/
+/node_modules/
+*.tsbuildinfo
+next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
+.DS_Store
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# =============================================
+# Allow ONLY Menu and AddItem related files
+# =============================================
+
+# Pages
+!app/
+!app/(users)/
+!app/(users)/Menu/
+!app/(users)/Menu/page.tsx
+!app/(admin)/
+!app/(admin)/AddItem/
+!app/(admin)/AddItem/page.tsx
+
+# Components used by Menu / AddItem
+!Components/
+!Components/Cards/
+!Components/Cards/Cards.tsx
+!Components/DrinkCard/
+!Components/DrinkCard/DrinkCard.tsx
+!Components/OrderContext/
+!Components/OrderContext/OrderContext.tsx
+!Components/OrderSummary/
+!Components/OrderSummary/OrderSummary.tsx
+!Components/ui/
+!Components/ui/badge.tsx
+!Components/ui/button.tsx
+!Components/ui/card.tsx
+!Components/ui/field.tsx
+!Components/ui/input.tsx
+!Components/ui/label.tsx
+!Components/ui/separator.tsx
+
+# Shared lib / config
+!lib/
+!lib/prisma.ts
+!lib/supabase.ts
+!lib/utils.ts
+!prisma/
+!prisma/schema.prisma
+
+# Project config files
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.ts
+!postcss.config.mjs
+!components.json
+!custom.d.ts
+!README.md
