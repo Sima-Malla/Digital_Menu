@@ -7,17 +7,19 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   UserSquare2,
-  Folder,
+  Info,
   Contact,
   Settings,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 
 export const navItems: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "Home", href: "/Home", icon: Home },
   { label: "Menu", href: "/Menu", icon: UserSquare2 },
-  { label: "About Us", href: "/aboutus", icon: Folder },
-  { label: "User Guide", href: "/userguide", icon: Contact },
+  { label: "About Us", href: "/aboutus", icon: Info },
+  { label: "User Guide", href: "/UserGuidance", icon: Contact },
+  { label: "Rate & Review", href: "/Review", icon: Star },
 ];
 
 const settingsItem = { label: "Settings", href: "/settings" };

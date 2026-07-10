@@ -1,9 +1,7 @@
-import { DataBadge } from "./DataLabels";
-
 export default function StoryBanner() {
   return (
     <section
-      className="relative flex min-h-[280px] items-center justify-center px-5 py-16 text-center text-white"
+      className="relative flex min-h-[280px] items-center justify-center px-4 py-12 text-center text-white  mx-auto w-full max-w-7xl px-10 py-8 sm:px-8"
       style={{
         background:
           "linear-gradient(rgba(20,15,10,0.55),rgba(20,15,10,0.55)), linear-gradient(135deg,#3a4a2c,#22301c 60%,#1b1512)"

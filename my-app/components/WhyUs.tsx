@@ -1,5 +1,3 @@
-import { DataBadge } from "./DataLabels";
-
 const items = [
   {
     title: "No MSG, ever",
@@ -23,16 +21,14 @@ const items = [
 
 export default function WhyUs() {
   return (
-    <section className="relative px-5 py-12 text-center sm:px-14">
-      <DataBadge type="static" className="absolute top-2.5 left-2.5">
-        STATIC — hardcoded copy
-      </DataBadge>
+    <section className="relative py-8 text-center">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4">
       <h2 className="font-display text-2xl font-semibold sm:text-3xl">Cooked fresh, no shortcuts</h2>
       <p className="mx-auto mt-2.5 mb-8 max-w-lg text-sm leading-relaxed text-[#6b5f52]">
         No preservatives, no MSG, and no exceptions. Every dish is prepared the way it&apos;s been made in Kathmandu
         Valley kitchens for generations.
       </p>
-      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         {items.map((it) => (
           <div key={it.title} className="text-left">
             <div className={`mb-3.5 flex aspect-[4/3] items-center justify-center rounded-lg bg-gradient-to-br ${it.grad} font-mono text-[11px] text-white`}>
@@ -43,6 +39,7 @@ export default function WhyUs() {
             <span className="border-b border-charcoal pb-0.5 text-[11px] font-semibold">{it.link}</span>
           </div>
         ))}
+      </div>
       </div>
     </section>
   );
