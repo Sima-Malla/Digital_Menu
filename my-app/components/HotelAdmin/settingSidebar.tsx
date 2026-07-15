@@ -16,9 +16,11 @@ import {
 const settingsItems = [
   { label: "General Settings", href: "/setting/generalsetting", icon: SlidersHorizontal },
   { label: "Payment Settings", href: "/setting/paymentsetting", icon: CreditCard },
+  { label: "Operating Hours", href: "/setting/operating-hours", icon: SlidersHorizontal },
   { label: "Notifications", href: "/setting/notifications", icon: Bell },
   { label: "Team & Roles", href: "/setting/team", icon: Users },
   { label: "Security", href: "/setting/security", icon: ShieldCheck },
+  { label: "Security logs", href: "/setting/security-logs", icon: ShieldCheck },
 ];
 
 export default function SettingsSidebar() {
