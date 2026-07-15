@@ -111,11 +111,11 @@ export default function ReviewPage() {
             </button>
           </div>
         ) : (
-          <div className="mx-auto max-w-md">
+          <div className="w-full">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
               {/* Header */}
-              <div className="text-center">
+              <div>
                 <h1 className="text-xl font-bold text-gray-900">How was your meal?</h1>
                 <p className="mt-1 text-xs text-gray-500">Your feedback helps us perfect our flow.</p>
               </div>
@@ -131,59 +131,67 @@ export default function ReviewPage() {
                 </div>
               </div>
 
-              {/* Overall rating */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm text-center">
-                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-orange-500">Overall Rating</p>
-                <div className="flex justify-center">
-                  <StarPicker value={overall} onChange={setOverall} size="lg" />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Left column */}
+                <div className="flex flex-col gap-4">
+                  {/* Overall rating */}
+                  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm text-center">
+                    <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-orange-500">Overall Rating</p>
+                    <div className="flex justify-center">
+                      <StarPicker value={overall} onChange={setOverall} size="lg" />
+                    </div>
+                  </div>
+
+                  {/* Category ratings */}
+                  <div className="rounded-2xl border border-gray-100 bg-white px-5 shadow-sm">
+                    <CategoryRating icon={Utensils} label="Food Quality" value={ratings.food} onChange={setCategory("food")} />
+                    <CategoryRating icon={Wifi} label="Service" value={ratings.service} onChange={setCategory("service")} />
+                    <CategoryRating icon={Sparkles} label="Ambiance" value={ratings.ambiance} onChange={setCategory("ambiance")} />
+                  </div>
                 </div>
-              </div>
 
-              {/* Category ratings */}
-              <div className="rounded-2xl border border-gray-100 bg-white px-5 shadow-sm">
-                <CategoryRating icon={Utensils} label="Food Quality" value={ratings.food} onChange={setCategory("food")} />
-                <CategoryRating icon={Wifi} label="Service" value={ratings.service} onChange={setCategory("service")} />
-                <CategoryRating icon={Sparkles} label="Ambiance" value={ratings.ambiance} onChange={setCategory("ambiance")} />
-              </div>
-
-              {/* Add photos */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <p className="mb-3 text-sm font-semibold text-gray-900">Add Photos</p>
-                <div className="flex flex-wrap gap-2">
-                  {photos.map((src, i) => (
-                    <div key={i} className="relative h-16 w-16 overflow-hidden rounded-xl">
-                      <Image src={src} alt="upload" fill className="object-cover" />
+                {/* Right column */}
+                <div className="flex flex-col gap-4">
+                  {/* Add photos */}
+                  <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <p className="mb-3 text-sm font-semibold text-gray-900">Add Photos</p>
+                    <div className="flex flex-wrap gap-2">
+                      {photos.map((src, i) => (
+                        <div key={i} className="relative h-16 w-16 overflow-hidden rounded-xl">
+                          <Image src={src} alt="upload" fill className="object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(i)}
+                            className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      ))}
                       <button
                         type="button"
-                        onClick={() => removePhoto(i)}
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
+                        onClick={() => fileRef.current?.click()}
+                        className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 text-orange-400 transition hover:bg-orange-100"
                       >
-                        <X className="h-2.5 w-2.5" />
+                        <Camera className="h-5 w-5" />
+                        <span className="text-[9px] font-semibold">Add</span>
                       </button>
+                      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotos} />
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 text-orange-400 transition hover:bg-orange-100"
-                  >
-                    <Camera className="h-5 w-5" />
-                    <span className="text-[9px] font-semibold">Add</span>
-                  </button>
-                  <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotos} />
-                </div>
-              </div>
+                  </div>
 
-              {/* Share thoughts */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <p className="mb-3 text-sm font-semibold text-gray-900">Share your thoughts</p>
-                <textarea
-                  value={thoughts}
-                  onChange={(e) => setThoughts(e.target.value)}
-                  placeholder="Tell us about your favorite dish or how we can improve..."
-                  rows={4}
-                  className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                />
+                  {/* Share thoughts */}
+                  <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <p className="mb-3 text-sm font-semibold text-gray-900">Share your thoughts</p>
+                    <textarea
+                      value={thoughts}
+                      onChange={(e) => setThoughts(e.target.value)}
+                      placeholder="Tell us about your favorite dish or how we can improve..."
+                      rows={5}
+                      className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Submit */}

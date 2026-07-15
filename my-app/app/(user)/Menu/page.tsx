@@ -245,35 +245,35 @@ function MenuContent() {
     <div className="flex min-h-screen flex-col bg-gray-50">
       <Nav />
 
-      {/* Banner */}
-      <div className="mx-auto w-full max-w-7xl px-2 sm:px-4">
-      <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72">
-        <Image src="/menubanner.png" alt="Restaurant banner" fill priority className="object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/banner.png"; }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-6">
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold text-white">
-            Top Rated &nbsp;⭐ 4.9 (500+ Reviews)
-          </span>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">GourmetHub Restaurant</h1>
-          <div className="mt-1.5 flex items-center gap-4 text-xs text-white/80">
-            <span className="flex items-center gap-1"><Utensils className="h-3 w-3" /> Nepali Cuisine</span>
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 15–25 min</span>
-            <span>Rs. 200 avg</span>
+      {/* Banner — shared container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 */}
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72">
+          <Image src="/menubanner.png" alt="Restaurant banner" fill priority className="object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/banner.png"; }} />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute bottom-0 left-0 p-6">
+            <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold text-white">
+              Top Rated &nbsp;⭐ 4.9 (500+ Reviews)
+            </span>
+            <h1 className="text-2xl font-bold text-white sm:text-3xl">GourmetHub Restaurant</h1>
+            <div className="mt-1.5 flex items-center gap-4 text-xs text-white/80">
+              <span className="flex items-center gap-1"><Utensils className="h-3 w-3" /> Nepali Cuisine</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 15–25 min</span>
+              <span>Rs. 200 avg</span>
+            </div>
+          </div>
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
+              <Share2 className="h-3.5 w-3.5" /> Share
+            </button>
+            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
+              <Heart className="h-3.5 w-3.5" /> Save
+            </button>
           </div>
         </div>
-        <div className="absolute bottom-4 right-4 flex gap-2">
-          <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-            <Share2 className="h-3.5 w-3.5" /> Share
-          </button>
-          <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-            <Heart className="h-3.5 w-3.5" /> Save
-          </button>
-        </div>
-      </div>
       </div>
 
-      {/* Body */}
-      <div className="mx-auto w-full max-w-7xl px-6 py-8 sm:px-8">
+      {/* Body — same shared container as banner */}
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex gap-6 items-start">
 
           {/* Left sidebar */}
