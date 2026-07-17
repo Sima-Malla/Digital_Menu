@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Eye, Check } from "lucide-react";
 
 const businesses = [
@@ -34,21 +35,23 @@ const businesses = [
 
 export default function RegistrationQueue() {
   return (
-    <div className="h-full rounded-2xl border border-[#E8C7B4] bg-white overflow-hidden">
-
+    <div className="h-full overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-5">
         <h2 className="text-2xl font-semibold">
           Business Registration Queue
         </h2>
 
-        <button className="text-xs font-semibold tracking-[0.2em] text-[#0A5C8D]">
+        <Link
+          href="/order"
+          className="text-xs font-semibold tracking-[0.2em] text-[#0A5C8D] hover:underline"
+        >
           VIEW ALL
-        </button>
+        </Link>
       </div>
 
       {/* Table Header */}
-      <div className="grid grid-cols-5 bg-[#F6F4F2] px-6 py-3 text-[11px] uppercase tracking-[0.2em] text-gray-500 font-semibold">
+      <div className="grid grid-cols-5 bg-[#F6F4F2] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
         <p>Business Name</p>
         <p>Type</p>
         <p>Location</p>
@@ -60,19 +63,16 @@ export default function RegistrationQueue() {
       {businesses.map((item) => (
         <div
           key={item.id}
-          className="grid grid-cols-5 items-center px-6 py-5 border-t border-[#F2DDD2]"
+          className="grid grid-cols-5 items-center border-t border-[#F2DDD2] px-6 py-5"
         >
           {/* Business */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center font-semibold text-xs">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-200 text-xs font-semibold">
               {item.initials}
             </div>
 
             <div>
-              <p className="font-medium leading-5">
-                {item.name}
-              </p>
-
+              <p className="font-medium">{item.name}</p>
               <p className="text-sm text-gray-500">
                 ID: {item.id}
               </p>
@@ -88,7 +88,7 @@ export default function RegistrationQueue() {
           {/* Status */}
           <div>
             <span
-              className={`px-4 py-2 rounded-full text-xs font-semibold ${
+              className={`rounded-full px-4 py-2 text-xs font-semibold ${
                 item.color === "orange"
                   ? "bg-orange-100 text-orange-700"
                   : "bg-sky-100 text-sky-700"
@@ -100,11 +100,16 @@ export default function RegistrationQueue() {
 
           {/* Actions */}
           <div className="flex justify-center gap-2">
-            <button className="h-10 w-10 rounded-lg border border-[#E8C7B4] flex items-center justify-center">
+            {/* View */}
+            <Link
+              href="/order"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E8C7B4] transition hover:bg-gray-100"
+            >
               <Eye size={18} />
-            </button>
+            </Link>
 
-            <button className="h-10 w-10 rounded-lg bg-[#0A5C8D] text-white flex items-center justify-center">
+            {/* Approve */}
+            <button className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0A5C8D] text-white transition hover:bg-[#08496f]">
               <Check size={18} />
             </button>
           </div>
