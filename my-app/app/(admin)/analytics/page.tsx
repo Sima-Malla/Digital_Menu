@@ -22,7 +22,7 @@ function DonutChart({
   centerLabel,
   centerSubLabel,
 }: {
-  data: { value: number; color: string }[];
+  data: { value?: number; pct?: number; color: string }[];
   size?: number;
   strokeWidth?: number;
   centerLabel?: string;
@@ -32,8 +32,9 @@ function DonutChart({
   let cumulative = 0;
   const stops = data
     .map((d) => {
+      const value = d.value ?? d.pct ?? 0;
       const start = cumulative;
-      cumulative += d.value;
+      cumulative += value;
       return `${d.color} ${start}% ${cumulative}%`;
     })
     .join(", ");
