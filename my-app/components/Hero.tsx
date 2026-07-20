@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Search, MapPin } from "lucide-react";
 
 export default function Hero() {
   return (
@@ -32,7 +33,29 @@ export default function Hero() {
             authentic flavors, and exceptional attention to detail.
           </p>
 
-          <div className="mt-16 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
+          {/* Search Bar */}
+          <div className="mx-auto mt-12 max-w-2xl">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-600" />
+                <input
+                  type="text"
+                  placeholder="Search restaurants, cuisines..."
+                  className="w-full rounded-full bg-white py-4 pl-12 pr-4 text-neutral-900 placeholder-neutral-600 shadow-lg outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                />
+              </div>
+              <div className="relative flex-1">
+                <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-600" />
+                <input
+                  type="text"
+                  placeholder="Your location..."
+                  className="w-full rounded-full bg-white py-4 pl-12 pr-4 text-neutral-900 placeholder-neutral-600 shadow-lg outline-none focus:ring-2 focus:ring-[#D4AF37]"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
             <button className="rounded-full bg-[#D4AF37] px-9 py-4 uppercase tracking-widest text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-[#c19d2e] hover:shadow-xl hover:-translate-y-0.5">
               Explore Menu
             </button>

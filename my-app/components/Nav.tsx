@@ -1,54 +1,117 @@
-
 "use client";
 
-import { useState } from "react";
-import { Menu } from "lucide-react";
-import Sidebar from "./SideBar";
+import Link from "next/link";
+import { Search, MapPin, ShoppingCart, User, Menu, X } from "lucide-react";
 
-export default function DashboardHeader() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+const NAV_LINKS = [
+  { label: "Explore", href: "/", active: true },
+  { label: "In-Room Dining", href: "/in-room-dining" },
+  { label: "Rewards", href: "/rewards" },
+];
 
+export default function Nav({
+  onMenuToggle,
+  menuOpen = false,
+}: {
+  onMenuToggle?: () => void;
+  menuOpen?: boolean;
+}) {
   return (
-    <div>
-      <header className="flex items-center justify-between border-b border-black/5 bg-white px-3 py-3">
+    <header className="sticky top-0 z-40 border-b border-[#B87333]/15 bg-[#F3EAD9]/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-3.5 lg:px-10">
+        {/* Mobile Menu Toggle (Left) - Always visible */}
         <button
-          onClick={() => setIsSidebarOpen(true)}
-          aria-label="Open menu"
-          className="flex h-9 w-9 items-center justify-center text-[#12141d]"
+          onClick={onMenuToggle}
+          aria-label="Toggle menu"
+          className="text-[#5C4A3D] transition hover:text-[#7A2E22]"
         >
-          <Menu size={22} strokeWidth={1.8} />
+          {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
 
-        <div className="flex flex-col items-center gap-0.5">
-          <img src="/logo.png" alt="Logo" className="h-14 w-auto" />
+        {/* Brand */}
+        <Link href="/" className="flex shrink-0 flex-col leading-none">
+          <span className="font-[family-name:var(--font-fraunces)] text-[22px] font-semibold text-[#7A2E22]">
+            MenuTap
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#B87333]">
+            Nepali Kitchen
+          </span>
+        </Link>
+
+        {/* Search (desktop) */}
+        <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-[#B87333]/25 bg-white/70 px-4 py-2 lg:flex">
+          <Search className="h-4 w-4 shrink-0 text-[#B87333]" strokeWidth={2} />
+          <input
+            type="text"
+            placeholder="Search Nepali flavors..."
+            className="w-full bg-transparent text-[13px] text-[#2A211D] outline-none placeholder:text-[#8A7B6E]"
+          />
         </div>
 
-        <div className="flex items-center gap-3.5">
-          <button aria-label="Account" className="flex h-8 w-8 items-center justify-center opacity-90">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M4.5 20c1.6-3.6 4.6-5.4 7.5-5.4s5.9 1.8 7.5 5.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
+        {/* Links (desktop) */}
+        <nav className="hidden items-center gap-7 md:flex">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className={`relative text-[13px] font-semibold uppercase tracking-wide transition ${
+                link.active ? "text-[#7A2E22]" : "text-[#5C4A3D] hover:text-[#7A2E22]"
+              }`}
+            >
+              {link.label}
+              {link.active && (
+                <span className="absolute -bottom-1.5 left-0 h-[2px] w-full rounded-full bg-[#E3A73B]" />
+              )}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Icons */}
+        <div className="hidden items-center gap-4 md:flex">
+          <button aria-label="Set location" className="text-[#5C4A3D] transition hover:text-[#7A2E22]">
+            <MapPin className="h-[18px] w-[18px]" strokeWidth={1.8} />
           </button>
-          <button aria-label="Search menu" className="flex h-8 w-8 items-center justify-center opacity-90">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M20 20l-4.8-4.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
+          <button aria-label="Cart" className="relative text-[#5C4A3D] transition hover:text-[#7A2E22]">
+            <ShoppingCart className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#E3A73B] text-[8px] font-bold text-[#2A211D]">
+              2
+            </span>
           </button>
-          <button aria-label="View order" className="relative flex h-8 w-8 items-center justify-center opacity-90">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M4 8h16l-1.4 10.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8L4 8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-              <path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="currentColor" strokeWidth="1.6" />
-            </svg>
+          <button
+            aria-label="Account"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#B87333]/30 text-[#5C4A3D] transition hover:border-[#7A2E22] hover:text-[#7A2E22]"
+          >
+            <User className="h-4 w-4" strokeWidth={1.8} />
           </button>
         </div>
-      </header>
+      </div>
 
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-    </div>
+      {/* Mobile panel */}
+      {menuOpen && (
+        <div className="border-t border-[#B87333]/15 bg-[#F3EAD9] px-6 py-4 md:hidden">
+          <div className="mb-4 flex items-center gap-2 rounded-full border border-[#B87333]/25 bg-white/70 px-4 py-2.5">
+            <Search className="h-4 w-4 text-[#B87333]" />
+            <input
+              type="text"
+              placeholder="Search Nepali flavors..."
+              className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#8A7B6E]"
+            />
+          </div>
+          <div className="flex flex-col gap-3">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={`text-[14px] font-semibold uppercase tracking-wide ${
+                  link.active ? "text-[#7A2E22]" : "text-[#5C4A3D]"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </header>
   );
 }

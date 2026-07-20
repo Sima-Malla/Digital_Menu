@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   Radio,
-  Table2,
+  LayoutGrid,
   BarChart3,
   Settings,
   ChevronDown,
@@ -29,7 +29,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Menu Manager", href: "/menueditor", icon: UtensilsCrossed },
   { label: "Live Orders", href: "/orders", icon: Radio, badge: 4 },
-  { label: "Floor Plan", href: "/floorplan", icon: Table2 },
+  { label: "Area Management", href: "/floorplan", icon: LayoutGrid },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
 ];
 
@@ -43,9 +43,12 @@ const settingsSubItems = [
   { label: "Security Logs", href: "/setting/security-logs", icon: FileText },
 ];
 
+const SUPPORT_HREF = "/support";
+
 export default function Sidebar() {
   const pathname = usePathname();
   const isOnSettingsRoute = pathname.startsWith("/setting");
+  const isOnSupportRoute = pathname.startsWith(SUPPORT_HREF);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(isOnSettingsRoute);
 
@@ -57,10 +60,6 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     console.log("Logging out...");
-  };
-
-  const handleSupport = () => {
-    console.log("Opening support...");
   };
 
   return (
@@ -180,14 +179,19 @@ export default function Sidebar() {
       {/* ── Bottom: Support & Logout ────────────────────── */}
       <div className="border-t border-gray-100 pt-4">
         <div className="flex flex-col gap-1">
-          {/* Support - Using HelpCircle (question mark) icon */}
-          <button
-            onClick={handleSupport}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+          {/* Support */}
+          <Link
+            href={SUPPORT_HREF}
+            aria-current={isOnSupportRoute ? "page" : undefined}
+            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+              isOnSupportRoute
+                ? "bg-orange-500 text-white shadow-sm"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
           >
             <HelpCircle className="h-4 w-4" />
             Support
-          </button>
+          </Link>
 
           {/* Logout */}
           <button

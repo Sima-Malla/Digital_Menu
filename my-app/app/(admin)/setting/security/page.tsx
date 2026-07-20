@@ -1,7 +1,7 @@
 "use client";
 
 import Sidebar from "@/components/HotelAdmin/Sidebar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronRight,
   ShieldCheck,
@@ -19,6 +19,8 @@ import {
   LogOut,
   AlertCircle,
   KeyRound,
+  Timer,
+  MonitorSmartphone,
 } from "lucide-react";
 
 function StatusBadge({ status }: { status: "active" | "warning" }) {
@@ -36,11 +38,40 @@ function StatusBadge({ status }: { status: "active" | "warning" }) {
   );
 }
 
+function RequirementRow({ met, label }: { met: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+          met ? "bg-green-100" : "bg-gray-200"
+        }`}
+      >
+        {met ? (
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+        ) : (
+          <div className="h-2.5 w-2.5 rounded-full bg-gray-400" />
+        )}
+      </div>
+      <span className={`text-sm ${met ? "text-gray-900" : "text-gray-600"}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+const TIMEOUT_OPTIONS = [
+  { value: 15, label: "15 minutes" },
+  { value: 30, label: "30 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 240, label: "4 hours" },
+  { value: 0, label: "Never" },
+];
+
 export default function SecurityPage() {
   // MFA State
   const [authenticator, setAuthenticator] = useState(false);
   const [smsRecovery, setSmsRecovery] = useState(false);
-  
+
   // Password States
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -48,11 +79,21 @@ export default function SecurityPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
   // Recovery Email
   const [recoveryEmail, setRecoveryEmail] = useState("admin-ops@gourmet-hq.com");
   const [isEditingEmail, setIsEditingEmail] = useState(false);
-  
+  const [emailDraft, setEmailDraft] = useState(recoveryEmail);
+  const [emailError, setEmailError] = useState("");
+
+  // Session timeout settings
+  const [timeoutMinutes, setTimeoutMinutes] = useState(30);
+  const [reauthForSensitive, setReauthForSensitive] = useState(true);
+  const [rememberDevice, setRememberDevice] = useState(false);
+  const [notifyOnAutoLogout, setNotifyOnAutoLogout] = useState(true);
+
   // Sessions
   const [sessions, setSessions] = useState([
     {
@@ -83,37 +124,103 @@ export default function SecurityPage() {
 
   // Toast state
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Security settings updated successfully.");
+
+  // Derived password validation
+  const passwordChecks = useMemo(() => {
+    return {
+      minLength: newPassword.length >= 12,
+      upperLower: /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword),
+      hasNumber: /[0-9]/.test(newPassword),
+      hasSpecial: /[^A-Za-z0-9]/.test(newPassword),
+    };
+  }, [newPassword]);
+
+  const passwordsMatch =
+    confirmPassword.length > 0 && newPassword === confirmPassword;
+
+  const allRequirementsMet = Object.values(passwordChecks).every(Boolean);
 
   // Handlers
   const revokeSession = (id: number) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
+    fireToast("Session revoked.");
   };
 
   const revokeAllSessions = () => {
     setSessions((prev) => prev.filter((s) => s.current));
+    fireToast("All other sessions were signed out.");
+  };
+
+  const fireToast = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    window.clearTimeout((fireToast as any)._t);
+    (fireToast as any)._t = window.setTimeout(() => setShowToast(false), 3000);
   };
 
   const saveSettings = () => {
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
+    fireToast("Security settings updated successfully.");
   };
 
   const handleUpdatePassword = () => {
+    setPasswordError("");
+    setPasswordSuccess(false);
+
+    if (!currentPassword) {
+      setPasswordError("Enter your current password.");
+      return;
+    }
+    if (!allRequirementsMet) {
+      setPasswordError("Your new password doesn't meet all requirements yet.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setPasswordError("New password and confirmation don't match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError("New password must be different from your current password.");
+      return;
+    }
+
     // Handle password update logic
     console.log("Password updated");
+    setPasswordSuccess(true);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    fireToast("Password updated successfully.");
   };
 
   const handleChangeEmail = () => {
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDraft);
+    if (!isValid) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    setRecoveryEmail(emailDraft);
     setIsEditingEmail(false);
     // Handle email change logic
-    console.log("Email changed to:", recoveryEmail);
+    console.log("Email changed to:", emailDraft);
+    fireToast("Recovery email updated.");
   };
 
   const handleGenerateCodes = () => {
     // Handle backup code generation
     console.log("New backup codes generated");
+    fireToast("New backup codes generated. Store them somewhere safe.");
+  };
+
+  const handleSaveSessionSettings = () => {
+    console.log("Session settings saved", {
+      timeoutMinutes,
+      reauthForSensitive,
+      rememberDevice,
+      notifyOnAutoLogout,
+    });
+    fireToast("Session timeout settings saved.");
   };
 
   return (
@@ -142,10 +249,13 @@ export default function SecurityPage() {
 
           {/* ── Toast Message ────────────────────────────── */}
           {showToast && (
-            <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5">
+            <div
+              role="status"
+              className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5"
+            >
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <span className="text-[13px] font-medium text-green-700">
-                Security settings updated successfully.
+                {toastMessage}
               </span>
             </div>
           )}
@@ -172,13 +282,14 @@ export default function SecurityPage() {
                       </div>
                     </div>
                   </div>
-                  <StatusBadge status="warning" />
+                  <StatusBadge status={authenticator || smsRecovery ? "active" : "warning"} />
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   {/* Authenticator App */}
                   <button
                     onClick={() => setAuthenticator(!authenticator)}
+                    aria-pressed={authenticator}
                     className={`rounded-xl border p-5 text-left transition ${
                       authenticator
                         ? "border-orange-500 bg-orange-50"
@@ -211,6 +322,7 @@ export default function SecurityPage() {
                   {/* SMS Recovery */}
                   <button
                     onClick={() => setSmsRecovery(!smsRecovery)}
+                    aria-pressed={smsRecovery}
                     className={`rounded-xl border p-5 text-left transition ${
                       smsRecovery
                         ? "border-orange-500 bg-orange-50"
@@ -241,7 +353,17 @@ export default function SecurityPage() {
                   </button>
                 </div>
 
-                <button className="mt-6 rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white hover:bg-orange-600">
+                {!authenticator && !smsRecovery && (
+                  <div className="mt-5 flex items-start gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                    <p className="text-sm text-yellow-700">
+                      MFA is currently off. Turn on at least one method to
+                      protect this account from unauthorized access.
+                    </p>
+                  </div>
+                )}
+
+                <button className="mt-6 rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
                   Setup MFA
                 </button>
               </div>
@@ -260,6 +382,21 @@ export default function SecurityPage() {
                 <div className="grid grid-cols-[1fr_290px] gap-8 p-6">
                   {/* Left - Password Fields */}
                   <div className="space-y-5">
+                    {passwordError && (
+                      <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                        <p className="text-sm text-red-600">{passwordError}</p>
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                        <p className="text-sm text-green-700">
+                          Your password was updated.
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
                         Current Password
@@ -275,6 +412,7 @@ export default function SecurityPage() {
                         <button
                           type="button"
                           onClick={() => setShowCurrent(!showCurrent)}
+                          aria-label={showCurrent ? "Hide current password" : "Show current password"}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                         >
                           {showCurrent ? (
@@ -301,6 +439,7 @@ export default function SecurityPage() {
                         <button
                           type="button"
                           onClick={() => setShowNew(!showNew)}
+                          aria-label={showNew ? "Hide new password" : "Show new password"}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                         >
                           {showNew ? (
@@ -322,11 +461,16 @@ export default function SecurityPage() {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="Repeat password"
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 text-sm outline-none transition focus:border-orange-400"
+                          className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm outline-none transition ${
+                            confirmPassword.length > 0 && !passwordsMatch
+                              ? "border-red-300 focus:border-red-400"
+                              : "border-gray-200 focus:border-orange-400"
+                          }`}
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirm(!showConfirm)}
+                          aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                         >
                           {showConfirm ? (
@@ -336,6 +480,11 @@ export default function SecurityPage() {
                           )}
                         </button>
                       </div>
+                      {confirmPassword.length > 0 && !passwordsMatch && (
+                        <p className="mt-1.5 text-xs text-red-500">
+                          Passwords don't match.
+                        </p>
+                      )}
                     </div>
 
                     <button
@@ -356,39 +505,22 @@ export default function SecurityPage() {
                     </p>
 
                     <div className="mt-6 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        </div>
-                        <span className="text-sm">Minimum 12 characters</span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        </div>
-                        <span className="text-sm">
-                          Uppercase & lowercase letters
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200">
-                          <div className="h-2.5 w-2.5 rounded-full bg-gray-400" />
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          At least one number
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200">
-                          <div className="h-2.5 w-2.5 rounded-full bg-gray-400" />
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          One special character
-                        </span>
-                      </div>
+                      <RequirementRow
+                        met={passwordChecks.minLength}
+                        label="Minimum 12 characters"
+                      />
+                      <RequirementRow
+                        met={passwordChecks.upperLower}
+                        label="Uppercase & lowercase letters"
+                      />
+                      <RequirementRow
+                        met={passwordChecks.hasNumber}
+                        label="At least one number"
+                      />
+                      <RequirementRow
+                        met={passwordChecks.hasSpecial}
+                        label="One special character"
+                      />
                     </div>
 
                     <div className="mt-8 rounded-xl border border-orange-200 bg-orange-50 p-4">
@@ -409,10 +541,153 @@ export default function SecurityPage() {
                 </div>
               </div>
 
+              {/* ── Session Timeout ──────────────────────── */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100">
+                    <Timer className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Session Timeout
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Control how long you can stay signed in without activity.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-6">
+                  {/* Auto sign-out */}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Sign out automatically after
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {TIMEOUT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setTimeoutMinutes(opt.value)}
+                          aria-pressed={timeoutMinutes === opt.value}
+                          className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                            timeoutMinutes === opt.value
+                              ? "border-orange-500 bg-orange-50 text-orange-600"
+                              : "border-gray-200 text-gray-600 hover:border-orange-300"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      {timeoutMinutes === 0
+                        ? "You won't be signed out automatically. This is not recommended on shared devices."
+                        : `You'll be signed out after ${timeoutMinutes} minutes of inactivity.`}
+                    </p>
+                  </div>
+
+                  <div className="border-t border-gray-100" />
+
+                  {/* Toggles */}
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex gap-3">
+                        <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Require re-verification for sensitive actions
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Ask for your password or MFA code before changing
+                            payouts, permissions, or billing.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setReauthForSensitive(!reauthForSensitive)}
+                        aria-pressed={reauthForSensitive}
+                        className={`h-6 w-11 shrink-0 rounded-full transition ${
+                          reauthForSensitive ? "bg-orange-500" : "bg-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 h-5 w-5 rounded-full bg-white transition ${
+                            reauthForSensitive ? "translate-x-5" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex gap-3">
+                        <MonitorSmartphone className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Remember this device for 30 days
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Skip MFA on this device between sessions. Turn this
+                            off on shared or public computers.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setRememberDevice(!rememberDevice)}
+                        aria-pressed={rememberDevice}
+                        className={`h-6 w-11 shrink-0 rounded-full transition ${
+                          rememberDevice ? "bg-orange-500" : "bg-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 h-5 w-5 rounded-full bg-white transition ${
+                            rememberDevice ? "translate-x-5" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex gap-3">
+                        <Mail className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Notify me when a session times out
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Get an email whenever an automatic sign-out happens
+                            on any device.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setNotifyOnAutoLogout(!notifyOnAutoLogout)}
+                        aria-pressed={notifyOnAutoLogout}
+                        className={`h-6 w-11 shrink-0 rounded-full transition ${
+                          notifyOnAutoLogout ? "bg-orange-500" : "bg-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 h-5 w-5 rounded-full bg-white transition ${
+                            notifyOnAutoLogout ? "translate-x-5" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSaveSessionSettings}
+                    className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
+                  >
+                    Save Timeout Settings
+                  </button>
+                </div>
+              </div>
+
               {/* ── Account Recovery ────────────────────────── */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900">Account Recovery</h2>
-                
+
                 <div className="mt-6 space-y-6">
                   {/* Recovery Email */}
                   <div>
@@ -423,9 +698,13 @@ export default function SecurityPage() {
                       {isEditingEmail ? (
                         <input
                           type="email"
-                          value={recoveryEmail}
-                          onChange={(e) => setRecoveryEmail(e.target.value)}
-                          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-orange-400"
+                          value={emailDraft}
+                          onChange={(e) => setEmailDraft(e.target.value)}
+                          className={`flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none ${
+                            emailError
+                              ? "border-red-300 focus:border-red-400"
+                              : "border-gray-200 focus:border-orange-400"
+                          }`}
                           autoFocus
                         />
                       ) : (
@@ -438,6 +717,7 @@ export default function SecurityPage() {
                           if (isEditingEmail) {
                             handleChangeEmail();
                           } else {
+                            setEmailDraft(recoveryEmail);
                             setIsEditingEmail(true);
                           }
                         }}
@@ -449,7 +729,8 @@ export default function SecurityPage() {
                         <button
                           onClick={() => {
                             setIsEditingEmail(false);
-                            setRecoveryEmail("admin-ops@gourmet-hq.com");
+                            setEmailError("");
+                            setEmailDraft(recoveryEmail);
                           }}
                           className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
                         >
@@ -457,6 +738,9 @@ export default function SecurityPage() {
                         </button>
                       )}
                     </div>
+                    {emailError && (
+                      <p className="mt-1.5 text-xs text-red-500">{emailError}</p>
+                    )}
                   </div>
 
                   {/* Divider */}
@@ -586,6 +870,12 @@ export default function SecurityPage() {
                       </div>
                     </div>
                   ))}
+
+                  {sessions.length === 0 && (
+                    <p className="py-4 text-center text-sm text-gray-500">
+                      No active sessions.
+                    </p>
+                  )}
                 </div>
 
                 {sessions.filter((s) => !s.current).length > 0 && (
