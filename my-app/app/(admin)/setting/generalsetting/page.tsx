@@ -182,7 +182,7 @@ function SocialInput({
 
 export default function GeneralSettingsPage() {
   const [restaurantName, setRestaurantName] = useState("GourmetFlow Kitchen");
-  const [logoImage, setLogoImage] = useState("/hotel.png");
+  const [logoImage, setLogoImage] = useState<string | null>("/hotel.png");
   const [bannerImage, setBannerImage] = useState<string | null>(null);
 
   const [language, setLanguage] = useState("English (US)");

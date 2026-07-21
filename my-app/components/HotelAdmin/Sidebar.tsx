@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   Radio,
-  Table2,
+  LayoutGrid,
   BarChart3,
   Settings,
   ChevronDown,
@@ -18,6 +18,10 @@ import {
   Users,
   ShieldCheck,
   SlidersHorizontal,
+  LogOut,
+  HelpCircle, // Changed from Headphones to HelpCircle
+  Clock,
+  FileText,
 } from "lucide-react";
 
 /* ─── Nav data ───────────────────────────────────────────── */
@@ -25,33 +29,38 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Menu Manager", href: "/menueditor", icon: UtensilsCrossed },
   { label: "Live Orders", href: "/orders", icon: Radio, badge: 4 },
-  { label: "Floor Plan", href: "/floorplan", icon: Table2 },
+  { label: "Area Management", href: "/floorplan", icon: LayoutGrid },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
 ];
 
 const settingsSubItems = [
   { label: "General Settings", href: "/setting/generalsetting", icon: SlidersHorizontal },
   { label: "Payment Settings", href: "/setting/paymentsetting", icon: CreditCard },
+  { label: "Operating Hours", href: "/setting/operating-hours", icon: Clock },
   { label: "Notifications", href: "/setting/notifications", icon: Bell },
   { label: "Team & Roles", href: "/setting/team", icon: Users },
   { label: "Security", href: "/setting/security", icon: ShieldCheck },
+  { label: "Security Logs", href: "/setting/security-logs", icon: FileText },
 ];
+
+const SUPPORT_HREF = "/support";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const isOnSettingsRoute = pathname.startsWith("/setting");
+  const isOnSupportRoute = pathname.startsWith(SUPPORT_HREF);
 
-  // Tracks whether the user has manually toggled the dropdown.
-  // Starts in sync with the current route (open if you're on a settings page).
   const [isSettingsOpen, setIsSettingsOpen] = useState(isOnSettingsRoute);
 
-  // Keep it open automatically if navigation lands on a settings route
-  // (e.g. clicking a settings link elsewhere in the app).
   useEffect(() => {
     if (isOnSettingsRoute) {
       setIsSettingsOpen(true);
     }
   }, [isOnSettingsRoute]);
+
+  const handleLogout = () => {
+    console.log("Logging out...");
+  };
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-gray-100 bg-white px-4 py-6 lg:flex">
@@ -138,7 +147,7 @@ export default function Sidebar() {
             <div
               className={`overflow-hidden transition-all duration-300 ease-in-out ${
                 isSettingsOpen
-                  ? "mt-1 max-h-80 opacity-100"
+                  ? "mt-1 max-h-[500px] opacity-100"
                   : "max-h-0 opacity-0"
               }`}
             >
@@ -165,6 +174,34 @@ export default function Sidebar() {
             </div>
           </div>
         </nav>
+      </div>
+
+      {/* ── Bottom: Support & Logout ────────────────────── */}
+      <div className="border-t border-gray-100 pt-4">
+        <div className="flex flex-col gap-1">
+          {/* Support */}
+          <Link
+            href={SUPPORT_HREF}
+            aria-current={isOnSupportRoute ? "page" : undefined}
+            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+              isOnSupportRoute
+                ? "bg-orange-500 text-white shadow-sm"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <HelpCircle className="h-4 w-4" />
+            Support
+          </Link>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
       </div>
     </aside>
   );
