@@ -117,8 +117,8 @@ export default function Sidebar() {
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
                     active
-                      ? "bg-[#0A5C8D] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-[#F97316] text-white"
+                      : "text-gray-700 hover:bg-[#F97316]/10 hover:text-[#F97316]"
                   }`}
                 >
                   <Icon size={18} />
@@ -133,7 +133,7 @@ export default function Sidebar() {
         </div>
 
         <div className="pb-4">
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#B54A00] py-3 text-sm text-white">
+          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#F97316] py-3 text-sm text-white hover:bg-[#e06610] transition">
             <Download size={16} />
             Export Reports
           </button>

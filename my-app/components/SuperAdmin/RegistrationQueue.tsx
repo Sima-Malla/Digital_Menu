@@ -44,7 +44,7 @@ export default function RegistrationQueue() {
 
         <Link
           href="/order"
-          className="text-xs font-semibold tracking-[0.2em] text-[#0A5C8D] hover:underline"
+          className="text-xs font-semibold tracking-[0.2em] text-[#F97316] hover:text-[#e06610] transition"
         >
           VIEW ALL
         </Link>
@@ -109,7 +109,7 @@ export default function RegistrationQueue() {
             </Link>
 
             {/* Approve */}
-            <button className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0A5C8D] text-white transition hover:bg-[#08496f]">
+            <button className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316] text-white transition hover:bg-[#e06610]">
               <Check size={18} />
             </button>
           </div>

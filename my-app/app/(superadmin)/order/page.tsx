@@ -80,10 +80,10 @@ export default function OrdersPage() {
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}
                 placeholder="Search orders..."
-                className="h-11 w-full sm:w-72 rounded-lg border border-gray-200 pl-10 pr-4 outline-none focus:border-[#0A5C8D]"
+                className="h-11 w-full sm:w-72 rounded-lg border border-gray-200 pl-10 pr-4 outline-none focus:border-[#F97316]"
               />
             </div>
-            <button className="flex h-11 items-center gap-2 rounded-lg bg-[#B54A00] px-5 text-white hover:bg-[#9d3f00]">
+            <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
               <Download size={18} /> Export
             </button>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><Bell size={18} /></button>
@@ -125,7 +125,7 @@ export default function OrdersPage() {
                 value={draftSearch}
                 onChange={(e) => setDraftSearch(e.target.value)}
                 placeholder="Search Order ID or Customer..."
-                className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-4 outline-none focus:border-[#0A5C8D]"
+                className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-4 outline-none focus:border-[#F97316]"
               />
             </div>
             <select className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] min-w-[140px]">
@@ -159,7 +159,7 @@ export default function OrdersPage() {
             </select>
             <button
               onClick={handleApplyFilters}
-              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0A5C8D] px-5 text-white hover:bg-[#084d74] whitespace-nowrap"
+              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition whitespace-nowrap"
             >
               <Filter size={18} /> Apply Filters
             </button>
@@ -221,7 +221,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button className="rounded-lg border p-2 hover:bg-gray-100"><ChevronLeft size={18} /></button>
-            <button className="h-10 w-10 rounded-lg bg-[#0A5C8D] text-white">1</button>
+            <button className="h-10 w-10 rounded-lg bg-[#F97316] text-white">1</button>
             <button className="rounded-lg border p-2 hover:bg-gray-100"><ChevronRight size={18} /></button>
           </div>
           <div className="flex items-center gap-2 text-sm">

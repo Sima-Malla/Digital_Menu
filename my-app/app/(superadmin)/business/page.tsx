@@ -24,6 +24,8 @@ export default function BusinessesPage() {
   const [plan, setPlan] = useState("");
   const [viewItem, setViewItem] = useState<Business | null>(null);
   const [editForm, setEditForm] = useState<Business | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "" });
 
   const filtered = useMemo(() =>
     businesses.filter((b) => {
@@ -38,6 +40,13 @@ export default function BusinessesPage() {
     }),
     [businesses, search, status, plan]
   );
+
+  function handleAdd() {
+    if (!addForm.name || !addForm.owner || !addForm.email) return;
+    setBusinesses((prev) => [...prev, { ...addForm, id: Date.now() }]);
+    setAddForm({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "" });
+    setAddOpen(false);
+  }
 
   function handleDelete(id: number) {
     setBusinesses((prev) => prev.filter((b) => b.id !== id));
@@ -63,7 +72,7 @@ export default function BusinessesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Business Management</h1>
           <p className="mt-1 text-sm text-gray-500">Oversee and manage registered restaurants and multi-location businesses.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700">
+        <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-5 py-3 text-sm font-semibold text-white hover:bg-[#e06610] transition">
           <Plus size={18} /> Add New Business
         </button>
       </div>
@@ -71,14 +80,14 @@ export default function BusinessesPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { title: "Total Businesses", value: "120", subtitle: "+4% from last month", icon: Building2, color: "text-orange-600", bg: "bg-orange-50" },
-          { title: "Active", value: "95", subtitle: "Verified & Operating", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50" },
-          { title: "Pending", value: "15", subtitle: "Awaiting Approval", icon: Clock3, color: "text-amber-500", bg: "bg-amber-50" },
-          { title: "Suspended", value: "10", subtitle: "Policy Violations", icon: Ban, color: "text-red-500", bg: "bg-red-50" },
+          { title: "Total Businesses", value: "120", subtitle: "+4% from last month", icon: Building2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Active", value: "95", subtitle: "Verified & Operating", icon: CheckCircle2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Pending", value: "15", subtitle: "Awaiting Approval", icon: Clock3, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Suspended", value: "10", subtitle: "Policy Violations", icon: Ban, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.title} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div key={item.title} className="rounded-2xl border border-[#E8C7B4] bg-white p-5 shadow-sm transition hover:shadow-md hover:border-[#B54A00]/50">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{item.title}</p>
@@ -95,7 +104,7 @@ export default function BusinessesPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-[#E8C7B4] bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-col gap-3 lg:flex-row">
             <div className="relative flex-1">
@@ -105,16 +114,16 @@ export default function BusinessesPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search business, owner or email..."
-                className="h-11 w-full rounded-xl border border-gray-200 pl-10 pr-4 text-sm outline-none focus:border-orange-500"
+                className="h-11 w-full rounded-xl border border-[#E8C7B4] pl-10 pr-4 text-sm outline-none focus:border-[#B54A00]"
               />
             </div>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500">
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-xl border border-[#E8C7B4] px-4 text-sm outline-none focus:border-[#B54A00]">
               <option value="">All Status</option>
               <option value="Active">Active</option>
               <option value="Pending">Pending</option>
               <option value="Suspended">Suspended</option>
             </select>
-            <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-11 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500">
+            <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-11 rounded-xl border border-[#E8C7B4] px-4 text-sm outline-none focus:border-[#B54A00]">
               <option value="">All Plans</option>
               <option value="Basic">Basic</option>
               <option value="Premium">Premium</option>
@@ -122,15 +131,15 @@ export default function BusinessesPage() {
             </select>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex overflow-hidden rounded-xl border border-gray-200">
-              <button onClick={() => setView("list")} className={`flex items-center gap-2 px-4 py-2 text-sm transition ${view === "list" ? "bg-orange-600 text-white" : "bg-white text-gray-600 hover:bg-gray-100"}`}>
+            <div className="flex overflow-hidden rounded-xl border border-[#E8C7B4]">
+              <button onClick={() => setView("list")} className={`flex items-center gap-2 px-4 py-2 text-sm transition ${view === "list" ? "bg-[#F97316] text-white" : "bg-white text-gray-600 hover:bg-[#F97316]/10 hover:text-[#F97316]"}`}>
                 <List size={18} /> List
               </button>
-              <button onClick={() => setView("grid")} className={`flex items-center gap-2 px-4 py-2 text-sm transition ${view === "grid" ? "bg-orange-600 text-white" : "bg-white text-gray-600 hover:bg-gray-100"}`}>
+              <button onClick={() => setView("grid")} className={`flex items-center gap-2 px-4 py-2 text-sm transition ${view === "grid" ? "bg-[#F97316] text-white" : "bg-white text-gray-600 hover:bg-[#F97316]/10 hover:text-[#F97316]"}`}>
                 <LayoutGrid size={18} /> Grid
               </button>
             </div>
-            <button className="flex h-11 items-center gap-2 rounded-xl border border-gray-200 px-4 text-sm hover:bg-gray-100">
+            <button className="flex h-11 items-center gap-2 rounded-xl border border-[#E8C7B4] px-4 text-sm hover:bg-[#F6F4F2] transition">
               <Download size={18} /> Export
             </button>
           </div>
@@ -139,10 +148,10 @@ export default function BusinessesPage() {
 
       {/* List View */}
       {view === "list" && (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-gray-600">
+              <thead className="bg-[#F6F4F2] text-left text-gray-600">
                 <tr>
                   <th className="px-6 py-4">Business Info</th>
                   <th className="px-6 py-4">Owner</th>
@@ -155,10 +164,10 @@ export default function BusinessesPage() {
               </thead>
               <tbody>
                 {filtered.length > 0 ? filtered.map((b) => (
-                  <tr key={b.id} className="border-t hover:bg-gray-50 transition">
+                  <tr key={b.id} className="border-t border-[#F2DDD2] hover:bg-[#F6F4F2] transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-xl">{b.logo}</div>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F6F4F2] text-xl">{b.logo}</div>
                         <div>
                           <p className="font-semibold text-gray-900">{b.name}</p>
                           <p className="text-xs text-gray-500">Restaurant</p>
@@ -182,8 +191,8 @@ export default function BusinessesPage() {
                     <td className="px-6 py-4 font-semibold">{b.revenue}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => setViewItem(b)} className="rounded-lg p-2 hover:bg-orange-100 hover:text-orange-600 transition"><Eye size={18} /></button>
-                        <button onClick={() => setEditForm({ ...b })} className="rounded-lg p-2 text-blue-600 hover:bg-blue-100 transition"><Pencil size={18} /></button>
+                        <button onClick={() => setViewItem(b)} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Eye size={18} /></button>
+                        <button onClick={() => setEditForm({ ...b })} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Pencil size={18} /></button>
                         <button onClick={() => handleDelete(b.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-100 transition"><Trash2 size={18} /></button>
                         <button className="rounded-lg p-2 hover:bg-gray-100 transition"><MoreHorizontal size={18} /></button>
                       </div>
@@ -202,9 +211,9 @@ export default function BusinessesPage() {
       {view === "grid" && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filtered.length > 0 ? filtered.map((b) => (
-            <div key={b.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 text-3xl">{b.logo}</div>
+            <div key={b.id} className="rounded-2xl border border-[#E8C7B4] bg-white p-6 shadow-sm transition hover:shadow-lg hover:border-[#B54A00]/50">
+              <div className="flex flex-col items-center text-center gap-3 pb-5 border-b">
+                <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#F6F4F2] text-6xl">{b.logo}</div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{b.name}</h3>
                   <p className="text-sm text-gray-500">{b.owner}</p>
@@ -219,9 +228,9 @@ export default function BusinessesPage() {
                 <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">{b.plan}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(b.status)}`}>{b.status}</span>
               </div>
-              <div className="mt-6 flex justify-between border-t pt-4">
-                <button onClick={() => setViewItem(b)} className="rounded-lg p-2 hover:bg-orange-100 hover:text-orange-600 transition"><Eye size={18} /></button>
-                <button onClick={() => setEditForm({ ...b })} className="rounded-lg p-2 text-blue-600 hover:bg-blue-100 transition"><Pencil size={18} /></button>
+              <div className="mt-6 flex justify-between border-t border-[#F2DDD2] pt-4">
+                <button onClick={() => setViewItem(b)} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Eye size={18} /></button>
+                <button onClick={() => setEditForm({ ...b })} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Pencil size={18} /></button>
                 <button onClick={() => handleDelete(b.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-100 transition"><Trash2 size={18} /></button>
               </div>
             </div>
@@ -241,7 +250,7 @@ export default function BusinessesPage() {
             </div>
             <div className="space-y-4 p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-4xl">{viewItem.logo}</div>
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F6F4F2] text-4xl">{viewItem.logo}</div>
                 <div>
                   <h3 className="text-xl font-semibold">{viewItem.name}</h3>
                   <p className="text-gray-500">Owner: {viewItem.owner}</p>
@@ -253,13 +262,13 @@ export default function BusinessesPage() {
                 <p><span className="font-medium">Plan:</span> {viewItem.plan}</p>
                 <p><span className="font-medium">Status:</span> {viewItem.status}</p>
               </div>
-              <div className="rounded-xl bg-orange-50 p-4">
+              <div className="rounded-xl bg-[#F97316]/10 p-4">
                 <p className="text-sm text-gray-500">Total Revenue</p>
-                <h2 className="text-3xl font-bold text-orange-600">{viewItem.revenue}</h2>
+                <h2 className="text-3xl font-bold text-[#F97316]">{viewItem.revenue}</h2>
               </div>
             </div>
             <div className="flex justify-end border-t p-6">
-              <button onClick={() => setViewItem(null)} className="rounded-xl bg-orange-600 px-5 py-2 text-white hover:bg-orange-700">Close</button>
+              <button onClick={() => setViewItem(null)} className="rounded-xl bg-[#F97316] px-5 py-2 text-white hover:bg-[#e06610] transition">Close</button>
             </div>
           </div>
         </div>
@@ -280,13 +289,13 @@ export default function BusinessesPage() {
                   <input
                     value={editForm[field]}
                     onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-orange-500"
+                    className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]"
                   />
                 </div>
               ))}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-orange-500">
+                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]">
                   <option>Active</option>
                   <option>Pending</option>
                   <option>Suspended</option>
@@ -294,7 +303,7 @@ export default function BusinessesPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Plan</label>
-                <select value={editForm.plan} onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })} className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-orange-500">
+                <select value={editForm.plan} onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]">
                   <option>Basic</option>
                   <option>Standard</option>
                   <option>Premium</option>
@@ -302,8 +311,51 @@ export default function BusinessesPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t p-6">
-              <button onClick={() => setEditForm(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100">Cancel</button>
-              <button onClick={handleSave} className="rounded-xl bg-orange-600 px-5 py-2 text-sm text-white hover:bg-orange-700">Save Changes</button>
+              <button onClick={() => setEditForm(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
+              <button onClick={handleSave} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add Business Modal */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b p-6">
+              <h2 className="text-xl font-bold">Add New Business</h2>
+              <button onClick={() => setAddOpen(false)}><X size={22} /></button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Logo Emoji</label>
+                <input value={addForm.logo} onChange={(e) => setAddForm({ ...addForm, logo: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" placeholder="e.g. 🍔" />
+              </div>
+              {(["name", "owner", "email", "phone", "revenue"] as const).map((field) => (
+                <div key={field}>
+                  <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
+                  <input value={addForm[field]} onChange={(e) => setAddForm({ ...addForm, [field]: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" />
+                </div>
+              ))}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                <select value={addForm.status} onChange={(e) => setAddForm({ ...addForm, status: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]">
+                  <option>Active</option>
+                  <option>Pending</option>
+                  <option>Suspended</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Plan</label>
+                <select value={addForm.plan} onChange={(e) => setAddForm({ ...addForm, plan: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]">
+                  <option>Basic</option>
+                  <option>Standard</option>
+                  <option>Premium</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t p-6">
+              <button onClick={() => setAddOpen(false)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
+              <button onClick={handleAdd} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition">Add Business</button>
             </div>
           </div>
         </div>
