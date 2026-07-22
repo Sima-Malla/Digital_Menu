@@ -22,6 +22,8 @@ import {
   CreditCard,
   Bell,
   Server,
+  KeyRound,
+  Wallet,
 } from "lucide-react";
 
 type ChildMenu = {
@@ -30,17 +32,22 @@ type ChildMenu = {
   href: string;
 };
 
+type ChildGroup = {
+  label: string;
+  items: ChildMenu[];
+};
+
 type MenuItem =
   | {
       name: string;
       icon: React.ElementType;
       href: string;
-      children?: never;
+      groups?: never;
     }
   | {
       name: string;
       icon: React.ElementType;
-      children: ChildMenu[];
+      groups: ChildGroup[];
       href?: never;
     };
 
@@ -53,19 +60,31 @@ const menus: MenuItem[] = [
   {
     name: "Global Settings",
     icon: Settings,
-    children: [
-      { name: "Platform", icon: Globe, href: "/settings/platform" },
-      { name: "Security", icon: ShieldCheck, href: "/settings/security" },
-      { name: "Business", icon: Store, href: "/settings/business" },
-      { name: "Subscription", icon: CreditCard, href: "/settings/subscription" },
-      { name: "Notifications", icon: Bell, href: "/settings/notifications" },
-      { name: "System", icon: Server, href: "/settings/system" },
+    groups: [
+      {
+        label: "Configuration",
+        items: [
+          { name: "Platform", icon: Globe, href: "/settings/platform" },
+          { name: "Business Policies", icon: Store, href: "/settings/business" },
+          { name: "Payment", icon: Wallet, href: "/settings/payment" },
+          { name: "Subscription", icon: CreditCard, href: "/settings/subscriptions" },
+        ],
+      },
+      {
+        label: "Access & Operations",
+        items: [
+          { name: "Security", icon: ShieldCheck, href: "/settings/security" },
+          { name: "Roles & Permissions", icon: KeyRound, href: "/settings/roles" },
+          { name: "Notifications", icon: Bell, href: "/settings/notifications" },
+          { name: "System", icon: Server, href: "/settings/system" },
+        ],
+      },
     ],
   },
 ];
 
-function hasChildren(item: MenuItem): item is Extract<MenuItem, { children: ChildMenu[] }> {
-  return "children" in item;
+function hasGroups(item: MenuItem): item is Extract<MenuItem, { groups: ChildGroup[] }> {
+  return "groups" in item;
 }
 
 export default function Sidebar() {
@@ -73,9 +92,10 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   // Auto-expand "Global Settings" if the user is currently on one of its child routes.
-  const settingsItem = menus.find(hasChildren);
+  const settingsItem = menus.find(hasGroups);
   const startsOpen =
-    !!settingsItem && settingsItem.children.some((child) => pathname === child.href);
+    !!settingsItem &&
+    settingsItem.groups.some((group) => group.items.some((child) => pathname === child.href));
 
   const [settingsOpen, setSettingsOpen] = useState(startsOpen);
 
@@ -123,8 +143,10 @@ export default function Sidebar() {
             {menus.map((item) => {
               const Icon = item.icon;
 
-              if (hasChildren(item)) {
-                const isChildActive = item.children.some((child) => pathname === child.href);
+              if (hasGroups(item)) {
+                const isChildActive = item.groups.some((group) =>
+                  group.items.some((child) => pathname === child.href)
+                );
 
                 return (
                   <div key={item.name}>
@@ -158,27 +180,36 @@ export default function Sidebar() {
                       }`}
                     >
                       <div className="overflow-hidden">
-                        <div className="ml-6 mt-2 space-y-1 border-l border-orange-100 pl-4">
-                          {item.children.map((child) => {
-                            const ChildIcon = child.icon;
-                            const active = pathname === child.href;
+                        <div className="ml-6 mt-2 space-y-3 border-l border-orange-100 pl-4">
+                          {item.groups.map((group) => (
+                            <div key={group.label}>
+                              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                                {group.label}
+                              </p>
+                              <div className="space-y-1">
+                                {group.items.map((child) => {
+                                  const ChildIcon = child.icon;
+                                  const active = pathname === child.href;
 
-                            return (
-                              <Link
-                                key={child.name}
-                                href={child.href}
-                                onClick={() => setOpen(false)}
-                                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200 ${
-                                  active
-                                    ? "bg-orange-500 text-white"
-                                    : "text-gray-600 hover:bg-orange-50 hover:text-orange-500"
-                                }`}
-                              >
-                                <ChildIcon size={16} />
-                                <span className="text-xs">{child.name}</span>
-                              </Link>
-                            );
-                          })}
+                                  return (
+                                    <Link
+                                      key={child.name}
+                                      href={child.href}
+                                      onClick={() => setOpen(false)}
+                                      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200 ${
+                                        active
+                                          ? "bg-orange-500 text-white"
+                                          : "text-gray-600 hover:bg-orange-50 hover:text-orange-500"
+                                      }`}
+                                    >
+                                      <ChildIcon size={16} />
+                                      <span className="text-xs">{child.name}</span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
