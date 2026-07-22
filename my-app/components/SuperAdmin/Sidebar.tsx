@@ -24,6 +24,14 @@ import {
   Server,
   KeyRound,
   Wallet,
+  Calendar,
+  FileType,
+  BookOpen,
+  MessageCircle,
+  Activity,
+  Sparkles,
+  Loader2,
+  Check,
 } from "lucide-react";
 
 type ChildMenu = {
@@ -65,9 +73,9 @@ const menus: MenuItem[] = [
         label: "Configuration",
         items: [
           { name: "Platform", icon: Globe, href: "/settings/platform" },
-          { name: "Business Policies", icon: Store, href: "/settings/business" },
+          { name: "Business Rules", icon: Store, href: "/settings/business" },
           { name: "Payment", icon: Wallet, href: "/settings/payment" },
-          { name: "Subscription", icon: CreditCard, href: "/settings/subscriptions" },
+          { name: "Subscription", icon: CreditCard, href: "/settings/subscription" },
         ],
       },
       {
@@ -98,6 +106,30 @@ export default function Sidebar() {
     settingsItem.groups.some((group) => group.items.some((child) => pathname === child.href));
 
   const [settingsOpen, setSettingsOpen] = useState(startsOpen);
+
+  // Export Reports modal
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState("Revenue Report");
+  const [dateRange, setDateRange] = useState("This Month");
+  const [format, setFormat] = useState("PDF");
+  const [scheduleReport, setScheduleReport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+
+  // Support dropdown
+  const [supportMenuOpen, setSupportMenuOpen] = useState(false);
+
+  function runExport() {
+    setIsExporting(true);
+    setTimeout(() => {
+      setIsExporting(false);
+      setExportDone(true);
+      setTimeout(() => {
+        setExportDone(false);
+        setExportModalOpen(false);
+      }, 1200);
+    }, 1400);
+  }
 
   return (
     <>
@@ -239,16 +271,41 @@ export default function Sidebar() {
         </div>
 
         <div className="pb-4">
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#F97316] py-3 text-sm text-white transition hover:bg-[#e06610]">
+          <button
+            type="button"
+            onClick={() => setExportModalOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#F97316] py-3 text-sm text-white transition hover:bg-[#e06610]"
+          >
             <Download size={16} />
-            Export Reports
+            Reports
           </button>
 
           <div className="mt-8 space-y-5">
-            <button className="flex items-center gap-3 text-gray-600 hover:text-[#F97316]">
-              <CircleHelp size={17} />
-              <span className="text-xs uppercase tracking-[0.18em]">Support</span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSupportMenuOpen((v) => !v)}
+                className="flex items-center gap-3 text-gray-600 hover:text-[#F97316]"
+              >
+                <CircleHelp size={17} />
+                <span className="text-xs uppercase tracking-[0.18em]">Support</span>
+              </button>
+
+              {supportMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setSupportMenuOpen(false)}
+                  />
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                    <SupportMenuItem icon={BookOpen} label="Documentation" />
+                    <SupportMenuItem icon={MessageCircle} label="Contact Engineering" />
+                    <SupportMenuItem icon={Activity} label="System Status" />
+                    <SupportMenuItem icon={Sparkles} label="What's New" />
+                  </div>
+                </>
+              )}
+            </div>
 
             <button className="flex items-center gap-3 text-red-500 hover:text-red-600">
               <LogOut size={17} />
@@ -257,6 +314,162 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {/* Export Reports modal */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            {exportDone ? (
+              <div className="flex flex-col items-center py-4 text-center">
+                <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50">
+                  <Check size={20} className="text-emerald-600" />
+                </span>
+                <p className="text-sm font-medium text-slate-800">Report ready</p>
+                <p className="mt-1 text-xs text-slate-500">Your download will start automatically.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="mb-4 text-sm font-semibold text-slate-800">Reports</h3>
+
+                <div className="space-y-4">
+                  <ExportField label="Report Type" icon={FileType}>
+                    <select
+                      value={reportType}
+                      onChange={(e) => setReportType(e.target.value)}
+                      className="export-input"
+                    >
+                      <option>Revenue Report</option>
+                      <option>Business Performance Report</option>
+                      <option>Order Summary Report</option>
+                      <option>User Growth Report</option>
+                      <option>Commission & Payout Report</option>
+                      <option>Refund & Cancellation Report</option>
+                    </select>
+                  </ExportField>
+
+                  <ExportField label="Date Range" icon={Calendar}>
+                    <select
+                      value={dateRange}
+                      onChange={(e) => setDateRange(e.target.value)}
+                      className="export-input"
+                    >
+                      <option>Today</option>
+                      <option>This Week</option>
+                      <option>This Month</option>
+                      <option>Last 90 Days</option>
+                      <option>Custom Range</option>
+                    </select>
+                  </ExportField>
+
+                  <ExportField label="Format">
+                    <div className="flex gap-2">
+                      {["PDF", "CSV", "Excel"].map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setFormat(f)}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                            format === f
+                              ? "border-orange-500 bg-orange-50 text-orange-700"
+                              : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </ExportField>
+
+                  <label className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5">
+                    <span className="text-xs font-medium text-slate-600">
+                      Schedule this report (email monthly)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleReport((v) => !v)}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                        scheduleReport ? "bg-orange-600" : "bg-slate-300"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          scheduleReport ? "translate-x-4" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </label>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={() => setExportModalOpen(false)}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={runExport}
+                    disabled={isExporting}
+                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-70"
+                  >
+                    {isExporting && <Loader2 size={14} className="animate-spin" />}
+                    {isExporting ? "Exporting..." : "Export"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        .export-input {
+          width: 100%;
+          border-radius: 0.5rem;
+          border: 1px solid #e2e8f0;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.8125rem;
+          color: #334155;
+          background: white;
+        }
+        .export-input:focus {
+          outline: none;
+          border-color: #fb923c;
+          box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15);
+        }
+      `}</style>
     </>
+  );
+}
+
+function SupportMenuItem({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-slate-600 hover:bg-orange-50 hover:text-orange-600"
+    >
+      <Icon size={15} />
+      {label}
+    </button>
+  );
+}
+
+function ExportField({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon?: React.ElementType;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        {Icon && <Icon size={13} className="text-slate-400" />}
+        {label}
+      </label>
+      {children}
+    </div>
   );
 }
