@@ -3,13 +3,7 @@
 import { useActionState, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Gift,
-  Building2,
-  ShieldCheck,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { Building2, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
 import { signupAction, type SignupState } from "@/app/actions/signup";
 
 /* ─── ER-driven role config ──────────────────────────────────────────
@@ -26,16 +20,14 @@ import { signupAction, type SignupState } from "@/app/actions/signup";
    internal Super Admin panel — never from this public signup page.
 --------------------------------------------------------------------- */
 
-type Role = "staff" | "admin" | "user";
+type Role = "admin" | "user";
 
 const roleTabs: { id: Role; label: string; icon: React.ElementType }[] = [
-  { id: "staff", label: "Staff", icon: Gift },
   { id: "admin", label: "Admin", icon: Building2 },
   { id: "user", label: "User", icon: ShieldCheck },
 ];
 
 const businessTypes = ["Restaurant", "Hotel", "Cafe", "Bar / Lounge", "Cloud Kitchen"];
-const staffRoles = ["Waiter", "Chef", "Cashier", "Host", "Kitchen Staff", "Manager"];
 
 const heroImg =
   "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=700&q=80";
@@ -43,18 +35,13 @@ const heroImg =
 const initialState: SignupState = { success: true, message: "" };
 
 export default function SignupPage() {
-  const [role, setRole] = useState<Role>("staff");
+  const [role, setRole] = useState<Role>("user");
   const [state, formAction, isPending] = useActionState<SignupState, FormData>(signupAction, initialState);
 
   // Shared fields
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  // Staff-only
-  const [phone, setPhone] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
-  const [staffRole, setStaffRole] = useState(staffRoles[0]);
 
   // Admin-only (creates the Business record)
   const [businessName, setBusinessName] = useState("");
@@ -126,7 +113,7 @@ export default function SignupPage() {
           </p>
 
           {/* Role tabs */}
-          <div className="mt-7 grid grid-cols-3 gap-3">
+          <div className="mt-7 grid grid-cols-2 gap-3">
             {roleTabs.map((r) => {
               const Icon = r.icon;
               const active = role === r.id;
@@ -195,49 +182,6 @@ export default function SignupPage() {
                 className={inputCls(errors.password)}
               />
             </Field>
-
-            {/* Staff-only fields */}
-            {role === "staff" && (
-              <>
-                <Field label="Phone Number" error={errors.phone}>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                    className={inputCls(errors.phone)}
-                  />
-                </Field>
-
-                <Field label="Position" error={errors.staffRole}>
-                  <select
-                    name="staffRole"
-                    value={staffRole}
-                    onChange={(e) => setStaffRole(e.target.value)}
-                    className={inputCls(errors.staffRole)}
-                  >
-                    {staffRoles.map((r) => (
-                      <option key={r}>{r}</option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field
-                  label="Invite Code"
-                  error={errors.inviteCode}
-                  hint={!errors.inviteCode ? "Your manager will provide this code to link you to the business." : undefined}
-                >
-                  <input
-                    name="inviteCode"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    placeholder="MT-12345"
-                    className={inputCls(errors.inviteCode)}
-                  />
-                </Field>
-              </>
-            )}
 
             {/* Admin-only fields — these create the Business record */}
             {role === "admin" && (
