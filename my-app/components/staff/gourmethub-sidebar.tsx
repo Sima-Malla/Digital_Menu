@@ -70,7 +70,7 @@ export default function GourmetHubSidebar() {
             className="h-9 w-9 rounded-full object-cover"
           />
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-slate-800">Hotel Admin</p>
+            <p className="text-sm font-semibold text-slate-800">Hotel Staff</p>
             <p className="text-xs text-slate-400">Grand Plaza Heights</p>
           </div>
         </div>
