@@ -16,9 +16,9 @@ import {
 
 const menus = [
   { name: "Dashboard", icon: LayoutGrid, href: "/staffdashboard" },
-  { name: "Menu ", icon: UtensilsCrossed, href: "/menu-editor" },
+  { name: "Menu", icon: UtensilsCrossed, href: "/menu-editor" },
   { name: "Live Orders", icon: ClipboardList, href: "/live-orders" },
- 
+  { name: "Orders", icon: ListOrdered, href: "/sorder" },
   { name: "Analytics", icon: BarChart3, href: "/aanalytics" },
   { name: "Settings", icon: Settings, href: "/settings" },
 ];
@@ -70,7 +70,7 @@ export default function GourmetHubSidebar() {
             className="h-9 w-9 rounded-full object-cover"
           />
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-slate-800">Hotel Staff</p>
+            <p className="text-sm font-semibold text-slate-800">Hotel staff</p>
             <p className="text-xs text-slate-400">Grand Plaza Heights</p>
           </div>
         </div>

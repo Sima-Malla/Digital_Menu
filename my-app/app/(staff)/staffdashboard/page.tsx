@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const newOrdersPreview = [
-  { id: "ORD-2849", type: "Pickup", detail: "2x Truffle Risotto, 1x Wagyu Slider Box", mins: 2 },
+  { id: "ORD-2849", type: "Dine-in", detail: "Table 6 · 2x Truffle Risotto, 1x Wagyu Slider Box", mins: 2 },
   { id: "ORD-2850", type: "Room Service", detail: "Room 412 · 1x Signature Platter", mins: 0 },
   { id: "ORD-2851", type: "Dine-in", detail: "Table 6 · 2x Grilled Salmon", mins: 4 },
 ];
@@ -27,9 +27,8 @@ const topItems = [
 ];
 
 const typeBreakdown = [
-  { label: "Dine-in", value: 48, color: "bg-slate-700" },
-  { label: "Room Service", value: 32, color: "bg-blue-500" },
-  { label: "Pickup", value: 20, color: "bg-orange-500" },
+  { label: "Dine-in", value: 60, color: "bg-slate-700" },
+  { label: "Room Service", value: 40, color: "bg-blue-500" },
 ];
 
 export default function StaffDashboardPage() {

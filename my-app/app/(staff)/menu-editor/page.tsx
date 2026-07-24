@@ -3,25 +3,35 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Search,
-  Pencil,
-  Trash2,
+  Eye,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
   List,
+  X,
 } from "lucide-react";
 
 /* ─── Data ───────────────────────────────────────────────── */
 const categories = ["Main Course", "Appetizer", "Seafood", "Dessert", "Beverage"];
 
-const menuInventory = [
+type AvailabilityStatus = "available" | "out-of-stock" | "low-stock";
+
+const menuInventory: {
+  id: number;
+  name: string;
+  meta: string;
+  category: string;
+  price: string;
+  status: AvailabilityStatus;
+  img: string;
+}[] = [
   {
     id: 1,
     name: "Wild Mushroom Risotto",
     meta: "Porcini, truffle",
     category: "Main Course",
-    price: "$28.50",
-    active: true,
+    price: "Rs. 850",
+    status: "available",
     img: "/vegmomo.jpg",
   },
   {
@@ -29,8 +39,8 @@ const menuInventory = [
     name: "Saffron Sea Bass",
     meta: "Pan-seared,...",
     category: "Seafood",
-    price: "$34.00",
-    active: false,
+    price: "Rs. 1200",
+    status: "out-of-stock",
     img: "/vegmomo.jpg",
   },
   {
@@ -38,28 +48,91 @@ const menuInventory = [
     name: "Gold Leaf Lava Cake",
     meta: "70% Dark...",
     category: "Dessert",
-    price: "$16.00",
-    active: true,
+    price: "Rs. 480",
+    status: "low-stock",
     img: "/lemonade.jpg",
   },
 ];
 
-/* ─── Toggle switch ──────────────────────────────────────── */
-function StatusToggle({ active, onChange }: { active: boolean; onChange: () => void }) {
+const STATUS_CONFIG: Record<AvailabilityStatus, { label: string; dot: string; className: string }> = {
+  available: { label: "Available", dot: "bg-emerald-500", className: "bg-emerald-50 text-emerald-700" },
+  "low-stock": { label: "Low Stock", dot: "bg-amber-500", className: "bg-amber-50 text-amber-700" },
+  "out-of-stock": { label: "Out of Stock", dot: "bg-red-500", className: "bg-red-50 text-red-600" },
+};
+
+const STATUS_CYCLE: AvailabilityStatus[] = ["available", "low-stock", "out-of-stock"];
+
+/* ─── Availability badge (click to cycle status) ─────────── */
+function AvailabilityToggle({
+  status,
+  onChange,
+}: {
+  status: AvailabilityStatus;
+  onChange: () => void;
+}) {
+  const cfg = STATUS_CONFIG[status];
   return (
     <button
       onClick={onChange}
-      aria-pressed={active}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
-        active ? "bg-green-500" : "bg-gray-200"
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${cfg.className}`}
+      title="Click to update availability"
     >
-      <span
-        className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-          active ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
+      <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+      {cfg.label}
     </button>
+  );
+}
+
+/* ─── Read-only view modal ───────────────────────────────── */
+function ViewDishModal({
+  item,
+  onClose,
+}: {
+  item: (typeof menuInventory)[number];
+  onClose: () => void;
+}) {
+  const cfg = STATUS_CONFIG[item.status];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">Dish Details</h2>
+          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl bg-gray-100">
+          <Image src={item.img} alt={item.name} fill className="object-cover" />
+        </div>
+
+        <p className="text-lg font-bold text-gray-900">{item.name}</p>
+        <p className="text-sm text-gray-400">{item.meta}</p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Category</p>
+            <p className="mt-1 font-semibold text-gray-800">{item.category}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Price</p>
+            <p className="mt-1 font-semibold text-orange-600">{item.price}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">Availability</p>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cfg.className}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+            {cfg.label}
+          </span>
+        </div>
+
+        <p className="mt-4 text-xs text-gray-400">
+          Pricing and item details are managed by the restaurant admin. You can update availability from the menu list.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -70,10 +143,17 @@ function MenuInventory() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [view, setView] = useState<"grid" | "list">("list");
   const [page, setPage] = useState(1);
+  const [viewingItem, setViewingItem] = useState<(typeof menuInventory)[number] | null>(null);
   const pageSize = 10;
 
-  const toggleActive = (id: number) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, active: !it.active } : it)));
+  const cycleStatus = (id: number) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== id) return it;
+        const nextIndex = (STATUS_CYCLE.indexOf(it.status) + 1) % STATUS_CYCLE.length;
+        return { ...it, status: STATUS_CYCLE[nextIndex] };
+      })
+    );
   };
 
   const filtered = useMemo(() => {
@@ -91,7 +171,7 @@ function MenuInventory() {
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
       {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-gray-900">Menu Inventory ({filtered.length})</h2>
+        <h2 className="text-base font-bold text-gray-900">Menu Items ({filtered.length})</h2>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -173,15 +253,14 @@ function MenuInventory() {
                 {item.category}
               </span>
               <div className="flex items-center justify-between border-t border-gray-50 pt-3">
-                <StatusToggle active={item.active} onChange={() => toggleActive(item.id)} />
-                <div className="flex items-center gap-3 text-gray-400">
-                  <button className="hover:text-orange-600" aria-label="Edit dish">
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button className="hover:text-rose-500" aria-label="Delete dish">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                <AvailabilityToggle status={item.status} onChange={() => cycleStatus(item.id)} />
+                <button
+                  onClick={() => setViewingItem(item)}
+                  className="text-gray-400 hover:text-orange-600"
+                  aria-label="View dish"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
               </div>
             </div>
           ))}
@@ -203,7 +282,7 @@ function MenuInventory() {
                 <th className="pb-3 font-bold">Dish</th>
                 <th className="pb-3 font-bold">Category</th>
                 <th className="pb-3 font-bold">Price</th>
-                <th className="pb-3 font-bold">Status</th>
+                <th className="pb-3 font-bold">Availability</th>
                 <th className="pb-3 font-bold">Actions</th>
               </tr>
             </thead>
@@ -228,17 +307,16 @@ function MenuInventory() {
                   </td>
                   <td className="py-3 font-semibold text-orange-600">{item.price}</td>
                   <td className="py-3">
-                    <StatusToggle active={item.active} onChange={() => toggleActive(item.id)} />
+                    <AvailabilityToggle status={item.status} onChange={() => cycleStatus(item.id)} />
                   </td>
                   <td className="py-3">
-                    <div className="flex items-center gap-3 text-gray-400">
-                      <button className="hover:text-orange-600" aria-label="Edit dish">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button className="hover:text-rose-500" aria-label="Delete dish">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setViewingItem(item)}
+                      className="text-gray-400 hover:text-orange-600"
+                      aria-label="View dish"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -289,19 +367,21 @@ function MenuInventory() {
           </button>
         </div>
       </div>
+
+      {viewingItem && <ViewDishModal item={viewingItem} onClose={() => setViewingItem(null)} />}
     </div>
   );
 }
 
 /* ─── Page ───────────────────────────────────────────────── */
-export default function MenuEditorPage() {
+export default function MenuPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">Menu Editor</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">Menu</h1>
           <p className="mt-1 text-sm text-gray-400">
-            Curate your restaurant's digital presence and signature dishes.
+            Monitor menu items and manage availability.
           </p>
         </div>
 

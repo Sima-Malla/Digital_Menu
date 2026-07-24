@@ -6,7 +6,6 @@ import {
   Bell,
   MoreVertical,
   AlertTriangle,
-  ShoppingBag,
   BedDouble,
   ChefHat,
   Volume2,
@@ -15,7 +14,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 
-type OrderType = "Dine-in" | "Room Service" | "Pickup";
+type OrderType = "Dine-in" | "Room Service";
 type OrderStatus = "new" | "preparing" | "ready" | "delayed";
 type PaymentStatus = "paid" | "unpaid" | "billed-to-room";
 
@@ -47,16 +46,16 @@ const PAYMENT_BADGE: Record<PaymentStatus, { label: string; className: string; i
 const TYPE_BADGE: Record<OrderType, { icon: React.ElementType; className: string }> = {
   "Dine-in": { icon: ChefHat, className: "bg-slate-100 text-slate-600" },
   "Room Service": { icon: BedDouble, className: "bg-blue-50 text-blue-600" },
-  Pickup: { icon: ShoppingBag, className: "bg-orange-50 text-orange-600" },
 };
 
 const initialOrders: Order[] = [
   {
     id: "ORD-2849",
-    type: "Pickup",
+    type: "Dine-in",
     status: "new",
     paymentStatus: "paid",
     createdMinsAgo: 2,
+    guestOrTable: "Table 6",
     items: [
       { qty: 2, name: "Truffle Risotto", price: 48 },
       { qty: 1, name: "Wagyu Slider Box", price: 32 },
@@ -82,10 +81,11 @@ const initialOrders: Order[] = [
   },
   {
     id: "ORD-2842",
-    type: "Pickup",
+    type: "Dine-in",
     status: "preparing",
     paymentStatus: "unpaid",
     createdMinsAgo: 18,
+    guestOrTable: "Table 2",
     items: [{ qty: 1, name: "Vegan Power Bowl" }],
   },
   {
@@ -204,7 +204,7 @@ export default function LiveOrdersPage() {
 
         {/* Type filter */}
         <div className="mb-6 flex flex-wrap items-center gap-2">
-          {(["All", "Dine-in", "Room Service", "Pickup"] as const).map((t) => (
+          {(["All", "Dine-in", "Room Service"] as const).map((t) => (
             <button
               key={t}
               type="button"
