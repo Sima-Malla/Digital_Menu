@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Search, MapPin, ShoppingCart, User, Menu, X } from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Explore", href: "/", active: true },
-  { label: "In-Room Dining", href: "/in-room-dining" },
+  { label: "Explore", href: "/Home", active: true },
+  { label: "Marketplace", href: "/Kitchens" },
   { label: "Rewards", href: "/rewards" },
 ];
 
@@ -29,13 +30,15 @@ export default function Nav({
         </button>
 
         {/* Brand */}
-        <Link href="/" className="flex shrink-0 flex-col leading-none">
-          <span className="font-[family-name:var(--font-fraunces)] text-[22px] font-semibold text-[#7A2E22]">
-            MenuTap
-          </span>
-          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#B87333]">
-            Nepali Kitchen
-          </span>
+        <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
         </Link>
 
         {/* Search (desktop) */}
