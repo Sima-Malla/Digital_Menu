@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   BarChart3,
   Building2,
@@ -135,7 +136,16 @@ export default function Sidebar() {
     <>
       {/* Mobile top bar */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b bg-white px-5 lg:hidden">
-        <h1 className="text-xl font-bold">Bistro Central</h1>
+         <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
         <button type="button" onClick={() => setOpen(true)} aria-label="Open menu">
           <Menu size={28} />
         </button>
@@ -167,7 +177,16 @@ export default function Sidebar() {
           </div>
 
           <div className="mt-2 lg:mt-5">
-            <h1 className="text-2xl font-bold sm:text-3xl">Bistro Central</h1>
+             <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
             <p className="text-sm text-gray-500">Super Admin Console</p>
           </div>
 

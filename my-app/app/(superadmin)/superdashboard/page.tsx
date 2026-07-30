@@ -15,8 +15,6 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-8">
       <Header />
-
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatsCard
           title="TOTAL PLATFORM REV"

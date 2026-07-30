@@ -28,8 +28,6 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
   const parsed = parseSignupFormData(formData);
 
   if (!parsed.success) {
-    // Collapse Zod's issues into { fieldName: firstMessage } so the form can
-    // show an error under each specific input, not just one banner at top.
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0]?.toString() ?? "form";
@@ -43,11 +41,9 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
   }
 
   const data = parsed.data;
-  const normalizedEmail = data.email.toLowerCase();
 
-  // Look up by email only — never select the password column back out.
   const existingUser = await prisma.users.findUnique({
-    where: { email: normalizedEmail },
+    where: { email: data.email },
     select: { id: true },
   });
 
@@ -59,18 +55,15 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
     };
   }
 
-  // Hash the password before it ever touches the database.
   const hashedPassword = await bcrypt.hash(data.password, 12);
 
   await prisma.users.create({
     data: {
       fullName: data.fullName,
-      email: normalizedEmail,
+      email: data.email,
       password: hashedPassword,
       role: data.role,
       phone: data.role === "staff" || data.role === "user" ? data.phone : null,
-      inviteCode: data.role === "staff" ? data.inviteCode : null,
-      staffRole: data.role === "staff" ? data.staffRole : null,
       businessName: data.role === "admin" ? data.businessName : null,
       businessType: data.role === "admin" ? data.businessType : null,
       businessAddress: data.role === "admin" ? data.businessAddress : null,
