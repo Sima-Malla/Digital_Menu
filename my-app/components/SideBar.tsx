@@ -14,15 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const navItems: { label: string; href: string; icon: LucideIcon }[] = [
-  { label: "Home", href: "/Home", icon: Home },
-  { label: "Menu", href: "/Menu", icon: UserSquare2 },
-  { label: "About Us", href: "/aboutus", icon: Info },
-  { label: "User Guide", href: "/UserGuidance", icon: Contact },
-  { label: "Rate & Review", href: "/Review", icon: Star },
-];
-
 const settingsItem = { label: "Settings", href: "/settings" };
+
 const settingsSubItems = [
   { label: "Profile", href: "/settings/profile" },
   { label: "Preferences", href: "/settings/preferences" },
@@ -31,11 +24,23 @@ const settingsSubItems = [
 export default function Sidebar({
   isOpen,
   onClose,
+  businessId,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  businessId?: string;
 }) {
   const pathname = usePathname();
+
+  const navItems: { label: string; href: string; icon: LucideIcon }[] = [
+    { label: "Home", href: "/Home", icon: Home },
+    ...(businessId
+      ? [{ label: "Menu", href: `/Menu/${businessId}`, icon: UserSquare2 }]
+      : []),
+    { label: "About Us", href: "/aboutus", icon: Info },
+    { label: "User Guide", href: "/UserGuidance", icon: Contact },
+    { label: "Rate & Review", href: "/Review", icon: Star },
+  ];
 
   // lock page scroll while drawer is open
   useEffect(() => {

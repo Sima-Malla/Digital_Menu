@@ -77,9 +77,16 @@ export default function Sidebar() {
             />
           </div>
           <div>
-            <p className="text-sm font-bold leading-tight text-orange-600">
-              GourmetFlow
-            </p>
+             <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
               Grand Plaza Heights
             </p>

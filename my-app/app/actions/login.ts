@@ -24,10 +24,10 @@ export type LoginState = {
 
 /* Keep in sync with whatever role strings your Users table actually stores. */
 const ROLE_REDIRECTS: Record<string, string> = {
-  admin: "/admin",
-  staff: "/staff",
-  user: "/dashboard",
-  superadmin: "/superadmin",
+  admin: "/dashboard",
+  staff: "/staffdashboard",
+  user: "/Home",
+  superadmin: "/superdashboard",
 };
 
 // Same message for every failure case — wrong email, wrong password, or no

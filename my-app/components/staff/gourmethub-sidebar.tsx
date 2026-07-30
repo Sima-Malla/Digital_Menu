@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutGrid,
@@ -31,7 +32,16 @@ export default function GourmetHubSidebar() {
     <>
       {/* Mobile top bar */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b bg-white px-5 lg:hidden">
-        <h1 className="text-lg font-bold text-orange-600">GourmetHub</h1>
+        <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
         <button type="button" onClick={() => setOpen(true)} aria-label="Open menu">
           <Menu size={26} />
         </button>
@@ -54,13 +64,31 @@ export default function GourmetHubSidebar() {
         `}
       >
         <div className="mb-6 flex items-center justify-between lg:hidden">
-          <span className="text-lg font-bold text-orange-600">GourmetHub</span>
+          <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close menu">
             <X />
           </button>
         </div>
 
-        <h1 className="hidden text-lg font-bold text-orange-600 lg:block">GourmetHub</h1>
+        <Link href="/" className="inline-flex shrink-0 items-center">
+          <Image
+            src="/logo.png"
+            alt="MenuTap"
+            width={120}
+            height={30}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </Link>
 
         {/* Profile */}
         <div className="mt-6 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
