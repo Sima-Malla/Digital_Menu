@@ -8,7 +8,6 @@ import { loginSchema } from "@/lib/validations/login";
 import { createSession } from "@/lib/session";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
 const prisma =
@@ -22,7 +21,6 @@ export type LoginState = {
   message: string;
 };
 
-/* Keep in sync with whatever role strings your Users table actually stores. */
 const ROLE_REDIRECTS: Record<string, string> = {
   admin: "/dashboard",
   staff: "/staffdashboard",
@@ -30,14 +28,7 @@ const ROLE_REDIRECTS: Record<string, string> = {
   superadmin: "/superdashboard",
 };
 
-// Same message for every failure case — wrong email, wrong password, or no
-// such account — so a client can't tell which part was wrong and enumerate
-// registered emails.
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
-
-// Used when no user is found, so bcrypt still does a comparison of roughly
-// the same cost either way. Without this, "no such user" responds faster
-// than "wrong password," and that timing gap alone leaks which emails exist.
 const DUMMY_HASH = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8gO7XxeH8XxeH8XxeH8XxeH8XxeH8u";
 
 export async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
@@ -54,27 +45,40 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const { password, remember } = parsed.data;
   const email = parsed.data.email.toLowerCase();
 
+  // 1. Pahila Users table (admin, user, superadmin) ma khojne
   const user = await prisma.users.findUnique({
     where: { email },
     select: { id: true, email: true, password: true, role: true },
   });
 
-  const storedPassword = user?.password ?? DUMMY_HASH;
+  if (user) {
+    const passwordMatches = await bcrypt.compare(password, user.password);
+    if (!passwordMatches) {
+      return { success: false, message: INVALID_CREDENTIALS_MESSAGE };
+    }
+
+    await createSession({ userId: user.id.toString(), role: user.role, email: user.email }, remember);
+    redirect(ROLE_REDIRECTS[user.role] ?? "/");
+  }
+
+  // 2. Users ma napaaye, Staff table ma khojne
+  const staff = await prisma.staff.findUnique({
+    where: { email },
+    select: { id: true, email: true, password: true, role: true },
+  });
+
+  const storedPassword = staff?.password ?? DUMMY_HASH;
   let passwordMatches = false;
 
   if (typeof storedPassword === "string" && storedPassword.startsWith("$2")) {
     passwordMatches = await bcrypt.compare(password, storedPassword);
-  } else {
-    passwordMatches = password === storedPassword;
   }
 
-  if (!user || !passwordMatches) {
+  if (!staff || !passwordMatches) {
+    // dubai table ma napaaye - timing consistent rakhna dummy compare bhaisakyo
     return { success: false, message: INVALID_CREDENTIALS_MESSAGE };
   }
 
-  await createSession({ userId: user.id.toString(), role: user.role, email: user.email }, remember);
-
-  // redirect() throws internally to hand control back to Next.js — this must
-  // NOT be wrapped in a try/catch, or that throw gets swallowed as an error.
-  redirect(ROLE_REDIRECTS[user.role] ?? "/");
+  await createSession({ userId: staff.id.toString(), role: "staff", email: staff.email }, remember);
+  redirect(ROLE_REDIRECTS["staff"]);
 }

@@ -13,65 +13,67 @@ datasource db {
 }
 
 model Users {
-  id              BigInt   @id @default(autoincrement())
-  fullName        String
-  email           String   @unique
-  password        String
-  role            String   @default("user")
-  phone           String?
- 
+  id       BigInt  @id @default(autoincrement())
+  fullName String
+  email    String  @unique
+  password String
+  role     String  @default("user")
+  phone    String?
+
   businessName    String?
   businessType    String?
   businessAddress String?
   businessPhone   String?
-  needsOnboarding     Boolean  @default(false)  
+  needsOnboarding Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  menuItems  MenuItem[]
-  specials   Special[]
-  locations  Location[]
-  orders     Order[]
+
+  menuItems MenuItem[]
+  specials  Special[]
+  locations Location[]
+  orders    Order[]
+  staff     Staff[]
 }
 
 model MenuItem {
-  id          BigInt    @id @default(autoincrement())
+  id          BigInt   @id @default(autoincrement())
   businessId  BigInt
   name        String
   description String?
   category    String
-  price       Decimal   @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)
   calories    Int?
   imageUrl    String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
- 
-  business    Users     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  specials    Special[]
-   orderItems OrderItem[]
- 
+  status      String   @default("available")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business   Users       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  specials   Special[]
+  orderItems OrderItem[]
+
   @@index([businessId])
 }
- 
+
 model Special {
   id           BigInt    @id @default(autoincrement())
   businessId   BigInt
   menuItemId   BigInt
   badgeLabel   String
-  scheduleType String    // "recurring" | "one-time"
-  weekday      Int?      // 0=Sunday..6=Saturday, used when scheduleType = "recurring"
+  scheduleType String // "recurring" | "one-time"
+  weekday      Int? // 0=Sunday..6=Saturday, used when scheduleType = "recurring"
   date         DateTime? // used when scheduleType = "one-time"
-  imageUrl     String?   // optional override photo; falls back to the dish's own photo
+  imageUrl     String? // optional override photo; falls back to the dish's own photo
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
- 
-  business     Users     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  menuItem     MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
- 
+
+  business Users    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
   @@index([businessId])
   @@index([menuItemId])
 }
-
 
 // Add these three models, plus the relation lines noted at the bottom for
 // Users and MenuItem.
@@ -83,7 +85,7 @@ model Customer {
   email     String?
   createdAt DateTime @default(now())
 
-  orders    Order[]
+  orders Order[]
 
   @@unique([phone]) // one Customer row per phone number, reused across visits
 }
@@ -91,35 +93,35 @@ model Customer {
 model Location {
   id         BigInt   @id @default(autoincrement())
   businessId BigInt
-  label      String   // e.g. "Table 4", "Pickup Counter"
+  label      String // e.g. "Table 4", "Pickup Counter"
   type       String   @default("dine-in") // "dine-in" | "pickup" | "delivery"
   status     String   @default("active")
   createdAt  DateTime @default(now())
 
-  business   Users    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  orders     Order[]
+  business Users   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orders   Order[]
 
   @@unique([businessId, label])
   @@index([businessId])
 }
 
 model Order {
-  id            BigInt      @id @default(autoincrement())
+  id            BigInt   @id @default(autoincrement())
   businessId    BigInt
   customerId    BigInt
   locationId    BigInt?
-  orderType     String      // "dine-in" | "pickup" | "delivery"
-  status        String      @default("new") // "new" | "preparing" | "ready" | "completed" | "delayed"
+  orderType     String // "dine-in" | "pickup" | "delivery"
+  status        String   @default("new") // "new" | "preparing" | "ready" | "completed" | "delayed"
   delayReason   String?
-  paymentStatus String      @default("unpaid") // "unpaid" | "paid"
-  totalAmount   Decimal     @db.Decimal(10, 2)
-  orderedAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  paymentStatus String   @default("unpaid") // "unpaid" | "paid"
+  totalAmount   Decimal  @db.Decimal(10, 2)
+  orderedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  business      Users       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customer      Customer    @relation(fields: [customerId], references: [id])
-  location      Location?   @relation(fields: [locationId], references: [id])
-  items         OrderItem[]
+  business Users       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id])
+  location Location?   @relation(fields: [locationId], references: [id])
+  items    OrderItem[]
 
   @@index([businessId])
   @@index([status])
@@ -129,16 +131,31 @@ model OrderItem {
   id         BigInt   @id @default(autoincrement())
   orderId    BigInt
   menuItemId BigInt
-  name       String   // snapshot of the dish name at order time
+  name       String // snapshot of the dish name at order time
   unitPrice  Decimal  @db.Decimal(10, 2) // snapshot of price at order time
   quantity   Int
-  notes      String?  // e.g. "No Parsley"
+  notes      String? // e.g. "No Parsley"
   createdAt  DateTime @default(now())
 
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@index([orderId])
 }
 
+model Staff {
+  id       BigInt  @id @default(autoincrement())
+  staffId  String? @unique
+  name     String  @default("Staff Member")
+  role     String  @default("staff")
+  phone    String?
+  email    String  @unique
+  password String
+  onDuty   Boolean @default(false)
 
+  businessId BigInt?
+  business   Users?  @relation(fields: [businessId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

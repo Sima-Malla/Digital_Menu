@@ -59,3 +59,29 @@ export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
 }
+
+
+// For middleware authentication
+
+export const COOKIE_NAME = SESSION_COOKIE;
+
+
+export async function verifySessionToken(
+  token: string
+): Promise<SessionPayload | null> {
+
+  try {
+
+    const { payload } = await jwtVerify(
+      token,
+      getSecret()
+    );
+
+    return payload as unknown as SessionPayload;
+
+  } catch {
+
+    return null;
+
+  }
+}
