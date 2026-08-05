@@ -16,7 +16,7 @@ const prisma =
 // converting to string/number first.
 export default async function MenuEditorPage() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "owner" && session.role !== "manager")) {
     redirect("/login");
   }
 

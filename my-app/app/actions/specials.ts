@@ -23,7 +23,7 @@ const MENU_EDITOR_PATH = "/admin/menu-editor";
 
 async function requireAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "owner" && session.role !== "manager")) {
     throw new Error("Not authorized.");
   }
   return session;
