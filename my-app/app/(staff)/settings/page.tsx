@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   UploadCloud,
@@ -10,19 +11,16 @@ import {
   Moon,
   Volume2,
   VolumeX,
+  Loader2,
 } from "lucide-react";
-
-type StaffRole = "Waiter" | "Chef" | "Manager";
-
-/* ─── Mock signed-in staff (replace with real auth/session data) ───────── */
-const currentStaff = {
-  name: "Jyoti Kunwar",
-  staffId: "STF-0142",
-  role: "Waiter" as StaffRole,
-  phone: "98XXXXXXXX",
-  email: "jyoti@email.com",
-  photo: "/vegmomo.jpg",
-};
+import {
+  getStaffProfile,
+  updateStaffPhoneAction,
+  changeStaffPasswordAction,
+  toggleDutyStatusAction,
+  StaffRole,
+  StaffProfile,
+} from "@/app/actions/staff-settings";
 
 /* ─── Role-specific notification sets ───────────────────────────────── */
 const ROLE_NOTIFICATIONS: Record<StaffRole, { key: string; label: string }[]> = {
@@ -45,11 +43,13 @@ const ROLE_NOTIFICATIONS: Record<StaffRole, { key: string; label: string }[]> = 
 };
 
 export default function StaffSettingsPage() {
+  const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const dark = theme === "dark";
 
   const [editingProfile, setEditingProfile] = useState(false);
-  const [phone, setPhone] = useState(currentStaff.phone);
+  const [phone, setPhone] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -57,20 +57,55 @@ export default function StaffSettingsPage() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [onDuty, setOnDuty] = useState(true);
+  const [soundOn, setSoundOn] = useState(true);
 
-  const notificationKeys = ROLE_NOTIFICATIONS[currentStaff.role];
+  // Database बाट Real Profile Data लोड गर्ने
+  useEffect(() => {
+    async function loadData() {
+      const data = await getStaffProfile();
+      if (data) {
+        setProfile(data);
+        setPhone(data.phone);
+        setOnDuty(data.onDuty);
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const role: StaffRole = profile?.role || "Waiter";
+  const notificationKeys = ROLE_NOTIFICATIONS[role] || ROLE_NOTIFICATIONS["Waiter"];
+
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(
     Object.fromEntries(notificationKeys.map((n) => [n.key, true]))
   );
-  const [soundOn, setSoundOn] = useState(true);
 
   function toggleNotif(key: string) {
     setNotifPrefs((p) => ({ ...p, [key]: !p[key] }));
   }
 
-  function handleChangePassword() {
+  // Duty Switch Toggle गर्ने
+  async function handleDutyToggle() {
+    const nextState = !onDuty;
+    setOnDuty(nextState);
+    await toggleDutyStatusAction(nextState);
+  }
+
+  // Phone Update गर्ने
+  async function handleSaveProfile() {
+    if (editingProfile) {
+      await updateStaffPhoneAction(phone);
+      setEditingProfile(false);
+    } else {
+      setEditingProfile(true);
+    }
+  }
+
+  // Password Change गर्ने (Real Backend Action)
+  async function handleChangePassword() {
     setPasswordError("");
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError("Please fill in all password fields.");
@@ -80,12 +115,20 @@ export default function StaffSettingsPage() {
       setPasswordError("New password and confirm password do not match.");
       return;
     }
-    // Wire this up to your real change-password API call.
-    setPasswordSaved(true);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => setPasswordSaved(false), 2000);
+
+    setChangingPassword(true);
+    const res = await changeStaffPasswordAction(currentPassword, newPassword);
+    setChangingPassword(false);
+
+    if (res.success) {
+      setPasswordSaved(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordSaved(false), 3000);
+    } else {
+      setPasswordError(res.message);
+    }
   }
 
   /* ─── Theme-aware class tokens ─────────────────────────── */
@@ -101,6 +144,15 @@ export default function StaffSettingsPage() {
     divider: dark ? "border-gray-800" : "border-gray-50",
   };
 
+  if (loading) {
+    return (
+      <div className={`flex h-96 flex-col items-center justify-center ${t.page}`}>
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <span className={`mt-2 text-sm font-medium ${t.subtext}`}>Loading Settings from Database...</span>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen ${t.page} pb-16 transition-colors duration-200`}>
       <main className="max-w-3xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
@@ -114,7 +166,7 @@ export default function StaffSettingsPage() {
           <Section title="My Profile" t={t}>
             <div className="flex items-center gap-4">
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                <Image src={currentStaff.photo} alt={currentStaff.name} fill className="object-cover" />
+                <Image src={profile?.photo || "/vegmomo.jpg"} alt={profile?.name || "Staff"} fill className="object-cover" />
               </div>
               {editingProfile && (
                 <label
@@ -131,19 +183,15 @@ export default function StaffSettingsPage() {
 
             <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <Field label="Name" t={t} className="sm:w-[47%]">
-                {editingProfile ? (
-                  <input type="text" defaultValue={currentStaff.name} className={`input ${t.inputBg}`} />
-                ) : (
-                  <p className={`text-sm font-semibold ${t.text}`}>{currentStaff.name}</p>
-                )}
+                <p className={`text-sm font-semibold ${t.text}`}>{profile?.name || "Staff Member"}</p>
               </Field>
 
               <Field label="Staff ID" t={t} className="sm:w-[47%]">
-                <p className={`text-sm font-semibold ${t.text}`}>{currentStaff.staffId}</p>
+                <p className={`text-sm font-semibold ${t.text}`}>{profile?.staffId || "STF-0101"}</p>
               </Field>
 
               <Field label="Role" t={t} className="sm:w-[47%]">
-                <p className={`text-sm font-semibold ${t.text}`}>{currentStaff.role}</p>
+                <p className={`text-sm font-semibold ${t.text}`}>{profile?.role || "Waiter"}</p>
                 <p className={`mt-0.5 text-[11px] ${t.subtext}`}>Set by your manager. Contact admin to change.</p>
               </Field>
 
@@ -156,18 +204,18 @@ export default function StaffSettingsPage() {
                     className={`input ${t.inputBg}`}
                   />
                 ) : (
-                  <p className={`text-sm font-semibold ${t.text}`}>{phone}</p>
+                  <p className={`text-sm font-semibold ${t.text}`}>{phone || "Not set"}</p>
                 )}
               </Field>
 
               <Field label="Email" t={t} className="w-full">
-                <p className={`text-sm font-semibold ${t.text}`}>{currentStaff.email}</p>
+                <p className={`text-sm font-semibold ${t.text}`}>{profile?.email}</p>
                 <p className={`mt-0.5 text-[11px] ${t.subtext}`}>Read-only. Contact admin to update your email.</p>
               </Field>
             </div>
 
             <button
-              onClick={() => setEditingProfile((v) => !v)}
+              onClick={handleSaveProfile}
               className="mt-5 rounded-full bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-orange-600"
             >
               {editingProfile ? "Save Profile" : "Edit Profile"}
@@ -200,8 +248,10 @@ export default function StaffSettingsPage() {
 
             <button
               onClick={handleChangePassword}
-              className="mt-4 rounded-full bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-orange-600"
+              disabled={changingPassword}
+              className="mt-4 flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-orange-600 disabled:opacity-60"
             >
+              {changingPassword && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Change Password
             </button>
           </Section>
@@ -213,7 +263,7 @@ export default function StaffSettingsPage() {
                 <span className={`h-2.5 w-2.5 rounded-full ${onDuty ? "bg-emerald-500" : "bg-gray-400"}`} />
                 <p className={`text-sm font-semibold ${t.text}`}>{onDuty ? "On Duty" : "Off Duty"}</p>
               </div>
-              <SwitchToggle checked={onDuty} onChange={() => setOnDuty((v) => !v)} />
+              <SwitchToggle checked={onDuty} onChange={handleDutyToggle} />
             </div>
             <p className={`mt-2 text-[11px] ${t.subtext}`}>
               Set yourself off-duty when your shift ends so new orders aren't assigned to you.
@@ -221,12 +271,12 @@ export default function StaffSettingsPage() {
           </Section>
 
           {/* Notifications */}
-          <Section title="Notifications" description={`Alerts relevant to your role: ${currentStaff.role}`} t={t}>
+          <Section title="Notifications" description={`Alerts relevant to your role: ${role}`} t={t}>
             <div className="flex flex-col">
               {notificationKeys.map((n) => (
                 <div key={n.key} className="flex items-center justify-between py-2.5">
                   <p className={`text-sm ${t.body}`}>{n.label}</p>
-                  <SwitchToggle checked={notifPrefs[n.key]} onChange={() => toggleNotif(n.key)} />
+                  <SwitchToggle checked={notifPrefs[n.key] ?? true} onChange={() => toggleNotif(n.key)} />
                 </div>
               ))}
 

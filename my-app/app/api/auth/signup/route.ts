@@ -1,10 +1,9 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
-};
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
@@ -28,8 +27,6 @@ export async function POST(request: Request) {
       email,
       password,
       phone,
-      inviteCode,
-      staffRole,
       business,
     } = body as {
       role?: string;
@@ -37,8 +34,6 @@ export async function POST(request: Request) {
       email?: string;
       password?: string;
       phone?: string;
-      inviteCode?: string;
-      staffRole?: string;
       business?: {
         name?: string;
         type?: string;
@@ -54,8 +49,17 @@ export async function POST(request: Request) {
       );
     }
 
+    if (password.length < 8) {
+      return NextResponse.json(
+        { message: "Password must be at least 8 characters." },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
     const existingUser = await prisma.users.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -65,19 +69,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const createdUser = await prisma.users.create({
       data: {
-        fullName,
-        email,
-        password,
+        fullName: fullName.trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
         role,
-        phone: phone ?? null,
-        inviteCode: inviteCode ?? null,
-        staffRole: staffRole ?? null,
-        businessName: business?.name ?? null,
-        businessType: business?.type ?? null,
-        businessAddress: business?.address ?? null,
-        businessPhone: business?.phone ?? null,
+        phone: phone?.trim() ?? null,
+        businessName: business?.name?.trim() ?? null,
+        businessType: business?.type?.trim() ?? null,
+        businessAddress: business?.address?.trim() ?? null,
+        businessPhone: business?.phone?.trim() ?? null,
       },
     });
 
@@ -85,7 +89,7 @@ export async function POST(request: Request) {
       {
         message: "Account created successfully.",
         user: {
-          id: createdUser.id,
+          id: createdUser.id.toString(),
           fullName: createdUser.fullName,
           email: createdUser.email,
           role: createdUser.role,
