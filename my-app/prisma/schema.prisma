@@ -143,19 +143,4 @@ model OrderItem {
   @@index([orderId])
 }
 
-model Staff {
-  id       BigInt  @id @default(autoincrement())
-  staffId  String? @unique
-  name     String  @default("Staff Member")
-  role     String  @default("staff")
-  phone    String?
-  email    String  @unique
-  password String
-  onDuty   Boolean @default(false)
 
-  businessId BigInt?
-  business   Users?  @relation(fields: [businessId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}

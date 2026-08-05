@@ -1,31 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Search, LayoutGrid, List, Eye, Pencil, Trash2,
-  Mail, Phone, DollarSign, MoreHorizontal, X, Download,
-  Plus, Building2, CheckCircle2, Clock3, Ban,
+  Mail, Phone, DollarSign, X,
+  Plus, Building2, CheckCircle2, Clock3, Ban, Loader2,
 } from "lucide-react";
-
-const initialBusinesses = [
-  { id: 1, logo: "🍔", name: "Burger House", owner: "Ram Sharma", email: "ram@gmail.com", phone: "9800000001", plan: "Premium", status: "Active", revenue: "Rs. 65,000" },
-  { id: 2, logo: "🍕", name: "Pizza Hub", owner: "Sita KC", email: "sita@gmail.com", phone: "9800000002", plan: "Basic", status: "Pending", revenue: "Rs. 28,000" },
-  { id: 3, logo: "☕", name: "Coffee Corner", owner: "Hari Bhandari", email: "hari@gmail.com", phone: "9800000003", plan: "Premium", status: "Active", revenue: "Rs. 91,000" },
-  { id: 4, logo: "🍜", name: "Momo Station", owner: "Anil Rai", email: "anil@gmail.com", phone: "9800000004", plan: "Standard", status: "Suspended", revenue: "Rs. 14,500" },
-];
-
-type Business = typeof initialBusinesses[0];
+import {
+  getSuperadminBusinesses,
+  createBusinessAction,
+  updateBusinessAction,
+  deleteBusinessAction,
+  SuperadminBusiness,
+} from "@/app/actions/superadmin-businesses";
 
 export default function BusinessesPage() {
-  const [businesses, setBusinesses] = useState<Business[]>(initialBusinesses);
+  const [businesses, setBusinesses] = useState<SuperadminBusiness[]>([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"list" | "grid">("list");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [plan, setPlan] = useState("");
-  const [viewItem, setViewItem] = useState<Business | null>(null);
-  const [editForm, setEditForm] = useState<Business | null>(null);
+  const [viewItem, setViewItem] = useState<SuperadminBusiness | null>(null);
+  const [editForm, setEditForm] = useState<SuperadminBusiness | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "" });
+  const [addForm, setAddForm] = useState({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "Rs. 0" });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Database बाट Real Businesses Data लोड गर्ने
+  async function loadData() {
+    setLoading(true);
+    const data = await getSuperadminBusinesses();
+    setBusinesses(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filtered = useMemo(() =>
     businesses.filter((b) => {
@@ -41,21 +53,39 @@ export default function BusinessesPage() {
     [businesses, search, status, plan]
   );
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!addForm.name || !addForm.owner || !addForm.email) return;
-    setBusinesses((prev) => [...prev, { ...addForm, id: Date.now() }]);
-    setAddForm({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "" });
-    setAddOpen(false);
+    setSubmitting(true);
+    const res = await createBusinessAction(addForm);
+    setSubmitting(false);
+
+    if (res.success) {
+      setAddForm({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active", revenue: "Rs. 0" });
+      setAddOpen(false);
+      loadData();
+    } else {
+      alert(res.message);
+    }
   }
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
+    if (!confirm("Are you sure you want to delete this business?")) return;
     setBusinesses((prev) => prev.filter((b) => b.id !== id));
+    await deleteBusinessAction(id);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!editForm) return;
-    setBusinesses((prev) => prev.map((b) => (b.id === editForm.id ? editForm : b)));
-    setEditForm(null);
+    setSubmitting(true);
+    const res = await updateBusinessAction(editForm.id, editForm);
+    setSubmitting(false);
+
+    if (res.success) {
+      setBusinesses((prev) => prev.map((b) => (b.id === editForm.id ? editForm : b)));
+      setEditForm(null);
+    } else {
+      alert(res.message);
+    }
   }
 
   const statusColor = (s: string) =>
@@ -63,14 +93,22 @@ export default function BusinessesPage() {
     s === "Pending" ? "bg-yellow-100 text-yellow-700" :
     "bg-red-100 text-red-700";
 
+  if (loading) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-[#F97316]" />
+        <span className="mt-2 text-sm font-medium text-gray-500">Loading Businesses from Database...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Business Management</h1>
-          <p className="mt-1 text-sm text-gray-500">Oversee and manage registered restaurants and multi-location businesses.</p>
+          <p className="mt-1 text-sm text-gray-500">Oversee and manage registered restaurants from Database.</p>
         </div>
         <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-5 py-3 text-sm font-semibold text-white hover:bg-[#e06610] transition">
           <Plus size={18} /> Add New Business
@@ -80,10 +118,10 @@ export default function BusinessesPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { title: "Total Businesses", value: "120", subtitle: "+4% from last month", icon: Building2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
-          { title: "Active", value: "95", subtitle: "Verified & Operating", icon: CheckCircle2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
-          { title: "Pending", value: "15", subtitle: "Awaiting Approval", icon: Clock3, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
-          { title: "Suspended", value: "10", subtitle: "Policy Violations", icon: Ban, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Total Businesses", value: businesses.length.toString(), subtitle: "Registered in system", icon: Building2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Active", value: businesses.filter(b => b.status === "Active").length.toString(), subtitle: "Verified & Operating", icon: CheckCircle2, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Pending", value: businesses.filter(b => b.status === "Pending").length.toString(), subtitle: "Awaiting Approval", icon: Clock3, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
+          { title: "Suspended", value: businesses.filter(b => b.status === "Suspended").length.toString(), subtitle: "Policy Violations", icon: Ban, color: "text-[#B54A00]", bg: "bg-[#F6F4F2]" },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -139,9 +177,6 @@ export default function BusinessesPage() {
                 <LayoutGrid size={18} /> Grid
               </button>
             </div>
-            <button className="flex h-11 items-center gap-2 rounded-xl border border-[#E8C7B4] px-4 text-sm hover:bg-[#F6F4F2] transition">
-              <Download size={18} /> Export
-            </button>
           </div>
         </div>
       </div>
@@ -194,12 +229,11 @@ export default function BusinessesPage() {
                         <button onClick={() => setViewItem(b)} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Eye size={18} /></button>
                         <button onClick={() => setEditForm({ ...b })} className="rounded-lg p-2 hover:bg-[#F97316]/10 hover:text-[#F97316] transition"><Pencil size={18} /></button>
                         <button onClick={() => handleDelete(b.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-100 transition"><Trash2 size={18} /></button>
-                        <button className="rounded-lg p-2 hover:bg-gray-100 transition"><MoreHorizontal size={18} /></button>
                       </div>
                     </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={7} className="py-16 text-center text-gray-500">No businesses found.</td></tr>
+                  <tr><td colSpan={7} className="py-16 text-center text-gray-500">No businesses found in database.</td></tr>
                 )}
               </tbody>
             </table>
@@ -283,7 +317,7 @@ export default function BusinessesPage() {
               <button onClick={() => setEditForm(null)}><X size={22} /></button>
             </div>
             <div className="space-y-4 p-6">
-              {(["name", "owner", "email", "phone", "revenue"] as const).map((field) => (
+              {(["name", "owner", "email", "phone"] as const).map((field) => (
                 <div key={field}>
                   <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
                   <input
@@ -312,11 +346,14 @@ export default function BusinessesPage() {
             </div>
             <div className="flex justify-end gap-3 border-t p-6">
               <button onClick={() => setEditForm(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
-              <button onClick={handleSave} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition">Save Changes</button>
+              <button onClick={handleSave} disabled={submitting} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition disabled:opacity-50">
+                {submitting ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Add Business Modal */}
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -330,7 +367,7 @@ export default function BusinessesPage() {
                 <label className="mb-1 block text-sm font-medium text-gray-700">Logo Emoji</label>
                 <input value={addForm.logo} onChange={(e) => setAddForm({ ...addForm, logo: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" placeholder="e.g. 🍔" />
               </div>
-              {(["name", "owner", "email", "phone", "revenue"] as const).map((field) => (
+              {(["name", "owner", "email", "phone"] as const).map((field) => (
                 <div key={field}>
                   <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
                   <input value={addForm[field]} onChange={(e) => setAddForm({ ...addForm, [field]: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" />
@@ -355,7 +392,9 @@ export default function BusinessesPage() {
             </div>
             <div className="flex justify-end gap-3 border-t p-6">
               <button onClick={() => setAddOpen(false)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
-              <button onClick={handleAdd} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition">Add Business</button>
+              <button onClick={handleAdd} disabled={submitting} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition disabled:opacity-50">
+                {submitting ? "Adding..." : "Add Business"}
+              </button>
             </div>
           </div>
         </div>
