@@ -82,7 +82,7 @@ export async function createMenuItemAction(
 }
 
 export async function updateMenuItemAction(
-  _prevState: MenuItemState,
+  _prevState: MenuItemState, 
   formData: FormData
 ): Promise<MenuItemState> {
   const session = await requireAdmin().catch(() => null);

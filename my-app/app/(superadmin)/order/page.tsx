@@ -11,7 +11,7 @@ const allOrders = [
   { id: "#ORD-1005", restaurant: "Bistro Central", customer: "Michael Scott", type: "Dine In", amount: "$88.40", status: "Completed", time: "11:00 AM" },
   { id: "#ORD-1006", restaurant: "Pizza House", customer: "Sarah Parker", type: "Room service", amount: "$37.20", status: "Preparing", time: "11:08 AM" },
   { id: "#ORD-1007", restaurant: "Burger Point", customer: "Daniel Kim", type: "Take Away", amount: "$24.90", status: "Pending", time: "11:16 AM" },
-  { id: "#ORD-1008", restaurant: "Food Hub", customer: "Olivia Martin", type: "DeliveryDine In", amount: "$72.10", status: "Completed", time: "11:35 AM" },
+  { id: "#ORD-1008", restaurant: "Food Hub", customer: "Olivia Martin", type: "Dine In", amount: "$72.10", status: "Completed", time: "11:35 AM" },
 ];
 
 const stats = [

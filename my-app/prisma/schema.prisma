@@ -59,12 +59,12 @@ model SuperAdmin {
 }
 
 model MenuItem {
-  id          BigInt    @id @default(autoincrement())
+  id          BigInt   @id @default(autoincrement())
   businessId  BigInt
   name        String
   description String?
   category    String
-  price       Decimal   @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)
   calories    Int?
   imageUrl    String?
   isActive    Boolean   @default(true)
@@ -77,16 +77,16 @@ model MenuItem {
  
   @@index([businessId])
 }
- 
+
 model Special {
   id           BigInt    @id @default(autoincrement())
   businessId   BigInt
   menuItemId   BigInt
   badgeLabel   String
-  scheduleType String    // "recurring" | "one-time"
-  weekday      Int?      // 0=Sunday..6=Saturday, used when scheduleType = "recurring"
+  scheduleType String // "recurring" | "one-time"
+  weekday      Int? // 0=Sunday..6=Saturday, used when scheduleType = "recurring"
   date         DateTime? // used when scheduleType = "one-time"
-  imageUrl     String?   // optional override photo; falls back to the dish's own photo
+  imageUrl     String? // optional override photo; falls back to the dish's own photo
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
  
@@ -96,7 +96,6 @@ model Special {
   @@index([businessId])
   @@index([menuItemId])
 }
-
 
 // Add these three models, plus the relation lines noted at the bottom for
 // Users and MenuItem.
@@ -108,7 +107,7 @@ model Customer {
   email     String?
   createdAt DateTime @default(now())
 
-  orders    Order[]
+  orders Order[]
 
   @@unique([phone]) // one Customer row per phone number, reused across visits
 }
@@ -116,7 +115,7 @@ model Customer {
 model Location {
   id         BigInt   @id @default(autoincrement())
   businessId BigInt
-  label      String   // e.g. "Table 4", "Pickup Counter"
+  label      String // e.g. "Table 4", "Pickup Counter"
   type       String   @default("dine-in") // "dine-in" | "pickup" | "delivery"
   status     String   @default("active")
   createdAt  DateTime @default(now())
@@ -129,17 +128,17 @@ model Location {
 }
 
 model Order {
-  id            BigInt      @id @default(autoincrement())
+  id            BigInt   @id @default(autoincrement())
   businessId    BigInt
   customerId    BigInt
   locationId    BigInt?
-  orderType     String      // "dine-in" | "pickup" | "delivery"
-  status        String      @default("new") // "new" | "preparing" | "ready" | "completed" | "delayed"
+  orderType     String // "dine-in" | "pickup" | "delivery"
+  status        String   @default("new") // "new" | "preparing" | "ready" | "completed" | "delayed"
   delayReason   String?
-  paymentStatus String      @default("unpaid") // "unpaid" | "paid"
-  totalAmount   Decimal     @db.Decimal(10, 2)
-  orderedAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  paymentStatus String   @default("unpaid") // "unpaid" | "paid"
+  totalAmount   Decimal  @db.Decimal(10, 2)
+  orderedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
 business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer      Customer    @relation(fields: [customerId], references: [id])
@@ -154,16 +153,15 @@ model OrderItem {
   id         BigInt   @id @default(autoincrement())
   orderId    BigInt
   menuItemId BigInt
-  name       String   // snapshot of the dish name at order time
+  name       String // snapshot of the dish name at order time
   unitPrice  Decimal  @db.Decimal(10, 2) // snapshot of price at order time
   quantity   Int
-  notes      String?  // e.g. "No Parsley"
+  notes      String? // e.g. "No Parsley"
   createdAt  DateTime @default(now())
 
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@index([orderId])
 }
-
 

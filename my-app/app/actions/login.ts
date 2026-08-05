@@ -8,7 +8,6 @@ import { loginSchema } from "@/lib/validations/login";
 import { createSession } from "@/lib/session";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
 const prisma =
@@ -33,9 +32,6 @@ const ROLE_REDIRECTS: Record<string, string> = {
   superadmin: "/superdashboard",
 };
 
-// Same message for every failure case — wrong email, wrong password, or no
-// such account — so a client can't tell which part was wrong and enumerate
-// registered emails.
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
 
 // Used when no matching row is found in either table, so bcrypt still does
@@ -79,8 +75,6 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   let passwordMatches = false;
   if (typeof storedPassword === "string" && storedPassword.startsWith("$2")) {
     passwordMatches = await bcrypt.compare(password, storedPassword);
-  } else {
-    passwordMatches = password === storedPassword;
   }
 
   if (!account || !passwordMatches) {
