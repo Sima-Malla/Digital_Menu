@@ -70,8 +70,6 @@ export default function Sidebar({
         aria-hidden={!isOpen}
       >
         <div>
-       
-
           {/* Nav */}
           <nav className="mt-10 flex flex-col gap-1" aria-label="Primary">
             {navItems.map((item) => {

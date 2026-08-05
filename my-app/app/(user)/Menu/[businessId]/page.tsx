@@ -19,8 +19,8 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
     notFound();
   }
 
-  const business = await prisma.users.findFirst({
-    where: { id: businessIdBig!, role: "admin" },
+  const business = await prisma.business.findUnique({
+    where: { id: businessIdBig! },
     select: { id: true, businessName: true, businessType: true, businessAddress: true },
   });
 

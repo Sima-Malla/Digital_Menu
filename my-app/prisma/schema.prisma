@@ -12,25 +12,50 @@ datasource db {
   provider = "postgresql"
 }
 
-model Users {
+model Business {
   id              BigInt   @id @default(autoincrement())
-  fullName        String
-  email           String   @unique
-  password        String
-  role            String   @default("user")
-  phone           String?
- 
-  businessName    String?
+  businessName    String
   businessType    String?
   businessAddress String?
   businessPhone   String?
-  needsOnboarding     Boolean  @default(false)  
+  needsOnboarding Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  staff      Staff[]
   menuItems  MenuItem[]
   specials   Special[]
   locations  Location[]
   orders     Order[]
+}
+
+// Add these two fields to your existing Staff model:
+
+model Staff {
+  id         BigInt   @id @default(autoincrement())
+  businessId BigInt
+  fullName   String
+  email      String   @unique
+  password   String
+  role       String   @default("staff") // "owner" | "manager" | "staff" — PERMISSION level
+  position   String   @default("Waiter") // <-- new: job title, e.g. "Chef", "Host" — DISPLAY only
+  isActive   Boolean  @default(true)      // <-- new
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
+
+
+model SuperAdmin {
+  id        BigInt   @id @default(autoincrement())
+  fullName  String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
 }
 
 model MenuItem {
@@ -46,7 +71,7 @@ model MenuItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
  
-  business    Users     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+ business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   specials    Special[]
    orderItems OrderItem[]
  
@@ -65,7 +90,7 @@ model Special {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
  
-  business     Users     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   menuItem     MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
  
   @@index([businessId])
@@ -96,7 +121,7 @@ model Location {
   status     String   @default("active")
   createdAt  DateTime @default(now())
 
-  business   Users    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   orders     Order[]
 
   @@unique([businessId, label])
@@ -116,7 +141,7 @@ model Order {
   orderedAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  business      Users       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer      Customer    @relation(fields: [customerId], references: [id])
   location      Location?   @relation(fields: [locationId], references: [id])
   items         OrderItem[]

@@ -22,11 +22,14 @@ export type LoginState = {
   message: string;
 };
 
-/* Keep in sync with whatever role strings your Users table actually stores. */
+/* Staff.role is a permission level: "owner" | "manager" | "staff".
+   SuperAdmin is a fully separate table (no businessId) — checked as a
+   fallback if no Staff row matches the email. Customer has no password
+   column (customers aren't login accounts). */
 const ROLE_REDIRECTS: Record<string, string> = {
-  admin: "/dashboard",
+  owner: "/dashboard",
+  manager: "/staffdashboard",
   staff: "/staffdashboard",
-  user: "/Home",
   superadmin: "/superdashboard",
 };
 
@@ -35,9 +38,10 @@ const ROLE_REDIRECTS: Record<string, string> = {
 // registered emails.
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
 
-// Used when no user is found, so bcrypt still does a comparison of roughly
-// the same cost either way. Without this, "no such user" responds faster
-// than "wrong password," and that timing gap alone leaks which emails exist.
+// Used when no matching row is found in either table, so bcrypt still does
+// a comparison of roughly the same cost either way. Without this, "no such
+// account" responds faster than "wrong password," and that timing gap
+// alone leaks which emails exist.
 const DUMMY_HASH = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8gO7XxeH8XxeH8XxeH8XxeH8XxeH8u";
 
 export async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
@@ -54,27 +58,41 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const { password, remember } = parsed.data;
   const email = parsed.data.email.toLowerCase();
 
-  const user = await prisma.users.findUnique({
+  const staffMember = await prisma.staff.findUnique({
     where: { email },
     select: { id: true, email: true, password: true, role: true },
   });
 
-  const storedPassword = user?.password ?? DUMMY_HASH;
-  let passwordMatches = false;
+  // Only check SuperAdmin if no Staff row matched — an email should never
+  // legitimately belong to both, so this ordering doesn't leak anything.
+  const superAdmin = staffMember
+    ? null
+    : await prisma.superAdmin.findUnique({
+        where: { email },
+        select: { id: true, email: true, password: true },
+      });
 
+  const account = staffMember ?? superAdmin;
+  const role = staffMember ? staffMember.role : "superadmin";
+  const storedPassword = account?.password ?? DUMMY_HASH;
+
+  let passwordMatches = false;
   if (typeof storedPassword === "string" && storedPassword.startsWith("$2")) {
     passwordMatches = await bcrypt.compare(password, storedPassword);
   } else {
     passwordMatches = password === storedPassword;
   }
 
-  if (!user || !passwordMatches) {
+  if (!account || !passwordMatches) {
     return { success: false, message: INVALID_CREDENTIALS_MESSAGE };
   }
 
-  await createSession({ userId: user.id.toString(), role: user.role, email: user.email }, remember);
+  await createSession(
+    { userId: account.id.toString(), role, email: account.email },
+    remember
+  );
 
   // redirect() throws internally to hand control back to Next.js — this must
   // NOT be wrapped in a try/catch, or that throw gets swallowed as an error.
-  redirect(ROLE_REDIRECTS[user.role] ?? "/");
+  redirect(ROLE_REDIRECTS[role] ?? "/dashboard");
 }
