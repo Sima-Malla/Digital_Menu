@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { getSession } from "@/lib/session";
 import MarketplaceContent from "./MarketplaceContent";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -35,5 +36,7 @@ export default async function MarketplacePage() {
     new Set(serialized.map((b) => b.type).filter(Boolean))
   );
 
-  return <MarketplaceContent businesses={serialized} businessTypes={businessTypes} />;
+  const session = await getSession();
+
+  return <MarketplaceContent businesses={serialized} businessTypes={businessTypes} session={session} />;
 }

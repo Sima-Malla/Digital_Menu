@@ -54,9 +54,18 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const { password, remember } = parsed.data;
   const email = parsed.data.email.toLowerCase();
 
+  // Pull the business relation too, so we can check needsOnboarding in the
+  // same query instead of a second round trip.
   const staffMember = await prisma.staff.findUnique({
     where: { email },
-    select: { id: true, email: true, password: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      password: true,
+      role: true,
+      businessId: true,
+      business: { select: { needsOnboarding: true } },
+    },
   });
 
   // Only check SuperAdmin if no Staff row matched — an email should never
@@ -82,9 +91,23 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   }
 
   await createSession(
-    { userId: account.id.toString(), role, email: account.email },
+    {
+      userId: account.id.toString(),
+      role,
+      email: account.email,
+      // staffMember is null for SuperAdmin logins, and SuperAdmin has no
+      // business — SessionPayload.businessId is `string | null`, so we
+      // coalesce `undefined` to `null` explicitly rather than leaving it out.
+      businessId: staffMember?.businessId?.toString() ?? null,
+    },
     remember
   );
+
+  // Staff/owners whose business hasn't completed setup get sent to
+  // onboarding first, before ever reaching their normal dashboard.
+  if (staffMember?.business?.needsOnboarding) {
+    redirect("/onboarding");
+  }
 
   // redirect() throws internally to hand control back to Next.js — this must
   // NOT be wrapped in a try/catch, or that throw gets swallowed as an error.

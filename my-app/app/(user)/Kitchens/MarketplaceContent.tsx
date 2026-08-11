@@ -4,16 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import {
-  Search,
-  MapPin,
-  ShoppingCart,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  X,
-  Heart,
-} from "lucide-react";
+import type { SessionPayload } from "@/lib/session";
+import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
 
 // Color the business-type badge consistently per type so cards feel
 // as colorful as the old mock UI, without inventing per-business data.
@@ -58,10 +50,13 @@ function sortBusinesses(list: BusinessListing[], key: SortKey): BusinessListing[
 export default function MarketplaceContent({
   businesses,
   businessTypes,
+  session,
 }: {
   businesses: BusinessListing[];
   businessTypes: string[];
+  session: SessionPayload | null;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recommended");
@@ -104,38 +99,11 @@ export default function MarketplaceContent({
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] text-[#231C16]">
-      {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-black/5 bg-white px-6 py-4 md:px-10">
-        <span className="text-xl font-extrabold text-orange-700 whitespace-nowrap">GourmetFlow</span>
-
-        <div className="flex h-10 flex-1 min-w-[200px] max-w-xl items-center gap-2 rounded-lg border border-black/10 bg-[#F7F5F0] px-3">
-          <Search className="h-4 w-4 shrink-0 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search Marketplace"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-          />
-          <div className="flex items-center gap-1 whitespace-nowrap border-l border-black/10 pl-3 text-xs text-gray-500">
-            <MapPin className="h-3.5 w-3.5" />
-            Kathmandu
-          </div>
-        </div>
-
-        <Nav />
-
-        <div className="flex items-center gap-5">
-          <div className="relative">
-            <ShoppingCart className="h-5 w-5" />
-          </div>
-          <button className="rounded-full bg-red-900 px-5 py-2 text-xs font-bold text-white hover:bg-red-800">
-            Sign In
-          </button>
-        </div>
-      </header>
+      <Nav
+        session={session}
+        menuOpen={sidebarOpen}
+        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       {/* Hero */}
       <div className="px-6 pb-5 pt-9 md:px-10">

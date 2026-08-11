@@ -7,7 +7,6 @@ import { onboardingSchema } from "@/lib/validations/onboarding";
 import { getSession, destroySession } from "@/lib/session";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
 const prisma =
@@ -35,8 +34,14 @@ export async function completeOnboardingAction(
     return { success: false, message: "Your session has expired. Please log in again." };
   }
 
-  if (session.role !== "staff" && session.role !== "admin") {
+  // Only Staff accounts (owner/manager/staff) go through onboarding.
+  // SuperAdmin has no businessId and never needs this flow.
+  if (!["owner", "manager", "staff"].includes(session.role)) {
     return { success: false, message: "Onboarding isn't available for this account type." };
+  }
+
+  if (!session.businessId) {
+    return { success: false, message: "No business is associated with this account." };
   }
 
   const parsed = onboardingSchema.safeParse({
@@ -56,8 +61,8 @@ export async function completeOnboardingAction(
 
   const { email, password } = parsed.data;
 
-  // If they're changing to a new email, make sure no OTHER account owns it.
-  const existing = await prisma.users.findUnique({
+  // If they're changing to a new email, make sure no OTHER Staff row owns it.
+  const existing = await prisma.staff.findUnique({
     where: { email },
     select: { id: true },
   });
@@ -72,13 +77,20 @@ export async function completeOnboardingAction(
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  await prisma.users.update({
+  // Update this staff member's own login credentials.
+  await prisma.staff.update({
     where: { id: BigInt(session.userId) },
     data: {
       email,
       password: hashedPassword,
-      needsOnboarding: false,
     },
+  });
+
+  // needsOnboarding lives on Business, not Staff — clear it there so the
+  // whole business (and its other staff) skip onboarding going forward.
+  await prisma.business.update({
+    where: { id: BigInt(session.businessId) },
+    data: { needsOnboarding: false },
   });
 
   // Force re-authentication with the new credentials — the temporary

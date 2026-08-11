@@ -15,6 +15,7 @@ function getSecret() {
 
 export type SessionPayload = {
   userId: string;
+  businessId: string | null; // null for SuperAdmin, who isn't tied to one business
   role: string;
   email: string;
 };

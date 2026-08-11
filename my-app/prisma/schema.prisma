@@ -18,7 +18,6 @@ model Business {
   businessType    String?
   businessAddress String?
   businessPhone   String?
-  needsOnboarding Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -29,26 +28,24 @@ model Business {
   orders     Order[]
 }
 
-// Add these two fields to your existing Staff model:
-
 model Staff {
-  id         BigInt   @id @default(autoincrement())
-  businessId BigInt
-  fullName   String
-  email      String   @unique
-  password   String
-  role       String   @default("staff") // "owner" | "manager" | "staff" — PERMISSION level
-  position   String   @default("Waiter") // <-- new: job title, e.g. "Chef", "Host" — DISPLAY only
-  isActive   Boolean  @default(true)      // <-- new
-  phone      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              BigInt   @id @default(autoincrement())
+  businessId      BigInt
+  fullName        String
+  email           String   @unique
+  password        String
+  role            String   @default("staff") // "owner" | "manager" | "staff" — PERMISSION level
+  position        String   @default("Waiter") // job title, e.g. "Chef", "Host" — DISPLAY only
+  isActive        Boolean  @default(true)
+  needsOnboarding Boolean  @default(true) 
+  phone           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }
-
 
 model SuperAdmin {
   id        BigInt   @id @default(autoincrement())

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { getSession } from "@/lib/session";
 import MenuContent from "./MenuContent";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -42,6 +43,8 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
 
   const categories = Array.from(new Set(serializedItems.map((i) => i.category)));
 
+  const session = await getSession();
+
   return (
     <MenuContent
       businessId={business.id.toString()}
@@ -50,6 +53,7 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
       businessAddress={business.businessAddress ?? ""}
       categories={categories}
       items={serializedItems}
+      session={session}
     />
   );
 }

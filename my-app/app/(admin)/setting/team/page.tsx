@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { getSession } from "@/lib/session";
+import Sidebar from "@/components/HotelAdmin/Sidebar";
 import TeamClient from "./TeamClient";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -55,5 +56,12 @@ export default async function TeamPage() {
     };
   });
 
-  return <TeamClient initialStaff={serialized} />;
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar />
+      <main className="flex-1 p-6 lg:p-10">
+        <TeamClient initialStaff={serialized} />
+      </main>
+    </div>
+  );
 }

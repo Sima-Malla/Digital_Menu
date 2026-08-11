@@ -28,7 +28,12 @@ async function requireAdmin() {
   if (!session || (session.role !== "owner" && session.role !== "manager")) {
     throw new Error("Not authorized.");
   }
-  return session;
+  const staff = await prisma.staff.findUnique({
+    where: { id: BigInt(session.userId) },
+    select: { businessId: true },
+  });
+  if (!staff) throw new Error("Staff record not found.");
+  return { ...session, businessId: staff.businessId };
 }
 
 export async function createMenuItemAction(
@@ -67,7 +72,7 @@ export async function createMenuItemAction(
 
   await prisma.menuItem.create({
     data: {
-      businessId: BigInt(session.userId),
+      businessId: session.businessId,
       name: parsed.data.name,
       category: parsed.data.category,
       price: parsed.data.price,
@@ -110,7 +115,7 @@ export async function updateMenuItemAction(
 
   // Ownership check: only the business that created this dish can edit it.
   const existing = await prisma.menuItem.findUnique({ where: { id: BigInt(id) } });
-  if (!existing || existing.businessId !== BigInt(session.userId)) {
+  if (!existing || existing.businessId !== session.businessId) {
     return { success: false, message: "Dish not found." };
   }
 
@@ -145,7 +150,7 @@ export async function deleteMenuItemAction(id: string) {
   const session = await requireAdmin();
 
   const existing = await prisma.menuItem.findUnique({ where: { id: BigInt(id) } });
-  if (!existing || existing.businessId !== BigInt(session.userId)) {
+  if (!existing || existing.businessId !== session.businessId) {
     throw new Error("Dish not found.");
   }
 
@@ -160,7 +165,7 @@ export async function toggleMenuItemActiveAction(id: string) {
   const session = await requireAdmin();
 
   const existing = await prisma.menuItem.findUnique({ where: { id: BigInt(id) } });
-  if (!existing || existing.businessId !== BigInt(session.userId)) {
+  if (!existing || existing.businessId !== session.businessId) {
     throw new Error("Dish not found.");
   }
 

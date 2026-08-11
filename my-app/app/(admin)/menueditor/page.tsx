@@ -20,7 +20,13 @@ export default async function MenuEditorPage() {
     redirect("/login");
   }
 
-  const businessId = BigInt(session.userId);
+  const staff = await prisma.staff.findUnique({
+    where: { id: BigInt(session.userId) },
+    select: { businessId: true },
+  });
+  if (!staff) redirect("/login");
+
+  const businessId = staff.businessId;
 
   const [items, specials] = await Promise.all([
     prisma.menuItem.findMany({ where: { businessId }, orderBy: { createdAt: "desc" } }),
@@ -31,7 +37,7 @@ export default async function MenuEditorPage() {
     }),
   ]);
 
-  const initialItems = items.map((item) => ({
+  const serializedItems = items.map((item) => ({
     id: item.id.toString(),
     name: item.name,
     description: item.description,
@@ -42,7 +48,7 @@ export default async function MenuEditorPage() {
     isActive: item.isActive,
   }));
 
-  const initialSpecials = specials.map((s) => ({
+  const serializedSpecials = specials.map((s) => ({
     id: s.id.toString(),
     menuItemId: s.menuItemId.toString(),
     dishName: s.menuItem.name,
@@ -57,11 +63,9 @@ export default async function MenuEditorPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 px-6 py-8 lg:px-8">
-          <MenuEditorClient initialItems={initialItems} initialSpecials={initialSpecials} />
-        </main>
-      </div>
+      <main className="flex-1 p-6 lg:p-10">
+        <MenuEditorClient initialItems={serializedItems} initialSpecials={serializedSpecials} />
+      </main>
     </div>
   );
 }
