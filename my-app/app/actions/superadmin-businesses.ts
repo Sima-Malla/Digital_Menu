@@ -1,20 +1,10 @@
+// app/actions/superadmin-businesses.ts
 "use server";
 
+import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/lib/generated/prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({ adapter: new PrismaPg({ connectionString: connectionString ?? "" }) });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
-
-export interface SuperadminBusiness {
+export type SuperadminBusiness = {
   id: number;
   logo: string;
   name: string;
@@ -24,160 +14,128 @@ export interface SuperadminBusiness {
   plan: string;
   status: string;
   revenue: string;
-}
+};
 
-/**
- * 1. Database को Business Table (वा Users Table) बाट Data ल्याउने
- */
-export async function getSuperadminBusinesses(): Promise<SuperadminBusiness[]> {
-  try {
-    const logos = ["🍔", "🍕", "☕", "🍜", "🍣", "🌮", "🍦", "🥗"];
+type GetBusinessesParams = {
+  search?: string;
+  status?: string;
+  plan?: string;
+};
 
-    // 1. Prisma Studio मा देखिएको `Business` Table बाट Data तान्ने
-    let businessesFromDb: any[] = [];
-    try {
-      if ("business" in prisma) {
-        businessesFromDb = await (prisma as any).business.findMany({
-          orderBy: { createdAt: "desc" },
-        });
-      }
-    } catch (e) {
-      console.log("Querying Business table directly...", e);
-    }
+export async function getSuperadminBusinesses({
+  search,
+  status,
+  plan,
+}: GetBusinessesParams): Promise<SuperadminBusiness[]> {
+  const where: any = {};
 
-    if (businessesFromDb && businessesFromDb.length > 0) {
-      return businessesFromDb.map((b, index) => {
-        const logo = logos[index % logos.length] || "🍽️";
-        return {
-          id: Number(b.id),
-          logo,
-          name: b.businessName || "Restaurant",
-          owner: b.businessAddress ? `Address: ${b.businessAddress}` : "Owner",
-          email: b.email || "contact@hotel.com",
-          phone: b.businessPhone || "N/A",
-          plan: "Premium",
-          status: b.needsOnboarding ? "Pending" : "Active",
-          revenue: "Rs. 65,000",
-        };
-      });
-    }
+  if (status) where.status = status;
+  if (plan) where.plan = plan;
 
-    // 2. यदि Business Table बाट आएन भने Users Table बाट ल्याउने
-    const users = await prisma.users.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-
-    return users.map((user, index) => {
-      const logo = logos[index % logos.length] || "🍽️";
-      return {
-        id: Number(user.id),
-        logo,
-        name: user.businessName || user.fullName || `Business #${user.id}`,
-        owner: user.fullName || "Owner",
-        email: user.email,
-        phone: user.businessPhone || user.phone || "N/A",
-        plan: "Premium",
-        status: user.needsOnboarding ? "Pending" : "Active",
-        revenue: "Rs. 0",
-      };
-    });
-  } catch (error) {
-    console.error("Failed to fetch superadmin businesses:", error);
-    return [];
+  if (search) {
+    where.OR = [
+      { businessName: { contains: search, mode: "insensitive" } },
+      { ownerName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+    ];
   }
+
+  const businesses = await prisma.business.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      orders: {
+        where: { paymentStatus: "paid" },
+        select: { totalAmount: true },
+      },
+    },
+  });
+
+  return businesses.map((b) => {
+    const revenue = b.orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+    return {
+      id: Number(b.id),
+      logo: b.logoEmoji,
+      name: b.businessName,
+      owner: b.ownerName ?? "-",
+      email: b.email ?? "-",
+      phone: b.businessPhone ?? "-",
+      plan: b.plan,
+      status: b.status,
+      revenue: `$${revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    };
+  });
 }
 
-/**
- * 2. नयाँ Business थप्ने
- */
-export async function createBusinessAction(data: {
-  logo?: string;
+type BusinessFormInput = {
+  logo: string;
   name: string;
   owner: string;
   email: string;
   phone: string;
-  plan?: string;
-  status?: string;
-  revenue?: string;
-}): Promise<{ success: boolean; message: string }> {
+  plan: string;
+  status: string;
+};
+
+export async function createBusinessAction(data: BusinessFormInput) {
   try {
-    if ("business" in prisma) {
-      const businessData: any = {
-        businessName: data.name,
-        businessAddress: data.owner || "Kalanki",
-        businessPhone: data.phone,
-        email: data.email,
-        needsOnboarding: data.status === "Pending",
-      };
-
-      businessData.businessType = data.plan ?? "Hotel";
-
-      await (prisma as any).business.create({
-        data: businessData,
-      });
+    if (data.email) {
+      const existing = await prisma.business.findUnique({ where: { email: data.email } });
+      if (existing) {
+        return { success: false, message: "A business with this email already exists." };
+      }
     }
 
-    revalidatePath("/(superadmin)/business");
-    revalidatePath("/business");
-    return { success: true, message: "Business added successfully!" };
-  } catch (error) {
-    console.error("Failed to create business:", error);
-    return { success: false, message: "Failed to add business." };
+    await prisma.business.create({
+      data: {
+        businessName: data.name,
+        ownerName: data.owner,
+        email: data.email,
+        businessPhone: data.phone,
+        logoEmoji: data.logo || "🍽️",
+        plan: data.plan,
+        status: data.status,
+      },
+    });
+
+    revalidatePath("/superdashboard"); // adjust to your actual businesses page route
+    return { success: true, message: "Business created." };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: "Failed to create business." };
   }
 }
 
-/**
- * 3. Business सम्पादन (Update) गर्ने
- */
-export async function updateBusinessAction(
-  id: number,
-  data: {
-    name: string;
-    owner: string;
-    email: string;
-    phone: string;
-    status: string;
-    plan: string;
-  }
-): Promise<{ success: boolean; message: string }> {
+export async function updateBusinessAction(id: number, data: BusinessFormInput) {
   try {
-    if ("business" in prisma) {
-      await (prisma as any).business.update({
-        where: { id: BigInt(id) },
-        data: {
-          businessName: data.name,
-          businessAddress: data.owner,
-          businessPhone: data.phone,
-          needsOnboarding: data.status === "Pending",
-        },
-      });
-    }
+    await prisma.business.update({
+      where: { id: BigInt(id) },
+      data: {
+        businessName: data.name,
+        ownerName: data.owner,
+        email: data.email,
+        businessPhone: data.phone,
+        logoEmoji: data.logo,
+        plan: data.plan,
+        status: data.status,
+      },
+    });
 
-    revalidatePath("/(superadmin)/business");
-    revalidatePath("/business");
-    return { success: true, message: "Business updated successfully!" };
-  } catch (error) {
-    console.error("Failed to update business:", error);
+    revalidatePath("/superdashboard");
+    return { success: true, message: "Business updated." };
+  } catch (err) {
+    console.error(err);
     return { success: false, message: "Failed to update business." };
   }
 }
 
-/**
- * 4. Business Delete गर्ने
- */
-export async function deleteBusinessAction(id: number): Promise<{ success: boolean; message: string }> {
+export async function deleteBusinessAction(id: number) {
   try {
-    if ("business" in prisma) {
-      await (prisma as any).business.delete({
-        where: { id: BigInt(id) },
-      });
-    }
-
-    revalidatePath("/(superadmin)/business");
-    revalidatePath("/business");
-    return { success: true, message: "Business deleted successfully!" };
-  } catch (error) {
-    console.error("Failed to delete business:", error);
+    await prisma.business.delete({ where: { id: BigInt(id) } });
+    revalidatePath("/superdashboard");
+    return { success: true, message: "Business deleted." };
+  } catch (err) {
+    console.error(err);
     return { success: false, message: "Failed to delete business." };
   }
 }

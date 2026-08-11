@@ -1,183 +1,139 @@
+// app/actions/staff-settings.ts
 "use server";
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/lib/generated/prisma/client";
+import { prisma } from "@/lib/prisma"; // shared singleton
 import { getSession } from "@/lib/session";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({ adapter: new PrismaPg({ connectionString: connectionString ?? "" }) });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
-
-export type StaffRole = "Waiter" | "Chef" | "Manager";
-
-export interface StaffProfile {
-  id: string;
-  name: string;
-  staffId: string;
-  role: StaffRole;
+export type StaffProfile = {
+  fullName: string;
+  position: string; // job title for display — "Chef", "Waiter", etc.
+  role: string; // permission level — "owner" | "manager" | "staff"
   phone: string;
   email: string;
-  photo: string;
-  onDuty: boolean;
-}
+};
+
+export type ApiResult = {
+  success: boolean;
+  message?: string;
+};
 
 /**
- * 1. Logged In Staff Profile Data Fetch गर्ने (Real Database बाट)
+ * 1. वर्तमान logged-in staff को profile ल्याउने
  */
 export async function getStaffProfile(): Promise<StaffProfile | null> {
-  try {
-    const session = await getSession();
-    if (!session || session.role !== "staff") return null;
+  const session = await getSession();
+  if (!session) return null;
 
-    const staff = await prisma.staff.findUnique({
-      where: { email: session.email },
-    });
+  const staff = await prisma.staff.findUnique({
+    where: { id: BigInt(session.userId) },
+    select: {
+      fullName: true,
+      position: true,
+      role: true,
+      phone: true,
+      email: true,
+    },
+  });
 
-    if (!staff) return null;
+  if (!staff) return null;
 
-    return {
-      id: staff.id.toString(),
-      name: staff.name || "Staff Member",
-      staffId: staff.staffId || `STF-${staff.id}`,
-      role: (staff.role as StaffRole) || "Waiter",
-      phone: staff.phone || "",
-      email: staff.email,
-      photo: "/vegmomo.jpg",
-      onDuty: staff.onDuty ?? false,
-    };
-  } catch (error) {
-    console.error("Failed to fetch staff profile:", error);
-    return null;
-  }
+  return {
+    fullName: staff.fullName,
+    position: staff.position,
+    role: staff.role,
+    phone: staff.phone ?? "",
+    email: staff.email,
+  };
 }
 
 /**
- * 2. Staff Phone Number Update गर्ने
+ * 2. Profile update गर्ने (केवल fullName र phone — email/role/position
+ * यहाँबाट बदल्न पाइँदैन, admin ले मात्र बदल्नुपर्छ)
  */
-export async function updateStaffPhoneAction(phone: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const session = await getSession();
-    if (!session || session.role !== "staff") {
-      return { success: false, message: "Unauthorized access." };
-    }
-
-    await prisma.staff.update({
-      where: { email: session.email },
-      data: { phone },
-    });
-
-    revalidatePath("/(staff)/settings");
-    return { success: true, message: "Phone number updated successfully!" };
-  } catch (error) {
-    console.error("Failed to update staff phone:", error);
-    return { success: false, message: "Failed to update phone number." };
+export async function updateStaffProfile(payload: {
+  fullName: string;
+  phone: string;
+}): Promise<ApiResult> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, message: "Not authorized." };
   }
-}
 
-/* Added: Update Staff Name Action */
-export async function updateStaffNameAction(name: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const session = await getSession();
-    if (!session || session.role !== "staff") {
-      return { success: false, message: "Unauthorized access." };
-    }
+  const fullName = payload.fullName?.trim();
+  const phone = payload.phone?.trim();
 
-    const trimmed = name?.toString().trim() ?? "";
-    if (!trimmed) {
-      return { success: false, message: "Name cannot be empty." };
-    }
-    if (trimmed.length > 100) {
-      return { success: false, message: "Name is too long." };
-    }
-
-    await prisma.staff.update({
-      where: { email: session.email },
-      data: { name: trimmed },
-    });
-
-    revalidatePath("/(staff)/settings");
-    return { success: true, message: "Name updated successfully!" };
-  } catch (error) {
-    console.error("Failed to update staff name:", error);
-    return { success: false, message: "Failed to update name." };
+  if (!fullName) {
+    return { success: false, message: "Name cannot be empty." };
   }
-}
 
-/**
- * 3. Change Password Action (bcrypt comparison & hashing)
- */
-export async function changeStaffPasswordAction(
-  currentPassword: string,
-  newPassword: string
-): Promise<{ success: boolean; message: string }> {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "staff") {
-      return { success: false, message: "Unauthorized access." };
-    }
-
-    const staff = await prisma.staff.findUnique({
-      where: { email: session.email },
-    });
-
-    if (!staff) {
-      return { success: false, message: "Staff record not found." };
-    }
-
-    // Current Password verification
-    let isMatch = false;
-    if (staff.password.startsWith("$2")) {
-      isMatch = await bcrypt.compare(currentPassword, staff.password);
-    } else {
-      isMatch = currentPassword === staff.password;
-    }
-
-    if (!isMatch) {
-      return { success: false, message: "Current password is incorrect." };
-    }
-
-    // New Password hashing
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
     await prisma.staff.update({
-      where: { id: staff.id },
-      data: { password: hashedPassword },
+      where: { id: BigInt(session.userId) },
+      data: { fullName, phone: phone || null },
     });
 
-    revalidatePath("/(staff)/settings");
-    return { success: true, message: "Password changed successfully!" };
-  } catch (error) {
-    console.error("Failed to change password:", error);
-    return { success: false, message: "Failed to change password." };
-  }
-}
-
-/**
- * 4. Toggle On Duty Status Action
- */
-export async function toggleDutyStatusAction(onDuty: boolean): Promise<{ success: boolean }> {
-  try {
-    const session = await getSession();
-    if (!session || session.role !== "staff") return { success: false };
-
-    await prisma.staff.update({
-      where: { email: session.email },
-      data: { onDuty },
-    });
-
-    revalidatePath("/(staff)/settings");
-    revalidatePath("/(staff)/staffdashboard");
+    revalidatePath("/settings");
     return { success: true };
   } catch (error) {
-    console.error("Failed to toggle duty status:", error);
-    return { success: false };
+    console.error("Failed to update staff profile:", error);
+    return { success: false, message: "Failed to update profile." };
+  }
+}
+
+/**
+ * 3. Password बदल्ने — current password verify गरेर मात्र
+ */
+export async function changeStaffPassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ApiResult> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, message: "Not authorized." };
+  }
+
+  const { currentPassword, newPassword, confirmPassword } = payload;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return { success: false, message: "Please fill in all password fields." };
+  }
+
+  if (newPassword !== confirmPassword) {
+    return { success: false, message: "New password and confirm password do not match." };
+  }
+
+  if (newPassword.length < 8) {
+    return { success: false, message: "New password must be at least 8 characters." };
+  }
+
+  const staff = await prisma.staff.findUnique({
+    where: { id: BigInt(session.userId) },
+    select: { password: true },
+  });
+
+  if (!staff) {
+    return { success: false, message: "Staff not found." };
+  }
+
+  const currentMatches = await bcrypt.compare(currentPassword, staff.password);
+  if (!currentMatches) {
+    return { success: false, message: "Current password is incorrect." };
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+
+  try {
+    await prisma.staff.update({
+      where: { id: BigInt(session.userId) },
+      data: { password: newHash },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to change staff password:", error);
+    return { success: false, message: "Failed to change password." };
   }
 }

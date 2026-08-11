@@ -1,147 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Search,
-  Bell,
-  UserPlus,
-  Upload,
-  Download,
-  Eye,
-  Pencil,
-  Lock,
-  Unlock,
-  Trash2,
-  X,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  TrendingUp,
-  Users,
-  UserCheck,
-  Ban,
-  ClipboardCheck,
-  Building2,
-  Shield,
-  Clock,
-  Mail,
-  Phone,
-  Calendar,
-  Layers,
-  Gauge,
+  Search, Bell, UserPlus, Upload, Download, Eye, Pencil, Lock, Unlock,
+  Trash2, X, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Users, UserCheck, Ban, ClipboardCheck, Building2, Shield, Clock,
+  Mail, Phone, Calendar, Loader2,
 } from "lucide-react";
+import {
+  getPlatformUsers,
+  getPlatformUserDetail,
+  getPlatformStats,
+  createPlatformUserAction,
+  toggleSuspendAction,
+  deletePlatformUserAction,
+  PlatformUserRow,
+  PlatformUserDetail,
+} from "@/app/actions/platform-users";
 
 // ============================================================================
-// Types & mock data
+// Types
 // ============================================================================
 
 type Status = "Active" | "Suspended";
 type Role = "Super Admin" | "Admin" | "Moderator" | "Support" | "Viewer";
 
-interface PlatformUser {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: Role;
-  department: string;
-  status: Status;
-  lastActive: string;
-  createdDate: string;
-  permissionSummary: string;
-  permissions: string[];
-  activity: { label: string; time: string }[];
-}
+// ============================================================================
+// Style maps
+// ============================================================================
 
-const users: PlatformUser[] = [
-  {
-    id: "1",
-    name: "Sima",
-    email: "sima@gourmetflow.com",
-    phone: "+1 (555) 012-3344",
-    role: "Super Admin",
-    department: "Global Operations",
-    status: "Active",
-    lastActive: "2 mins ago",
-    createdDate: "Jan 14, 2024",
-    permissionSummary: "Full Access",
-    permissions: ["Full Access", "Billing", "User Management", "System Settings"],
-    activity: [
-      { label: "Approved 3 pending verifications", time: "2 mins ago" },
-      { label: "Updated business profile: Kathmandu Grand", time: "1 hour ago" },
-      { label: "Signed in from Kathmandu, NP", time: "3 hours ago" },
-    ],
-  },
-  {
-    id: "2",
-    name: "Ram",
-    email: "ram@gourmetflow.com",
-    phone: "+1 (555) 221-9087",
-    role: "Admin",
-    department: "Operations",
-    status: "Active",
-    lastActive: "1 hour ago",
-    createdDate: "Mar 2, 2024",
-    permissionSummary: "Business + Orders",
-    permissions: ["User Management", "Reports", "Support Tools"],
-    activity: [
-      { label: "Suspended account: hari@gourmetflow.com", time: "1 hour ago" },
-      { label: "Exported user data (CSV)", time: "5 hours ago" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Hari",
-    email: "hari@gourmetflow.com",
-    phone: "+1 (555) 908-1122",
-    role: "Moderator",
-    department: "Trust & Safety",
-    status: "Suspended",
-    lastActive: "Yesterday",
-    createdDate: "Jun 18, 2024",
-    permissionSummary: "Verification",
-    permissions: ["Content Review", "Flag Reports"],
-    activity: [
-      { label: "Account suspended by Ram", time: "Yesterday" },
-      { label: "Reviewed 12 flagged listings", time: "2 days ago" },
-    ],
-  },
-  {
-    id: "4",
-    name: "Anita",
-    email: "anita@gourmetflow.com",
-    phone: "+1 (555) 774-2210",
-    role: "Support",
-    department: "Customer Care",
-    status: "Active",
-    lastActive: "20 mins ago",
-    createdDate: "Sep 9, 2024",
-    permissionSummary: "Support Tools",
-    permissions: ["Ticket Management", "Refunds (limited)"],
-    activity: [
-      { label: "Resolved 8 support tickets", time: "20 mins ago" },
-      { label: "Escalated billing dispute #4471", time: "2 hours ago" },
-    ],
-  },
-  {
-    id: "5",
-    name: "Bikash",
-    email: "bikash@gourmetflow.com",
-    phone: "+1 (555) 340-7765",
-    role: "Viewer",
-    department: "Finance",
-    status: "Active",
-    lastActive: "3 hours ago",
-    createdDate: "Nov 27, 2024",
-    permissionSummary: "Read Only",
-    permissions: ["Read-only Reports"],
-    activity: [{ label: "Viewed Q2 revenue report", time: "3 hours ago" }],
-  },
-];
-
-const roleBadgeStyles: Record<Role, string> = {
+const roleBadgeStyles: Record<string, string> = {
   "Super Admin": "bg-orange-50 text-orange-600",
   Admin: "bg-blue-50 text-blue-600",
   Moderator: "bg-purple-50 text-purple-600",
@@ -149,7 +37,7 @@ const roleBadgeStyles: Record<Role, string> = {
   Viewer: "bg-slate-100 text-slate-600",
 };
 
-const roleDotStyles: Record<Role, string> = {
+const roleDotStyles: Record<string, string> = {
   "Super Admin": "bg-orange-500",
   Admin: "bg-blue-500",
   Moderator: "bg-purple-500",
@@ -166,7 +54,8 @@ const avatarPalette: Record<string, string> = {
 };
 
 function initialAvatarColor(name: string) {
-  return avatarPalette[name[0]] ?? "bg-slate-100 text-slate-500";
+  const letter = name?.[0]?.toUpperCase() ?? "";
+  return avatarPalette[letter] ?? "bg-slate-100 text-slate-500";
 }
 
 // ============================================================================
@@ -179,7 +68,6 @@ function StatCard({
   iconColor,
   label,
   value,
-  delta,
   subtitle,
 }: {
   icon: React.ReactNode;
@@ -187,28 +75,17 @@ function StatCard({
   iconColor: string;
   label: string;
   value: string;
-  delta?: string;
   subtitle: string;
 }) {
   return (
-    <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 flex flex-col justify-between gap-5 min-w-[190px]">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 flex flex-col justify-between gap-5 min-w-[150px]">
       <div className="flex items-center justify-between">
-        <div
-          className={`h-9 w-9 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}
-        >
+        <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}>
           {icon}
         </div>
-        {delta && (
-          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
-            <TrendingUp className="h-3.5 w-3.5" />
-            {delta}
-          </span>
-        )}
       </div>
       <div>
-        <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-          {label}
-        </p>
+        <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">{label}</p>
         <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
         <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
       </div>
@@ -232,9 +109,7 @@ function FilterSelect({
   return (
     <div className="flex flex-col gap-1.5">
       {!compact && (
-        <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-          {label}
-        </span>
+        <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">{label}</span>
       )}
       <div className="relative">
         <select
@@ -253,7 +128,7 @@ function FilterSelect({
   );
 }
 
-function StatusPill({ status }: { status: Status }) {
+function StatusPill({ status }: { status: string }) {
   if (status === "Active") {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600">
@@ -270,12 +145,14 @@ function StatusPill({ status }: { status: Status }) {
   );
 }
 
-function RoleBadge({ role }: { role: Role }) {
+function RoleBadge({ role }: { role: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase ${roleBadgeStyles[role]}`}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase ${
+        roleBadgeStyles[role] ?? "bg-slate-100 text-slate-600"
+      }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${roleDotStyles[role]}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${roleDotStyles[role] ?? "bg-slate-400"}`} />
       {role}
     </span>
   );
@@ -285,68 +162,105 @@ function RoleBadge({ role }: { role: Role }) {
 // Add New User modal
 // ============================================================================
 
-function AddUserModal({ onClose }: { onClose: () => void }) {
+function AddUserModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (data: {
+    fullName: string;
+    email: string;
+    phone: string;
+    role: string;
+    department: string;
+    permissions: string[];
+  }) => Promise<void>;
+}) {
   const [sendInvite, setSendInvite] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    role: "Viewer",
+    department: "Global Operations",
+    permissionTemplate: "Standard Access",
+  });
+
+  const permissionMap: Record<string, string[]> = {
+    "Full Access": ["Full Access", "Billing", "User Management", "System Settings"],
+    "Standard Access": ["User Management", "Reports", "Support Tools"],
+    "Read Only": ["Read-only Reports"],
+    Custom: [],
+  };
+
+  async function handleCreate() {
+    if (!form.fullName || !form.email) return;
+    setSubmitting(true);
+    await onCreate({
+      fullName: form.fullName,
+      email: form.email,
+      phone: form.phone,
+      role: form.role,
+      department: form.department,
+      permissions: permissionMap[form.permissionTemplate] ?? [],
+    });
+    setSubmitting(false);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-        {/* Header */}
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-7 pt-6 pb-5 border-b border-orange-100">
-          <h2 className="text-xl font-bold text-slate-900">
-            Add New Platform User
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-slate-400 hover:text-slate-600"
-          >
+          <h2 className="text-xl font-bold text-slate-900">Add New Platform User</h2>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-7 py-6 flex flex-col gap-5">
           <div>
-            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              Full Name
-            </label>
+            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Full Name</label>
             <input
               type="text"
               placeholder="e.g. John Doe"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="mt-1.5 w-full rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              Email Address
-            </label>
+            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Email Address</label>
             <input
               type="email"
               placeholder="john@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="mt-1.5 w-full rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              Phone Number (Optional)
-            </label>
+            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Phone Number (Optional)</label>
             <input
               type="tel"
               placeholder="+1 (555) 000-0000"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className="mt-1.5 w-full rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-                Select Role
-              </label>
+              <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Select Role</label>
               <div className="relative mt-1.5">
-                <select className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200">
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200"
+                >
                   <option>Super Admin</option>
                   <option>Admin</option>
                   <option>Moderator</option>
@@ -357,11 +271,13 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-                Department
-              </label>
+              <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Department</label>
               <div className="relative mt-1.5">
-                <select className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200">
+                <select
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200"
+                >
                   <option>Global Operations</option>
                   <option>Operations</option>
                   <option>Trust &amp; Safety</option>
@@ -374,11 +290,13 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              Permission Template
-            </label>
+            <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Permission Template</label>
             <div className="relative mt-1.5">
-              <select className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200">
+              <select
+                value={form.permissionTemplate}
+                onChange={(e) => setForm({ ...form, permissionTemplate: e.target.value })}
+                className="w-full appearance-none rounded-lg border border-orange-200 px-3.5 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200"
+              >
                 <option>Full Access</option>
                 <option>Standard Access</option>
                 <option>Read Only</option>
@@ -390,12 +308,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 
           <div className="flex items-center justify-between pt-1">
             <div>
-              <p className="text-sm font-bold text-slate-800">
-                Send Invitation Email
-              </p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                User will receive login instructions
-              </p>
+              <p className="text-sm font-bold text-slate-800">Send Invitation Email</p>
+              <p className="text-xs text-slate-400 mt-0.5">User will receive login instructions</p>
             </div>
             <button
               role="switch"
@@ -414,19 +328,16 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-6 bg-slate-50 border-t border-slate-100 px-7 py-5">
-          <button
-            onClick={onClose}
-            className="text-sm font-bold text-slate-700 hover:text-slate-900"
-          >
+          <button onClick={onClose} className="text-sm font-bold text-slate-700 hover:text-slate-900">
             Cancel
           </button>
           <button
-            onClick={onClose}
-            className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
+            onClick={handleCreate}
+            disabled={submitting}
+            className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
-            Create User
+            {submitting ? "Creating..." : "Create User"}
           </button>
         </div>
       </div>
@@ -438,30 +349,18 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 // View drawer
 // ============================================================================
 
-function UserDrawer({
-  user,
-  onClose,
-}: {
-  user: PlatformUser;
-  onClose: () => void;
-}) {
+function UserDrawer({ user, onClose }: { user: PlatformUserDetail; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40">
       <div className="h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">User Profile</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-slate-400 hover:text-slate-600"
-          >
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="px-6 py-6 flex flex-col gap-7">
-          {/* Identity */}
           <div className="flex items-center gap-4">
             <div className="relative h-16 w-16">
               <div
@@ -487,7 +386,6 @@ function UserDrawer({
             </div>
           </div>
 
-          {/* Contact */}
           <div className="grid grid-cols-1 gap-4">
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-slate-400" />
@@ -499,56 +397,53 @@ function UserDrawer({
             </div>
             <div className="flex items-center gap-3">
               <Building2 className="h-4 w-4 text-slate-400" />
-              <span className="text-sm text-slate-600">
-                {user.department}
-              </span>
+              <span className="text-sm text-slate-600">{user.department}</span>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="h-4 w-4 text-slate-400" />
-              <span className="text-sm text-slate-600">
-                Created {user.createdDate}
-              </span>
+              <span className="text-sm text-slate-600">Created {user.createdDate}</span>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="h-4 w-4 text-slate-400" />
-              <span className="text-sm text-slate-600">
-                Last login {user.lastActive}
-              </span>
+              <span className="text-sm text-slate-600">Last login {user.lastActive}</span>
             </div>
           </div>
 
-          {/* Permissions */}
           <div>
             <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-2.5 flex items-center gap-1.5">
               <Shield className="h-3.5 w-3.5" /> Permissions
             </p>
             <div className="flex flex-wrap gap-2">
-              {user.permissions.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
-                >
-                  {p}
-                </span>
-              ))}
+              {user.permissions.length > 0 ? (
+                user.permissions.map((p) => (
+                  <span key={p} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {p}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-400">No permissions assigned</span>
+              )}
             </div>
           </div>
 
-          {/* Recent activity */}
           <div>
             <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-3">
               Recent Activities
             </p>
             <div className="flex flex-col gap-4">
-              {user.activity.map((a, i) => (
-                <div key={i} className="flex gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
-                  <div>
-                    <p className="text-sm text-slate-700">{a.label}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{a.time}</p>
+              {user.activity.length > 0 ? (
+                user.activity.map((a, i) => (
+                  <div key={i} className="flex gap-3">
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
+                    <div>
+                      <p className="text-sm text-slate-700">{a.label}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{a.time}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-slate-400">No recent activity</p>
+              )}
             </div>
           </div>
         </div>
@@ -574,22 +469,17 @@ const STATUS_OPTIONS = ["Status", "Active", "Suspended"];
 const LAST_LOGIN_OPTIONS = ["Last Login", "Today", "This week", "This month"];
 const SORT_OPTIONS = ["Sort: Newest", "Name A-Z", "Name Z-A", "Role"];
 
-function matchesLastLogin(lastActive: string, filter: string) {
-  if (filter === "Last Login") return true;
-  const isToday = /mins? ago|hours? ago/i.test(lastActive);
-  const isThisWeek = isToday || /yesterday|days? ago/i.test(lastActive);
-  const isThisMonth = isThisWeek || true; // everything in this mock dataset falls within the month
-  if (filter === "Today") return isToday;
-  if (filter === "This week") return isThisWeek;
-  if (filter === "This month") return isThisMonth;
-  return true;
-}
-
 export default function PlatformUsersPage() {
-  const [page] = useState(1);
+  const [rowUsers, setRowUsers] = useState<PlatformUserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0 });
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [isAddOpen, setAddOpen] = useState(false);
-  const [viewUser, setViewUser] = useState<PlatformUser | null>(null);
-  const [rowUsers, setRowUsers] = useState(users);
+  const [viewUser, setViewUser] = useState<PlatformUserDetail | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState(ROLE_OPTIONS[0]);
@@ -598,41 +488,104 @@ export default function PlatformUsersPage() {
   const [lastLoginFilter, setLastLoginFilter] = useState(LAST_LOGIN_OPTIONS[0]);
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
 
-  function toggleSuspend(id: string) {
-    setRowUsers((prev) =>
-      prev.map((u) =>
-        u.id === id
-          ? { ...u, status: u.status === "Active" ? "Suspended" : "Active" }
-          : u
-      )
-    );
-  }
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function deleteUser(id: string) {
-    setRowUsers((prev) => prev.filter((u) => u.id !== id));
-  }
-
-  const query = searchQuery.trim().toLowerCase();
-
-  const filteredUsers = rowUsers
-    .filter((u) =>
-      query
-        ? u.name.toLowerCase().includes(query) ||
-          u.email.toLowerCase().includes(query)
-        : true
-    )
-    .filter((u) => (roleFilter === "Role" ? true : u.role === roleFilter))
-    .filter((u) =>
-      departmentFilter === "Department" ? true : u.department === departmentFilter
-    )
-    .filter((u) => (statusFilter === "Status" ? true : u.status === statusFilter))
-    .filter((u) => matchesLastLogin(u.lastActive, lastLoginFilter))
-    .sort((a, b) => {
-      if (sortBy === "Name A-Z") return a.name.localeCompare(b.name);
-      if (sortBy === "Name Z-A") return b.name.localeCompare(a.name);
-      if (sortBy === "Role") return a.role.localeCompare(b.role);
-      return 0; // "Sort: Newest" — keep original order
+  async function loadUsers() {
+    setLoading(true);
+    const data = await getPlatformUsers({
+      search: searchQuery,
+      role: roleFilter === "Role" ? "" : roleFilter,
+      department: departmentFilter === "Department" ? "" : departmentFilter,
+      status: statusFilter === "Status" ? "" : statusFilter,
+      lastLogin: lastLoginFilter === "Last Login" ? "" : lastLoginFilter,
+      sortBy,
+      page,
+      pageSize,
     });
+    setRowUsers(data.users);
+    setTotal(data.total);
+    setLoading(false);
+  }
+
+  async function loadStats() {
+    setStats(await getPlatformStats());
+  }
+
+  useEffect(() => {
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleFilter, departmentFilter, statusFilter, lastLoginFilter, sortBy, page, pageSize]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (page !== 1) setPage(1);
+      else loadUsers();
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  async function handleCreate(data: {
+    fullName: string;
+    email: string;
+    phone: string;
+    role: string;
+    department: string;
+    permissions: string[];
+  }) {
+    const res = await createPlatformUserAction(data);
+    if (res.success) {
+      setAddOpen(false);
+      loadUsers();
+      loadStats();
+    } else {
+      alert(res.message);
+    }
+  }
+
+  async function handleView(id: string) {
+    setViewLoading(true);
+    const detail = await getPlatformUserDetail(id);
+    setViewLoading(false);
+    if (detail) setViewUser(detail);
+  }
+
+  async function toggleSuspend(id: string) {
+    const res = await toggleSuspendAction(id);
+    if (res.success && res.status) {
+      setRowUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status: res.status! } : u)));
+      loadStats();
+    } else {
+      alert(res.message ?? "Failed to update status.");
+    }
+  }
+
+  async function deleteUser(id: string) {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    const previous = rowUsers;
+    setRowUsers((prev) => prev.filter((u) => u.id !== id));
+    const res = await deletePlatformUserAction(id);
+    if (!res.success) {
+      setRowUsers(previous);
+      alert(res.message ?? "Failed to delete user.");
+    } else {
+      setTotal((t) => t - 1);
+      loadStats();
+    }
+  }
+
+  const hasActiveFilters =
+    !!searchQuery ||
+    roleFilter !== "Role" ||
+    departmentFilter !== "Department" ||
+    statusFilter !== "Status" ||
+    lastLoginFilter !== "Last Login" ||
+    sortBy !== "Sort: Newest";
 
   function resetFilters() {
     setSearchQuery("");
@@ -641,31 +594,19 @@ export default function PlatformUsersPage() {
     setStatusFilter(STATUS_OPTIONS[0]);
     setLastLoginFilter(LAST_LOGIN_OPTIONS[0]);
     setSortBy(SORT_OPTIONS[0]);
+    setPage(1);
   }
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-7xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+      <div className="mx-auto max-w-7xl rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-0 bg-white px-6 pt-6 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-8 rounded-t-3xl flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div className="sticky top-0 z-20 -mx-4 -mt-4 mb-0 bg-white px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 lg:-mx-8 lg:-mt-8 lg:px-8 lg:pt-8 rounded-t-3xl flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Platform Users
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Manage internal platform users
-            </p>
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Platform Users</h1>
+            <p className="text-sm text-slate-400 mt-1">Manage internal platform users</p>
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="search users ...."
-                className="w-64 rounded-full border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               aria-label="Notifications"
               className="relative h-9 w-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-50"
@@ -681,173 +622,149 @@ export default function PlatformUsersPage() {
           </div>
         </div>
 
-        {/* Main + sidebar layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 mt-6">
-          {/* ---------------- Main column ---------------- */}
-          <div className="flex flex-col gap-4">
-            {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-              <StatCard
-                icon={<Users className="h-4.5 w-4.5" />}
-                iconBg="bg-orange-50"
-                iconColor="text-orange-500"
-                label="Total Users"
-                value="1,248,390"
-                delta="12.5%"
-                subtitle="+12.5% this month"
-              />
-              <StatCard
-                icon={<UserCheck className="h-4.5 w-4.5" />}
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-500"
-                label="Active Users"
-                value="1,102,450"
-                subtitle="88% Active"
-              />
-              <StatCard
-                icon={<Ban className="h-4.5 w-4.5" />}
-                iconBg="bg-rose-50"
-                iconColor="text-rose-400"
-                label="Suspended Accounts"
-                value="218"
-                subtitle="Need Review"
-              />
-              <StatCard
-                icon={<ClipboardCheck className="h-4.5 w-4.5" />}
-                iconBg="bg-blue-50"
-                iconColor="text-blue-500"
-                label="Pending Verifications"
-                value="1,402"
-                subtitle="Awaiting Verification"
-              />
-            </div>
+        <div className="flex flex-col gap-4 mt-6">
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+            <StatCard
+              icon={<Users className="h-4.5 w-4.5" />}
+              iconBg="bg-orange-50"
+              iconColor="text-orange-500"
+              label="Total Users"
+              value={stats.total.toLocaleString()}
+              subtitle="Registered accounts"
+            />
+            <StatCard
+              icon={<UserCheck className="h-4.5 w-4.5" />}
+              iconBg="bg-emerald-50"
+              iconColor="text-emerald-500"
+              label="Active Users"
+              value={stats.active.toLocaleString()}
+              subtitle={stats.total ? `${Math.round((stats.active / stats.total) * 100)}% Active` : "0% Active"}
+            />
+            <StatCard
+              icon={<Ban className="h-4.5 w-4.5" />}
+              iconBg="bg-rose-50"
+              iconColor="text-rose-400"
+              label="Suspended"
+              value={stats.suspended.toLocaleString()}
+              subtitle="Need Review"
+            />
+            <StatCard
+              icon={<ClipboardCheck className="h-4.5 w-4.5" />}
+              iconBg="bg-blue-50"
+              iconColor="text-blue-500"
+              label="Matching Filters"
+              value={total.toLocaleString()}
+              subtitle="Current results"
+            />
+          </div>
 
-            {/* Action buttons — one row on desktop */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setAddOpen(true)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
-              >
-                <UserPlus className="h-4 w-4" />
-                + Add User
-              </button>
-              <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
-                <Upload className="h-4 w-4" />
-                Bulk Import
-              </button>
-              <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
-                <Download className="h-4 w-4" />
-                Export
-              </button>
-            </div>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
+            >
+              <UserPlus className="h-4 w-4" />
+              + Add User
+            </button>
+            <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+              <Upload className="h-4 w-4" />
+              Bulk Import
+            </button>
+            <button className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+          </div>
 
-            {/* Quick stats bar */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 px-6 py-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-8">
-              <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-                Platform Coverage
-              </span>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Users className="h-4 w-4 text-orange-500" />
-                248 Internal Users
-              </div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Building2 className="h-4 w-4 text-blue-500" />
-                18 Departments
-              </div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Gauge className="h-4 w-4 text-emerald-500" />
-                99.9% Active
+          {/* User directory */}
+          <div className="rounded-2xl border border-slate-200">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 pb-5 sm:p-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900">User Directory</h2>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                  Global
+                </span>
               </div>
             </div>
 
-            {/* User directory */}
-            <div className="rounded-2xl border border-slate-200">
-              <div className="flex flex-wrap items-center justify-between gap-4 p-6 pb-5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    User Directory
-                  </h2>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                    Global
-                  </span>
-                </div>
-              </div>
-
-              {/* Search + filter row */}
-              <div className="flex flex-wrap items-center gap-3 px-6 pb-3">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search users...."
-                    className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  />
-                </div>
-                <FilterSelect
-                  compact
-                  label="Role"
-                  options={ROLE_OPTIONS}
-                  value={roleFilter}
-                  onChange={setRoleFilter}
-                />
-                <FilterSelect
-                  compact
-                  label="Department"
-                  options={DEPARTMENT_OPTIONS}
-                  value={departmentFilter}
-                  onChange={setDepartmentFilter}
-                />
-                <FilterSelect
-                  compact
-                  label="Status"
-                  options={STATUS_OPTIONS}
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                />
-                <FilterSelect
-                  compact
-                  label="Last Login"
-                  options={LAST_LOGIN_OPTIONS}
-                  value={lastLoginFilter}
-                  onChange={setLastLoginFilter}
-                />
-                <FilterSelect
-                  compact
-                  label="Sort"
-                  options={SORT_OPTIONS}
-                  value={sortBy}
-                  onChange={setSortBy}
+            {/* Search + filters */}
+            <div className="flex flex-wrap items-center gap-3 px-4 pb-3 sm:px-6">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search users...."
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
               </div>
+              <FilterSelect
+                compact
+                label="Role"
+                options={ROLE_OPTIONS}
+                value={roleFilter}
+                onChange={(v: string) => {
+                  setRoleFilter(v);
+                  setPage(1);
+                }}
+              />
+              <FilterSelect
+                compact
+                label="Department"
+                options={DEPARTMENT_OPTIONS}
+                value={departmentFilter}
+                onChange={(v: string) => {
+                  setDepartmentFilter(v);
+                  setPage(1);
+                }}
+              />
+              <FilterSelect
+                compact
+                label="Status"
+                options={STATUS_OPTIONS}
+                value={statusFilter}
+                onChange={(v: string) => {
+                  setStatusFilter(v);
+                  setPage(1);
+                }}
+              />
+              <FilterSelect
+                compact
+                label="Last Login"
+                options={LAST_LOGIN_OPTIONS}
+                value={lastLoginFilter}
+                onChange={(v: string) => {
+                  setLastLoginFilter(v);
+                  setPage(1);
+                }}
+              />
+              <FilterSelect compact label="Sort" options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
+            </div>
 
-              {/* Active filter summary + reset */}
-              <div className="flex items-center justify-between px-6 pb-4">
-                <p className="text-xs text-slate-400">
-                  {filteredUsers.length} of {rowUsers.length} users match
-                  {query || roleFilter !== "Role" || departmentFilter !== "Department" || statusFilter !== "Status" || lastLoginFilter !== "Last Login"
-                    ? " your filters"
-                    : ""}
-                </p>
-                {(query ||
-                  roleFilter !== "Role" ||
-                  departmentFilter !== "Department" ||
-                  statusFilter !== "Status" ||
-                  lastLoginFilter !== "Last Login" ||
-                  sortBy !== "Sort: Newest") && (
-                  <button
-                    onClick={resetFilters}
-                    className="text-xs font-semibold text-orange-500 hover:text-orange-600"
-                  >
-                    Clear filters
-                  </button>
-                )}
+            {/* Filter summary */}
+            <div className="flex items-center justify-between px-4 pb-4 sm:px-6">
+              <p className="text-xs text-slate-400">
+                {rowUsers.length} of {total} users match{hasActiveFilters ? " your filters" : ""}
+              </p>
+              {hasActiveFilters && (
+                <button onClick={resetFilters} className="text-xs font-semibold text-orange-500 hover:text-orange-600">
+                  Clear filters
+                </button>
+              )}
+            </div>
+
+            {/* Table */}
+            {loading ? (
+              <div className="flex h-64 flex-col items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                <span className="mt-2 text-sm font-medium text-slate-500">Loading users...</span>
               </div>
-
-              {/* Table */}
+            ) : (
               <div className="overflow-auto max-h-[520px] rounded-b-2xl">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[900px] text-left">
                   <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgba(226,232,240,1)]">
                     <tr className="border-y border-slate-100 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
                       <th className="py-3 pl-6 pr-2 w-14">Avatar</th>
@@ -862,12 +779,10 @@ export default function PlatformUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.length === 0 && (
+                    {rowUsers.length === 0 && (
                       <tr>
                         <td colSpan={9} className="py-12 text-center">
-                          <p className="text-sm font-semibold text-slate-500">
-                            No users match these filters
-                          </p>
+                          <p className="text-sm font-semibold text-slate-500">No users match these filters</p>
                           <button
                             onClick={resetFilters}
                             className="mt-2 text-xs font-semibold text-orange-500 hover:text-orange-600"
@@ -877,11 +792,8 @@ export default function PlatformUsersPage() {
                         </td>
                       </tr>
                     )}
-                    {filteredUsers.map((u) => (
-                      <tr
-                        key={u.id}
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60"
-                      >
+                    {rowUsers.map((u) => (
+                      <tr key={u.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                         <td className="py-4 pl-6 pr-2">
                           <div className="relative h-9 w-9">
                             <div
@@ -899,66 +811,33 @@ export default function PlatformUsersPage() {
                             />
                           </div>
                         </td>
-                        <td className="py-4 pr-2 text-sm font-semibold text-slate-800">
-                          {u.name}
-                        </td>
-                        <td className="py-4 pr-2 text-sm text-slate-500">
-                          {u.email}
-                        </td>
+                        <td className="py-4 pr-2 text-sm font-semibold text-slate-800">{u.name}</td>
+                        <td className="py-4 pr-2 text-sm text-slate-500">{u.email}</td>
                         <td className="py-4 pr-2">
                           <RoleBadge role={u.role} />
                         </td>
-                        <td className="py-4 pr-2 text-sm text-slate-500">
-                          {u.department}
-                        </td>
-                        <td className="py-4 pr-2 text-sm text-slate-500">
-                          {u.permissionSummary}
-                        </td>
+                        <td className="py-4 pr-2 text-sm text-slate-500">{u.department}</td>
+                        <td className="py-4 pr-2 text-sm text-slate-500">{u.permissionSummary}</td>
                         <td className="py-4 pr-2">
                           <StatusPill status={u.status} />
                         </td>
-                        <td className="py-4 pr-2 text-sm text-slate-500 whitespace-pre-line">
-                          {u.lastActive}
-                        </td>
+                        <td className="py-4 pr-2 text-sm text-slate-500">{u.lastActive}</td>
                         <td className="py-4 pr-6">
                           <div className="flex items-center justify-end gap-3 text-slate-400">
-                            <button
-                              onClick={() => setViewUser(u)}
-                              aria-label={`View ${u.name}`}
-                              title="View"
-                              className="hover:text-slate-700"
-                            >
+                            <button onClick={() => handleView(u.id)} title="View" className="hover:text-slate-700">
                               <Eye className="h-4 w-4" />
                             </button>
-                            <button
-                              aria-label={`Edit ${u.name}`}
-                              title="Edit"
-                              className="hover:text-slate-700"
-                            >
+                            <button title="Edit" className="hover:text-slate-700">
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => toggleSuspend(u.id)}
-                              aria-label={
-                                u.status === "Active"
-                                  ? `Suspend ${u.name}`
-                                  : `Activate ${u.name}`
-                              }
                               title={u.status === "Active" ? "Suspend" : "Activate"}
                               className="hover:text-slate-700"
                             >
-                              {u.status === "Active" ? (
-                                <Lock className="h-4 w-4" />
-                              ) : (
-                                <Unlock className="h-4 w-4" />
-                              )}
+                              {u.status === "Active" ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                             </button>
-                            <button
-                              onClick={() => deleteUser(u.id)}
-                              aria-label={`Delete ${u.name}`}
-                              title="Delete"
-                              className="hover:text-rose-600"
-                            >
+                            <button onClick={() => deleteUser(u.id)} title="Delete" className="hover:text-rose-600">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -968,147 +847,76 @@ export default function PlatformUsersPage() {
                   </tbody>
                 </table>
               </div>
+            )}
 
-              {/* Table footer */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-                    Rows per page
-                  </span>
-                  <div className="relative">
-                    <select className="appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200">
-                      <option>10</option>
-                      <option>25</option>
-                      <option>50</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
-                    Showing 1-{filteredUsers.length} of {rowUsers.length} users
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled
-                    className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-300"
+            {/* Pagination */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Rows per page</span>
+                <div className="relative">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-200"
                   >
-                    <ChevronsLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    disabled
-                    className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-300"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button className="h-8 w-8 rounded-md bg-orange-500 text-white text-sm font-bold">
-                    {page}
-                  </button>
-                  <button className="h-8 w-8 rounded-md text-sm font-semibold text-slate-500 hover:bg-slate-50">
-                    2
-                  </button>
-                  <button className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50">
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <button className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50">
-                    <ChevronsRight className="h-4 w-4" />
-                  </button>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                 </div>
+                <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                  Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
+                </span>
               </div>
-            </div>
-          </div>
-
-          {/* ---------------- Sidebar ---------------- */}
-          <div className="flex flex-col gap-4">
-            {/* Platform summary widget */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-4">
-                Platform Summary
-              </p>
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500">
-                    <Users className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">1,248,390</p>
-                    <p className="text-xs text-slate-400">Users</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
-                    <Shield className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">5</p>
-                    <p className="text-xs text-slate-400">Roles</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500">
-                    <Layers className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">18</p>
-                    <p className="text-xs text-slate-400">Departments</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500">
-                    <Gauge className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">99.9%</p>
-                    <p className="text-xs text-slate-400">Uptime</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Role legend widget */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-4">
-                Role Colors
-              </p>
-              <div className="flex flex-col gap-3">
-                {(Object.keys(roleDotStyles) as Role[]).map((r) => (
-                  <div key={r} className="flex items-center gap-2.5">
-                    <span className={`h-2.5 w-2.5 rounded-full ${roleDotStyles[r]}`} />
-                    <span className="text-sm text-slate-600">{r}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent activity widget */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-4">
-                Recent Activity
-              </p>
-              <div className="flex flex-col gap-3.5">
-                {[
-                  { label: "Ram logged in", time: "1 hour ago" },
-                  { label: "Hari suspended", time: "Yesterday" },
-                  { label: "Anita created", time: "2 days ago" },
-                  { label: "Password reset requested", time: "3 days ago" },
-                ].map((item) => (
-                  <div key={item.label} className="flex gap-2.5">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
-                    <div>
-                      <p className="text-sm text-slate-700">{item.label}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{item.time}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(1)}
+                  disabled={page <= 1}
+                  className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 disabled:text-slate-300"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 disabled:text-slate-300"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button className="h-8 w-8 rounded-md bg-orange-500 text-white text-sm font-bold">{page}</button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 disabled:text-slate-300"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPage(totalPages)}
+                  disabled={page >= totalPages}
+                  className="h-8 w-8 rounded-md border border-slate-200 flex items-center justify-center text-slate-500 disabled:text-slate-300"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {isAddOpen && <AddUserModal onClose={() => setAddOpen(false)} />}
-      {viewUser && (
-        <UserDrawer user={viewUser} onClose={() => setViewUser(null)} />
-      )}
+      {isAddOpen && <AddUserModal onClose={() => setAddOpen(false)} onCreate={handleCreate} />}
+      {(viewUser || viewLoading) &&
+        (viewLoading || !viewUser ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+          </div>
+        ) : (
+          <UserDrawer user={viewUser} onClose={() => setViewUser(null)} />
+        ))}
     </div>
   );
 }

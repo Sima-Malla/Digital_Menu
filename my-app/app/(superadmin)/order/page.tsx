@@ -1,88 +1,161 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Bell, CircleHelp, Download, Search, Filter, Eye, Pencil, Trash2, ShoppingBag, DollarSign, Store, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
-
-const allOrders = [
-  { id: "#ORD-1001", restaurant: "Bistro Central", customer: "John Smith", type: "Dine In", amount: "$45.00", status: "Completed", time: "10:15 AM" },
-  { id: "#ORD-1002", restaurant: "Pizza House", customer: "Emma Wilson", type: "Dine In", amount: "$28.50", status: "Preparing", time: "10:22 AM" },
-  { id: "#ORD-1003", restaurant: "Burger Point", customer: "David Lee", type: "Take Away", amount: "$19.99", status: "Pending", time: "10:30 AM" },
-  { id: "#ORD-1004", restaurant: "Food Hub", customer: "Sophia Brown", type: "Room service", amount: "$62.80", status: "Cancelled", time: "10:40 AM" },
-  { id: "#ORD-1005", restaurant: "Bistro Central", customer: "Michael Scott", type: "Dine In", amount: "$88.40", status: "Completed", time: "11:00 AM" },
-  { id: "#ORD-1006", restaurant: "Pizza House", customer: "Sarah Parker", type: "Room service", amount: "$37.20", status: "Preparing", time: "11:08 AM" },
-  { id: "#ORD-1007", restaurant: "Burger Point", customer: "Daniel Kim", type: "Take Away", amount: "$24.90", status: "Pending", time: "11:16 AM" },
-  { id: "#ORD-1008", restaurant: "Food Hub", customer: "Olivia Martin", type: "Dine In", amount: "$72.10", status: "Completed", time: "11:35 AM" },
-];
-
-const stats = [
-  { title: "Total Orders", value: "12,845", change: "+12.5%", icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
-  { title: "Gross Revenue", value: "$184,520", change: "+8.2%", icon: DollarSign, color: "bg-green-100 text-green-600" },
-  { title: "Active Businesses", value: "248", change: "+15", icon: Store, color: "bg-orange-100 text-orange-600" },
-  { title: "Pending Issues", value: "18", change: "-4", icon: AlertTriangle, color: "bg-red-100 text-red-600" },
-];
+import { useEffect, useState } from "react";
+import {
+  Bell, CircleHelp, Download, Search, Eye, Pencil, Trash2,
+  ShoppingBag, DollarSign, Store, AlertTriangle, ChevronLeft, ChevronRight,
+  X, Loader2,
+} from "lucide-react";
+import {
+  getOrders, getBusinesses, getStats, getOrderDetail,
+  updateOrderAction, deleteOrder, SuperadminOrder,
+} from "@/app/actions/order";
 
 const statusColor: Record<string, string> = {
+  New: "bg-blue-100 text-blue-700",
+  Preparing: "bg-yellow-100 text-yellow-700",
+  Ready: "bg-purple-100 text-purple-700",
   Completed: "bg-green-100 text-green-700",
-  Preparing: "bg-blue-100 text-blue-700",
-  Pending: "bg-yellow-100 text-yellow-700",
-  Cancelled: "bg-red-100 text-red-700",
+  Delayed: "bg-red-100 text-red-700",
 };
 
+const statusOptions = [
+  { value: "", label: "All Status" },
+  { value: "new", label: "New" },
+  { value: "preparing", label: "Preparing" },
+  { value: "ready", label: "Ready" },
+  { value: "completed", label: "Completed" },
+  { value: "delayed", label: "Delayed" },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColor[label] ?? "bg-gray-100 text-gray-700"}`}>
+      {label}
+    </span>
+  );
+}
+
+type Business = { id: string; name: string };
+type Stats = { totalOrders: number; grossRevenue: number; activeBusinesses: number; pendingIssues: number };
+type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrderDetail>>>;
+
 export default function OrdersPage() {
-  // Draft values reflect what's typed/selected in the filter bar,
-  // but don't affect the table until "Apply Filters" is clicked.
-  const [draftSearch, setDraftSearch] = useState("");
-  const [draftStatus, setDraftStatus] = useState("");
-  const [draftBusiness, setDraftBusiness] = useState("");
+  const [orders, setOrders] = useState<SuperadminOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [stats, setStats] = useState<Stats>({ totalOrders: 0, grossRevenue: 0, activeBusinesses: 0, pendingIssues: 0 });
+  const [loading, setLoading] = useState(true);
 
-  // Applied values are what actually drive the filtered table.
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedStatus, setAppliedStatus] = useState("");
-  const [appliedBusiness, setAppliedBusiness] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [businessId, setBusinessId] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const handleApplyFilters = () => {
-    console.log("Apply Filters clicked:", { draftSearch, draftStatus, draftBusiness });
-    setAppliedSearch(draftSearch);
-    setAppliedStatus(draftStatus);
-    setAppliedBusiness(draftBusiness);
-  };
+  const [viewItem, setViewItem] = useState<OrderDetail | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [editItem, setEditItem] = useState<OrderDetail | null>(null);
+  const [editForm, setEditForm] = useState({ status: "", paymentStatus: "", delayReason: "" });
+  const [submitting, setSubmitting] = useState(false);
 
-  // Header search box filters live (independent of Apply Filters),
-  // since it's meant as a quick lookup rather than part of the filter bar.
-  const [headerSearch, setHeaderSearch] = useState("");
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const filtered = useMemo(() => {
-    const s = (headerSearch || appliedSearch).toLowerCase();
-    return allOrders.filter((o) => {
-      const matchesSearch =
-        !s || o.id.toLowerCase().includes(s) || o.customer.toLowerCase().includes(s);
-      const matchesStatus = !appliedStatus || o.status === appliedStatus;
-      const matchesBusiness = !appliedBusiness || o.restaurant === appliedBusiness;
-      return matchesSearch && matchesStatus && matchesBusiness;
-    });
-  }, [headerSearch, appliedSearch, appliedStatus, appliedBusiness]);
+  async function loadOrders() {
+    setLoading(true);
+    const data = await getOrders({ search, status, businessId, page, pageSize });
+    setOrders(data.orders);
+    setTotal(data.total);
+    setLoading(false);
+  }
+
+  async function loadStats() {
+    const data = await getStats();
+    setStats(data);
+  }
+
+  // Initial load — businesses + stats once
+  useEffect(() => {
+    getBusinesses().then(setBusinesses);
+    loadStats();
+  }, []);
+
+  // Status / business / page / pageSize change — refetch immediately
+  useEffect(() => {
+    loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, businessId, page, pageSize]);
+
+  // Search text — debounce, reset to page 1
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (page !== 1) setPage(1);
+      else loadOrders();
+    }, 350);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  async function handleView(id: string) {
+    setViewLoading(true);
+    const detail = await getOrderDetail(id);
+    setViewLoading(false);
+    if (detail) setViewItem(detail);
+  }
+
+  async function handleEditOpen(id: string) {
+    const detail = await getOrderDetail(id);
+    if (!detail) return;
+    setEditItem(detail);
+    setEditForm({ status: detail.status, paymentStatus: detail.paymentStatus, delayReason: detail.delayReason });
+  }
+
+  async function handleEditSave() {
+    if (!editItem) return;
+    setSubmitting(true);
+    const res = await updateOrderAction(editItem.id, editForm);
+    setSubmitting(false);
+    if (res.success) {
+      setEditItem(null);
+      loadOrders();
+      loadStats();
+    } else {
+      alert(res.message);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to delete this order?")) return;
+    const previous = orders;
+    setOrders((prev) => prev.filter((o) => o.id !== id)); // optimistic
+    const res = await deleteOrder(id);
+    if (!res.success) {
+      setOrders(previous);
+      alert(res.message);
+    } else {
+      setTotal((t) => t - 1);
+      loadStats();
+    }
+  }
+
+  const statCards = [
+    { title: "Total Orders", value: stats.totalOrders.toLocaleString(), icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
+    { title: "Gross Revenue", value: `$${stats.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: DollarSign, color: "bg-green-100 text-green-600" },
+    { title: "Active Businesses", value: stats.activeBusinesses.toLocaleString(), icon: Store, color: "bg-orange-100 text-orange-600" },
+    { title: "Pending Issues", value: stats.pendingIssues.toLocaleString(), icon: AlertTriangle, color: "bg-red-100 text-red-600" },
+  ];
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-
       {/* Header */}
       <header className="sticky top-0 z-20 border-b bg-white">
-        <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Orders Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Orders Management</h1>
             <p className="mt-1 text-sm text-gray-500">Monitor and manage all customer orders.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full sm:w-auto">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={headerSearch}
-                onChange={(e) => setHeaderSearch(e.target.value)}
-                placeholder="Search orders..."
-                className="h-11 w-full sm:w-72 rounded-lg border border-gray-200 pl-10 pr-4 outline-none focus:border-[#F97316]"
-              />
-            </div>
             <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
               <Download size={18} /> Export
             </button>
@@ -92,22 +165,21 @@ export default function OrdersPage() {
         </div>
       </header>
 
-      <div className="p-6 space-y-6">
-
+      <div className="p-4 space-y-6 sm:p-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {stats.map((item) => {
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
+          {statCards.map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.title} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+              <div key={item.title} className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm transition hover:shadow-md sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">{item.title}</p>
-                    <h2 className="mt-2 text-3xl font-bold text-gray-900">{item.value}</h2>
-                    <p className="mt-3 text-sm font-medium text-green-600">{item.change} this month</p>
+                    <p className="text-[10px] text-gray-500 sm:text-sm">{item.title}</p>
+                    <h2 className="mt-2 text-xl font-bold text-gray-900 sm:text-3xl">{item.value}</h2>
                   </div>
-                  <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${item.color}`}>
-                    <Icon size={28} />
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${item.color}`}>
+                    <Icon size={22} className="sm:hidden" />
+                    <Icon size={28} className="hidden sm:block" />
                   </div>
                 </div>
               </div>
@@ -115,124 +187,248 @@ export default function OrdersPage() {
           })}
         </div>
 
-        {/* Filter Bar */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        {/* Filter Bar — no submit button, everything auto-applies */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                value={draftSearch}
-                onChange={(e) => setDraftSearch(e.target.value)}
-                placeholder="Search Order ID or Customer..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Order ID, Customer or Phone..."
                 className="h-11 w-full rounded-lg border border-gray-300 pl-10 pr-4 outline-none focus:border-[#F97316]"
               />
             </div>
-            <select className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] min-w-[140px]">
-              <option>Last 30 Days</option>
-              <option>Today</option>
-              <option>Last 7 Days</option>
-              <option>This Month</option>
-              <option>This Year</option>
-            </select>
             <select
-              value={draftBusiness}
-              onChange={(e) => setDraftBusiness(e.target.value)}
-              className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] min-w-[150px]"
+              value={businessId}
+              onChange={(e) => { setBusinessId(e.target.value); setPage(1); }}
+              className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] sm:min-w-[150px]"
             >
               <option value="">All Businesses</option>
-              <option value="Bistro Central">Bistro Central</option>
-              <option value="Pizza House">Pizza House</option>
-              <option value="Food Hub">Food Hub</option>
-              <option value="Burger Point">Burger Point</option>
+              {businesses.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
             </select>
             <select
-              value={draftStatus}
-              onChange={(e) => setDraftStatus(e.target.value)}
-              className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] min-w-[130px]"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+              className="h-11 rounded-lg border border-gray-300 px-3 outline-none focus:border-[#0A5C8D] sm:min-w-[130px]"
             >
-              <option value="">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Preparing">Preparing</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              {statusOptions.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
             </select>
-            <button
-              onClick={handleApplyFilters}
-              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition whitespace-nowrap"
-            >
-              <Filter size={18} /> Apply Filters
-            </button>
           </div>
         </div>
 
         {/* Orders Table */}
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr className="text-left text-sm text-gray-600">
-                  <th className="px-6 py-4">Order ID</th>
-                  <th className="px-6 py-4">Business</th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Order Type</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Time</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length > 0 ? filtered.map((order) => (
-                  <tr key={order.id} className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4 font-semibold">{order.id}</td>
-                    <td className="px-6 py-4">{order.restaurant}</td>
-                    <td className="px-6 py-4">{order.customer}</td>
-                    <td className="px-6 py-4">{order.type}</td>
-                    <td className="px-6 py-4 font-medium">{order.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColor[order.status]}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">{order.time}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center gap-2">
-                        <button className="rounded-lg border p-2 hover:bg-gray-100"><Eye size={16} /></button>
-                        <button className="rounded-lg border p-2 hover:bg-blue-100"><Pencil size={16} className="text-blue-600" /></button>
-                        <button className="rounded-lg border p-2 hover:bg-red-100"><Trash2 size={16} className="text-red-600" /></button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="flex h-64 flex-col items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#F97316]" />
+              <span className="mt-2 text-sm font-medium text-gray-500">Loading orders...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[900px] w-full">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-sm text-gray-600">
+                    <th className="px-6 py-4">Order ID</th>
+                    <th className="px-6 py-4">Business</th>
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4">Order Type</th>
+                    <th className="px-6 py-4">Amount</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Time</th>
+                    <th className="px-6 py-4 text-center">Actions</th>
                   </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={8} className="py-16 text-center text-gray-500">No orders found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {orders.length > 0 ? orders.map((order) => (
+                    <tr key={order.id} className="border-t hover:bg-gray-50">
+                      <td className="px-6 py-4 font-semibold">#{order.id}</td>
+                      <td className="px-6 py-4">{order.business}</td>
+                      <td className="px-6 py-4">
+                        <div>{order.customer}</div>
+                        <div className="text-xs text-gray-400">{order.customerPhone}</div>
+                      </td>
+                      <td className="px-6 py-4">{order.orderType}</td>
+                      <td className="px-6 py-4 font-medium">{order.amount}</td>
+                      <td className="px-6 py-4"><StatusBadge status={order.status} /></td>
+                      <td className="px-6 py-4">{order.time}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => handleView(order.id)} className="rounded-lg border p-2 hover:bg-gray-100">
+                            <Eye size={16} />
+                          </button>
+                          <button onClick={() => handleEditOpen(order.id)} className="rounded-lg border p-2 hover:bg-blue-100">
+                            <Pencil size={16} className="text-blue-600" />
+                          </button>
+                          <button onClick={() => handleDelete(order.id)} className="rounded-lg border p-2 hover:bg-red-100">
+                            <Trash2 size={16} className="text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={8} className="py-16 text-center text-gray-500">No orders found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:flex-row">
           <div className="text-sm text-gray-600">
-            Showing <span className="font-semibold">1–{filtered.length}</span> of <span className="font-semibold">{filtered.length}</span> orders
+            Showing <span className="font-semibold">{total === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)}</span> of <span className="font-semibold">{total}</span> orders
           </div>
           <div className="flex items-center gap-2">
-            <button className="rounded-lg border p-2 hover:bg-gray-100"><ChevronLeft size={18} /></button>
-            <button className="h-10 w-10 rounded-lg bg-[#F97316] text-white">1</button>
-            <button className="rounded-lg border p-2 hover:bg-gray-100"><ChevronRight size={18} /></button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-lg border p-2 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316] text-white">{page}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-lg border p-2 hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-600">Rows per page</span>
-            <select className="rounded-lg border px-3 py-2 outline-none">
-              <option>10</option><option>25</option><option>50</option>
-            </select>
+            <div className="flex gap-1">
+              {[10, 25, 50].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => { setPageSize(size); setPage(1); }}
+                  className={`rounded-lg border px-3 py-2 ${pageSize === size ? "border-[#F97316] text-[#F97316]" : "text-gray-600"}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-
       </div>
+
+      {/* View Modal */}
+      {(viewItem || viewLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b p-5 sm:p-6">
+              <h2 className="text-xl font-bold">Order Details</h2>
+              <button onClick={() => setViewItem(null)}><X size={22} /></button>
+            </div>
+            {viewLoading || !viewItem ? (
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-[#F97316]" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4 p-5 sm:p-6">
+                  <div className="grid gap-3 text-sm sm:grid-cols-2">
+                    <p><span className="font-medium">Order:</span> #{viewItem.id}</p>
+                    <p><span className="font-medium">Business:</span> {viewItem.business}</p>
+                    <p><span className="font-medium">Customer:</span> {viewItem.customer}</p>
+                    <p><span className="font-medium">Phone:</span> {viewItem.customerPhone}</p>
+                    <p><span className="font-medium">Email:</span> {viewItem.customerEmail}</p>
+                    <p><span className="font-medium">Location:</span> {viewItem.location}</p>
+                    <p><span className="font-medium">Type:</span> {viewItem.orderType}</p>
+                    <p><span className="font-medium">Payment:</span> {viewItem.paymentStatus}</p>
+                  </div>
+                  <div>
+                    <StatusBadge status={viewItem.status} />
+                    {viewItem.delayReason && (
+                      <p className="mt-2 text-sm text-red-600">Reason: {viewItem.delayReason}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-gray-700">Items</p>
+                    <div className="space-y-2 rounded-xl border p-3">
+                      {viewItem.items.map((it, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span>{it.quantity}× {it.name}{it.notes ? ` (${it.notes})` : ""}</span>
+                          <span className="font-medium">{it.unitPrice}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#F97316]/10 p-4">
+                    <p className="text-sm text-gray-500">Total Amount</p>
+                    <h2 className="text-3xl font-bold text-[#F97316]">{viewItem.totalAmount}</h2>
+                  </div>
+                </div>
+                <div className="flex justify-end border-t p-5 sm:p-6">
+                  <button onClick={() => setViewItem(null)} className="rounded-xl bg-[#F97316] px-5 py-2 text-white hover:bg-[#e06610] transition">Close</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b p-5 sm:p-6">
+              <h2 className="text-xl font-bold">Edit Order #{editItem.id}</h2>
+              <button onClick={() => setEditItem(null)}><X size={22} /></button>
+            </div>
+            <div className="space-y-4 p-5 sm:p-6">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
+                >
+                  <option value="new">New</option>
+                  <option value="preparing">Preparing</option>
+                  <option value="ready">Ready</option>
+                  <option value="completed">Completed</option>
+                  <option value="delayed">Delayed</option>
+                </select>
+              </div>
+              {editForm.status === "delayed" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Delay Reason</label>
+                  <input
+                    value={editForm.delayReason}
+                    onChange={(e) => setEditForm({ ...editForm, delayReason: e.target.value })}
+                    className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Payment Status</label>
+                <select
+                  value={editForm.paymentStatus}
+                  onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
+                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-3 border-t p-5 sm:flex-row sm:justify-end sm:p-6">
+              <button onClick={() => setEditItem(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
+              <button onClick={handleEditSave} disabled={submitting} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition disabled:opacity-50">
+                {submitting ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
