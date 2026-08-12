@@ -218,3 +218,49 @@ model SystemLog {
   @@index([createdAt])
   @@index([archived])
 }
+
+// Add to schema.prisma
+
+model BusinessRule {
+  id                    BigInt  @id @default(autoincrement())
+  // there is only ever ONE row here — treated as a singleton settings record
+  autoApproveBusinesses Boolean @default(false)
+  requireVerification   Boolean @default(true)
+  defaultBusinessStatus String  @default("Pending") // "Pending" | "Active" | "Suspended"
+
+  payoutFrequency String  @default("Weekly") // "Daily" | "Weekly" | "Bi-Weekly" | "Monthly"
+  payoutThreshold Decimal @default(1000) @db.Decimal(10, 2)
+  payoutMethod    String  @default("Bank Transfer") // "Bank Transfer" | "eSewa" | "Khalti"
+
+  minOrderValue            Decimal @default(150) @db.Decimal(10, 2)
+  allowPerBusinessOverride Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  documents RequiredDocument[]
+  tiers     CommissionTier[]
+}
+
+model RequiredDocument {
+  id        BigInt  @id @default(autoincrement())
+  ruleId    BigInt
+  name      String
+  required  Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  rule BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+}
+
+model CommissionTier {
+  id         BigInt  @id @default(autoincrement())
+  ruleId     BigInt
+  name       String
+  commission Decimal @db.Decimal(5, 2) // percentage, e.g. 12.00
+  sortOrder  Int     @default(0)
+
+  rule BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   Store,
   ClipboardCheck,
@@ -12,41 +12,36 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
+import { getBusinessRules, saveBusinessRules, type BusinessRulesData } from "@/app/actions/business-rules";
 
-interface CommissionTier {
-  id: string;
-  name: string;
-  commission: number;
-}
-
-interface RequiredDocument {
+interface Document {
   id: string;
   name: string;
   required: boolean;
 }
 
+interface Tier {
+  id: string;
+  name: string;
+  commission: number;
+}
+
 export default function BusinessRulesPage() {
+  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Business defaults
   const [autoApprove, setAutoApprove] = useState(false);
   const [requireVerification, setRequireVerification] = useState(true);
   const [defaultStatus, setDefaultStatus] = useState("Pending");
 
-  // Required documents
-  const [documents, setDocuments] = useState<RequiredDocument[]>([
-    { id: "1", name: "Business Registration / License", required: true },
-    { id: "2", name: "Tax Registration (PAN / VAT)", required: true },
-    { id: "3", name: "Bank Account Details", required: true },
-    { id: "4", name: "Owner Citizenship / ID", required: false },
-  ]);
+  // Required documents — fetched from DB on mount, not hardcoded
+  const [documents, setDocuments] = useState<Document[]>([]);
 
-  // Commission tiers
-  const [tiers, setTiers] = useState<CommissionTier[]>([
-    { id: "1", name: "Standard", commission: 12 },
-    { id: "2", name: "Premium Partner", commission: 8 },
-    { id: "3", name: "New Business (first 3 months)", commission: 5 },
-  ]);
+  // Commission tiers — fetched from DB on mount, not hardcoded
+  const [tiers, setTiers] = useState<Tier[]>([]);
 
   // Payout
   const [payoutFrequency, setPayoutFrequency] = useState("Weekly");
@@ -57,15 +52,55 @@ export default function BusinessRulesPage() {
   const [minOrderValue, setMinOrderValue] = useState(150);
   const [allowPerBusinessOverride, setAllowPerBusinessOverride] = useState(true);
 
+  // Load settings from the database on mount
+  useEffect(() => {
+    let cancelled = false;
+    getBusinessRules().then((data: BusinessRulesData) => {
+      if (cancelled) return;
+      setAutoApprove(data.autoApproveBusinesses);
+      setRequireVerification(data.requireVerification);
+      setDefaultStatus(data.defaultBusinessStatus);
+      setDocuments(data.documents);
+      setTiers(data.tiers);
+      setPayoutFrequency(data.payoutFrequency);
+      setPayoutThreshold(data.payoutThreshold);
+      setPayoutMethod(data.payoutMethod);
+      setMinOrderValue(data.minOrderValue);
+      setAllowPerBusinessOverride(data.allowPerBusinessOverride);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError(null);
+    startTransition(async () => {
+      const result = await saveBusinessRules({
+        autoApproveBusinesses: autoApprove,
+        requireVerification,
+        defaultBusinessStatus: defaultStatus,
+        payoutFrequency,
+        payoutThreshold,
+        payoutMethod,
+        minOrderValue,
+        allowPerBusinessOverride,
+        documents: documents.map((d) => ({ id: d.id, name: d.name, required: d.required })),
+        tiers: tiers.map((t) => ({ id: t.id, name: t.name, commission: t.commission })),
+      });
+
+      if (result.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setError(result.message);
+      }
+    });
   }
 
   function toggleDocument(id: string) {
-    setDocuments((docs) =>
-      docs.map((d) => (d.id === id ? { ...d, required: !d.required } : d))
-    );
+    setDocuments((docs) => docs.map((d) => (d.id === id ? { ...d, required: !d.required } : d)));
   }
 
   function updateDocumentName(id: string, value: string) {
@@ -77,10 +112,7 @@ export default function BusinessRulesPage() {
   }
 
   function addDocument() {
-    setDocuments((docs) => [
-      ...docs,
-      { id: crypto.randomUUID(), name: "New Document", required: false },
-    ]);
+    setDocuments((docs) => [...docs, { id: crypto.randomUUID(), name: "New Document", required: false }]);
   }
 
   function updateTierCommission(id: string, value: number) {
@@ -96,10 +128,15 @@ export default function BusinessRulesPage() {
   }
 
   function addTier() {
-    setTiers((t) => [
-      ...t,
-      { id: crypto.randomUUID(), name: "New Tier", commission: 10 },
-    ]);
+    setTiers((t) => [...t, { id: crypto.randomUUID(), name: "New Tier", commission: 10 }]);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-400">Loading business rules…</p>
+      </div>
+    );
   }
 
   return (
@@ -114,6 +151,13 @@ export default function BusinessRulesPage() {
             Onboarding, verification, commission, and payout policies applied to businesses on the platform.
           </p>
         </div>
+
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle size={16} />
+            {error}
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Business Defaults */}
@@ -139,7 +183,7 @@ export default function BusinessRulesPage() {
                 <select
                   value={defaultStatus}
                   onChange={(e) => setDefaultStatus(e.target.value)}
-                  className="input w-36"
+                  className="input w-full sm:w-36"
                 >
                   <option>Pending</option>
                   <option>Active</option>
@@ -156,10 +200,13 @@ export default function BusinessRulesPage() {
             description="Documents a business must provide during onboarding."
           >
             <div className="space-y-1">
+              {documents.length === 0 && (
+                <p className="py-2 text-sm text-slate-400">No documents required yet — add one below.</p>
+              )}
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                  className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3"
                 >
                   <input
                     type="text"
@@ -167,24 +214,26 @@ export default function BusinessRulesPage() {
                     onChange={(e) => updateDocumentName(doc.id, e.target.value)}
                     className="input flex-1"
                   />
-                  <button
-                    type="button"
-                    onClick={() => toggleDocument(doc.id)}
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      doc.required
-                        ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {doc.required ? "Required" : "Optional"}
-                  </button>
-                  <button
-                    onClick={() => removeDocument(doc.id)}
-                    aria-label="Remove document"
-                    className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => toggleDocument(doc.id)}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        doc.required
+                          ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {doc.required ? "Required" : "Optional"}
+                    </button>
+                    <button
+                      onClick={() => removeDocument(doc.id)}
+                      aria-label="Remove document"
+                      className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
 
@@ -205,32 +254,37 @@ export default function BusinessRulesPage() {
             description="Different commission rates per business tier. Assign a tier to a business from its profile."
           >
             <div className="space-y-3">
+              {tiers.length === 0 && (
+                <p className="py-2 text-sm text-slate-400">No tiers yet — add one below.</p>
+              )}
               {tiers.map((tier) => (
-                <div key={tier.id} className="flex items-center gap-3">
+                <div key={tier.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <input
                     type="text"
                     value={tier.name}
                     onChange={(e) => updateTierName(tier.id, e.target.value)}
                     className="input flex-1"
                   />
-                  <div className="relative w-28 shrink-0">
-                    <input
-                      type="number"
-                      value={tier.commission}
-                      onChange={(e) => updateTierCommission(tier.id, Number(e.target.value))}
-                      className="input pr-7"
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      %
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-28 shrink-0">
+                      <input
+                        type="number"
+                        value={tier.commission}
+                        onChange={(e) => updateTierCommission(tier.id, Number(e.target.value))}
+                        className="input pr-7"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                        %
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeTier(tier.id)}
+                      aria-label="Remove tier"
+                      className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeTier(tier.id)}
-                    aria-label="Remove tier"
-                    className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
               ))}
 
@@ -319,7 +373,7 @@ export default function BusinessRulesPage() {
 
       {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6 lg:px-8">
           <p className="text-xs text-slate-400">
             {saved ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
@@ -330,14 +384,18 @@ export default function BusinessRulesPage() {
             )}
           </p>
           <div className="flex gap-3">
-            <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <button
+              disabled={isPending}
+              className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
+            >
               Discard
             </button>
             <button
               onClick={handleSave}
-              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700"
+              disabled={isPending}
+              className="flex-1 rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-60 sm:flex-none"
             >
-              Save Changes
+              {isPending ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </div>
@@ -400,7 +458,7 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+    <div className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="pr-4">
         <p className="text-sm font-medium text-slate-700">{label}</p>
         {description && <p className="mt-0.5 text-xs text-slate-400">{description}</p>}
