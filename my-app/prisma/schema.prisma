@@ -37,7 +37,7 @@ model Staff {
   role            String   @default("staff") // "owner" | "manager" | "staff" — PERMISSION level
   position        String   @default("Waiter") // job title, e.g. "Chef", "Host" — DISPLAY only
   isActive        Boolean  @default(true)
-  needsOnboarding Boolean  @default(true) 
+  needsOnboarding Boolean  @default(true)
   phone           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -64,14 +64,14 @@ model MenuItem {
   price       Decimal  @db.Decimal(10, 2)
   calories    Int?
   imageUrl    String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
- 
- business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  specials    Special[]
-   orderItems OrderItem[]
- 
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  specials   Special[]
+  orderItems OrderItem[]
+
   @@index([businessId])
 }
 
@@ -86,10 +86,10 @@ model Special {
   imageUrl     String? // optional override photo; falls back to the dish's own photo
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
- 
-  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  menuItem     MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
- 
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
   @@index([businessId])
   @@index([menuItemId])
 }
@@ -117,8 +117,8 @@ model Location {
   status     String   @default("active")
   createdAt  DateTime @default(now())
 
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  orders     Order[]
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orders   Order[]
 
   @@unique([businessId, label])
   @@index([businessId])
@@ -137,10 +137,10 @@ model Order {
   orderedAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customer      Customer    @relation(fields: [customerId], references: [id])
-  location      Location?   @relation(fields: [locationId], references: [id])
-  items         OrderItem[]
+  business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id])
+  location Location?   @relation(fields: [locationId], references: [id])
+  items    OrderItem[]
 
   @@index([businessId])
   @@index([status])
@@ -162,3 +162,50 @@ model OrderItem {
   @@index([orderId])
 }
 
+model PlatformUser {
+  id           BigInt    @id @default(autoincrement())
+  fullName     String
+  email        String    @unique
+  phone        String?
+  role         String    @default("Viewer") // "Super Admin" | "Admin" | "Moderator" | "Support" | "Viewer"
+  department   String?
+  status       String    @default("Active") // "Active" | "Suspended"
+  permissions  String[]  @default([])
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  activities PlatformUserActivity[]
+}
+
+model PlatformUserActivity {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  label     String
+  createdAt DateTime @default(now())
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SystemLog {
+  id              BigInt   @id @default(autoincrement())
+  event           String
+  module          String // "Authentication" | "Businesses" | "Payments" | "Global Config" | "System" ...
+  level           String   @default("Info") // "Info" | "Warning" | "Critical"
+  status          String // "Success" | "Completed" | "Failed" | "Blocked"
+  userName        String?
+  userInitials    String?
+  business        String?
+  ipAddress       String?
+  details         String? // extra text shown in the View modal
+  isSecurityEvent Boolean  @default(false)
+  archived        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([level])
+  @@index([module])
+  @@index([createdAt])
+  @@index([archived])
+}
