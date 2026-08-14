@@ -71,7 +71,6 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
             businessType: data.businessType,
             businessAddress: data.businessAddress,
             businessPhone: data.businessPhone,
-            needsOnboarding: true, // pending Super Admin approval
           },
         });
 
@@ -82,6 +81,7 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
             email: data.email,
             password: hashedPassword,
             role: "owner",
+            needsOnboarding: false, // Admins skip onboarding since they just created the business. 
           },
         });
       });

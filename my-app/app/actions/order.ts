@@ -105,7 +105,7 @@ export async function getStats() {
         _sum: { totalAmount: true },
         where: { paymentStatus: "paid" },
       }),
-      prisma.business.count({ where: { needsOnboarding: false } }),
+      prisma.business.count({ where: { staff: { some: { needsOnboarding: false } } } }),
       prisma.order.count({
         where: { OR: [{ status: "delayed" }, { paymentStatus: "unpaid" }] },
       }),

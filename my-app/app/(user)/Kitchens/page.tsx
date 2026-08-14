@@ -11,7 +11,7 @@ const prisma =
 
 export default async function MarketplacePage() {
   const businesses = await prisma.business.findMany({
-    where: { needsOnboarding: false },
+    where: { staff: { some: { needsOnboarding: false } } },
     select: {
       id: true,
       businessName: true,

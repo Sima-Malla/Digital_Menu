@@ -40,7 +40,10 @@ function Toggle({
       type="button"
       role="switch"
       aria-checked={enabled}
-      onClick={onToggle}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
       className={`relative inline-flex ${dims} shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
         enabled ? "bg-orange-500" : "bg-gray-200"
       }`}
@@ -101,9 +104,17 @@ function ChannelCard({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onToggle}
-      className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 p-4 transition-all duration-200 ${
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 p-4 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
         enabled
           ? "border-orange-500 bg-orange-50/50 shadow-sm shadow-orange-100/50"
           : "border-gray-200 bg-white hover:border-gray-300"
@@ -121,7 +132,7 @@ function ChannelCard({
         <p className="mt-0.5 text-[11px] text-gray-400">{desc}</p>
       </div>
       <Toggle enabled={enabled} onToggle={onToggle} size="sm" />
-    </button>
+    </div>
   );
 }
 

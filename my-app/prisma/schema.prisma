@@ -21,11 +21,74 @@ model Business {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // General Settings — Business Profile
+  logoUrl    String?
+  bannerUrl  String?
+
+  // General Settings — Localization
+  language String @default("English (US)")
+  currency String @default("USD ($)")
+  timezone String @default("EST (UTC-5)")
+
+  // General Settings — Financial & Tax
+  taxId             String?
+  taxRegistration   String?
+
+  // General Settings — Marketplace Visibility
+  listInMarketplace Boolean @default(true)
+  showOnMap         Boolean @default(true)
+  allowReviews      Boolean @default(true)
+
+  // General Settings — Contact & Social
+  email     String? @unique
+  website   String?
+  instagram String?
+  facebook  String?
+  twitter   String?
+
   staff      Staff[]
   menuItems  MenuItem[]
   specials   Special[]
   locations  Location[]
   orders     Order[]
+  areas      Area[]
+}
+
+model Area {
+  id            BigInt   @id @default(autoincrement())
+  businessId    BigInt
+  type          String   // "dining" | "rooms"
+  name          String
+  status        String   @default("available") // AreaStatus
+  capacity      Int
+  unitCount     Int
+  style         String
+  note          String?
+  occupancyRate Int      @default(0)
+  revenueToday  Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subUnits SubUnit[]
+
+  @@index([businessId])
+}
+
+model SubUnit {
+  id            BigInt    @id @default(autoincrement())
+  areaId        BigInt
+  label         String
+  status        String    @default("available") // AreaStatus (dining) or RoomOrderStatus (rooms)
+  guestName     String?
+  orderItems    String[]  @default([])
+  orderPlacedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([areaId])
 }
 
 model Staff {
@@ -129,11 +192,13 @@ model Order {
   businessId    BigInt
   customerId    BigInt
   locationId    BigInt?
-  orderType     String // "dine-in" | "pickup" | "delivery"
-  status        String   @default("new") // "new" | "preparing" | "ready" | "completed" | "delayed"
+  orderType     String
+  status        String   @default("new")
   delayReason   String?
-  paymentStatus String   @default("unpaid") // "unpaid" | "paid"
+  paymentStatus String   @default("unpaid")
   totalAmount   Decimal  @db.Decimal(10, 2)
+  escalated     Boolean  @default(false)   // 👈 new
+  notifiedAt    DateTime?                   // 👈 new
   orderedAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

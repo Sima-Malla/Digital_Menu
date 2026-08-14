@@ -2,53 +2,101 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateOrderStatus, removeOrder, findOrder } from "@/lib/orders";
+import { getSession } from "@/lib/session";
+import { prisma, findOrder, updateOrderStatus } from "@/lib/orders";
 
-// Change these paths to match your actual route.
-const ORDERS_PATH = "/orders";
+const ORDERS_PATH = "/orders"; // update to match your actual route
+
+async function requireBusinessId(): Promise<bigint | null> {
+  const session = await getSession();
+  if (!session?.businessId) return null;
+  return BigInt(session.businessId);
+}
 
 export async function acceptOrder(orderId: string) {
-  const order = findOrder(orderId);
+  const businessId = await requireBusinessId();
+  if (!businessId) return { success: false, error: "Not authenticated" };
+
+  const id = BigInt(orderId);
+  const order = await findOrder(businessId, id);
   if (!order) return { success: false, error: "Order not found" };
 
-  updateOrderStatus(orderId, "preparing");
+  await updateOrderStatus(id, "preparing");
   revalidatePath(ORDERS_PATH);
   return { success: true };
 }
 
 export async function markAsReady(orderId: string) {
-  const order = findOrder(orderId);
+  const businessId = await requireBusinessId();
+  if (!businessId) return { success: false, error: "Not authenticated" };
+
+  const id = BigInt(orderId);
+  const order = await findOrder(businessId, id);
   if (!order) return { success: false, error: "Order not found" };
 
-  updateOrderStatus(orderId, "ready");
+  await updateOrderStatus(id, "ready");
   revalidatePath(ORDERS_PATH);
   return { success: true };
 }
 
 export async function completeOrder(orderId: string) {
-  const order = findOrder(orderId);
+  const businessId = await requireBusinessId();
+  if (!businessId) return { success: false, error: "Not authenticated" };
+
+  const id = BigInt(orderId);
+  const order = await findOrder(businessId, id);
   if (!order) return { success: false, error: "Order not found" };
 
-  removeOrder(orderId);
+  // Orders are kept as history, never deleted — "completed" is a real
+  // terminal status, not a removal from the table.
+  await prisma.order.update({
+    where: { id },
+    data: { status: "completed", paymentStatus: "paid" },
+  });
+
   revalidatePath(ORDERS_PATH);
   return { success: true };
 }
 
 export async function escalateOrder(orderId: string) {
-  const order = findOrder(orderId);
+  const businessId = await requireBusinessId();
+  if (!businessId) return { success: false, error: "Not authenticated" };
+
+  const id = BigInt(orderId);
+  const order = await findOrder(businessId, id);
   if (!order) return { success: false, error: "Order not found" };
 
-  // e.g. flag a manager / send an alert — plug in real logic here
-  console.log(`Escalated ${orderId}`);
+  await prisma.order.update({
+    where: { id },
+    data: { escalated: true },
+  });
+
+  await prisma.systemLog.create({
+    data: {
+      event: `Order #${id} escalated`,
+      module: "Orders",
+      level: "Warning",
+      status: "Completed",
+    },
+  });
+
   revalidatePath(ORDERS_PATH);
   return { success: true };
 }
 
 export async function notifyGuest(orderId: string) {
-  const order = findOrder(orderId);
+  const businessId = await requireBusinessId();
+  if (!businessId) return { success: false, error: "Not authenticated" };
+
+  const id = BigInt(orderId);
+  const order = await findOrder(businessId, id);
   if (!order) return { success: false, error: "Order not found" };
 
-  // e.g. send SMS/push notification — plug in real logic here
-  console.log(`Notified guest for ${orderId}`);
+  await prisma.order.update({
+    where: { id },
+    data: { notifiedAt: new Date() },
+  });
+
+  // Plug in a real SMS/push notification provider here.
   return { success: true };
 }

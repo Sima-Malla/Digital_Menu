@@ -64,7 +64,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
       password: true,
       role: true,
       businessId: true,
-      business: { select: { needsOnboarding: true } },
+      needsOnboarding: true,
     },
   });
 
@@ -103,9 +103,9 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     remember
   );
 
-  // Staff/owners whose business hasn't completed setup get sent to
+  // Staff/owners whose account hasn't completed setup get sent to
   // onboarding first, before ever reaching their normal dashboard.
-  if (staffMember?.business?.needsOnboarding) {
+  if (staffMember?.needsOnboarding) {
     redirect("/onboarding");
   }
 

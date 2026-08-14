@@ -3,7 +3,7 @@
 
 import { useState, useTransition } from "react";
 import { Search, Bell, MoreVertical, AlertTriangle } from "lucide-react";
-import type { Order } from "@/lib/orders";
+import type { Order } from "@/lib/orders"; // was "@/lib/orders" pointing at fake data before
 import {
   acceptOrder,
   markAsReady,

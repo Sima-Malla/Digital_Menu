@@ -24,8 +24,8 @@ async function requireSuperAdmin() {
 export async function approveBusinessAction(businessId: string) {
   await requireSuperAdmin();
 
-  await prisma.business.update({
-    where: { id: BigInt(businessId) },
+  await prisma.staff.updateMany({
+    where: { businessId: BigInt(businessId) },
     data: { needsOnboarding: false },
   });
 

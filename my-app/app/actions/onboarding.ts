@@ -86,10 +86,10 @@ export async function completeOnboardingAction(
     },
   });
 
-  // needsOnboarding lives on Business, not Staff — clear it there so the
-  // whole business (and its other staff) skip onboarding going forward.
-  await prisma.business.update({
-    where: { id: BigInt(session.businessId) },
+  // needsOnboarding lives on Staff in this schema. Clear it for the current
+  // staff member so the account can continue into the normal dashboard.
+  await prisma.staff.update({
+    where: { id: BigInt(session.userId) },
     data: { needsOnboarding: false },
   });
 

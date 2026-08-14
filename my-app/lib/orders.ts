@@ -1,108 +1,101 @@
 // lib/orders.ts
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/lib/generated/prisma/client";
 
-export type OrderTag = "PICKUP" | "DELIVERY" | "KITCHEN";
-export type OrderStatus = "new" | "preparing" | "ready" | "delayed" | "completed";
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
-export interface OrderItem {
-  name: string;
-  price?: string;
-}
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter: new PrismaPg({ connectionString: connectionString ?? "" }),
+  });
 
-export interface Order {
-  id: string;
-  status: OrderStatus;
-  tag: OrderTag;
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+export type OrderStatus = "new" | "preparing" | "ready" | "completed" | "delayed";
+
+export type UIOrderItem = { name: string; price: string };
+
+export type Order = {
+  id: string; // BigInt as a string, so it round-trips cleanly through client components
   meta: string;
-  items: OrderItem[];
-  heading?: string;      // e.g. "Mesa 4 - VIP"
-  customer?: string;     // ready-column
-  note?: string;         // ready-column
-  issue?: string;        // delayed-column
-  createdAt: number;
+  tag: "PICKUP" | "DELIVERY" | "KITCHEN";
+  items: UIOrderItem[];
+  heading?: string;
+  customer?: string;
+  note?: string;
+  issue?: string;
+  escalated: boolean;
+};
+
+function tagFromOrderType(orderType: string): Order["tag"] {
+  if (orderType === "pickup") return "PICKUP";
+  if (orderType === "delivery") return "DELIVERY";
+  return "KITCHEN"; // dine-in
 }
 
-// --- Mock "database" (module-level array). ---
-// NOTE: this resets whenever the server process restarts, and in a
-// serverless deployment (Vercel etc.) each instance may have its own copy.
-// Swap this file's read/write functions for real DB calls (Prisma, etc.)
-// when you're ready — the actions.ts API below won't need to change.
-let orders: Order[] = [
-  {
-    id: "#ORD-2849",
-    status: "new",
-    tag: "PICKUP",
-    meta: "2 mins ago",
-    items: [
-      { name: "2x Truffle Risotto", price: "$48.00" },
-      { name: "1x Wagyu Slider Box", price: "$32.00" },
-    ],
-    createdAt: Date.now(),
-  },
-  {
-    id: "#ORD-2850",
-    status: "new",
-    tag: "DELIVERY",
-    meta: "Just now",
-    items: [{ name: "1x Signature Platter", price: "$65.00" }],
-    createdAt: Date.now(),
-  },
-  {
-    id: "#ORD-2845",
-    status: "preparing",
-    tag: "KITCHEN",
-    meta: "In kitchen: 12 mins",
-    heading: "Mesa 4 - VIP",
-    items: [{ name: "3x Lobster Thermidor (No Parsley)" }],
-    createdAt: Date.now(),
-  },
-  {
-    id: "#ORD-2842",
-    status: "preparing",
-    tag: "PICKUP",
-    meta: "In kitchen: 18 mins",
-    items: [{ name: "1x Vegan Power Bowl" }],
-    createdAt: Date.now(),
-  },
-  {
-    id: "#ORD-2839",
-    status: "ready",
-    tag: "PICKUP",
-    meta: "Ready for 5 mins",
-    customer: "Johnathan Doe",
-    note: "Courier arriving in 2m",
-    items: [],
-    createdAt: Date.now(),
-  },
-  {
-    id: "#ORD-2830",
-    status: "delayed",
-    tag: "KITCHEN",
-    meta: "Delayed 12m",
-    issue: "Issue: Seafood prep backlog",
-    items: [{ name: "12x Mixed Oyster Plate" }],
-    createdAt: Date.now(),
-  },
-];
-
-export function getOrders(): Order[] {
-  return orders;
+function minutesAgo(date: Date): number {
+  return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
 }
 
-export function getOrdersByStatus(status: OrderStatus): Order[] {
-  return orders.filter((o) => o.status === status);
+function toUIOrder(order: {
+  id: bigint;
+  orderType: string;
+  orderedAt: Date;
+  delayReason: string | null;
+  paymentStatus: string;
+  escalated?: boolean | null;
+  items: { name: string; unitPrice: unknown; quantity: number }[];
+  customer: { name: string } | null;
+  location: { label: string } | null;
+}): Order {
+  const mins = minutesAgo(order.orderedAt);
+  const locationLabel = order.location?.label;
+
+  return {
+    id: order.id.toString(),
+    meta: locationLabel
+      ? `${locationLabel} • ${mins} min${mins === 1 ? "" : "s"} ago`
+      : `${mins} min${mins === 1 ? "" : "s"} ago`,
+    tag: tagFromOrderType(order.orderType),
+    items: order.items.map((item) => ({
+      name: `${item.name} ×${item.quantity}`,
+      price: `Rs. ${(Number(item.unitPrice) * item.quantity).toFixed(2)}`,
+    })),
+    heading: locationLabel,
+    customer: order.customer?.name,
+    note: order.paymentStatus === "unpaid" ? "Payment pending" : "Paid",
+    issue: order.delayReason ?? undefined,
+    escalated: order.escalated ?? false,
+  };
 }
 
-export function updateOrderStatus(id: string, status: OrderStatus): Order | null {
-  const order = orders.find((o) => o.id === id);
-  if (!order) return null;
-  order.status = status;
-  return order;
+export async function getOrdersByStatus(
+  businessId: bigint,
+  status: OrderStatus
+): Promise<Order[]> {
+  const orders = await prisma.order.findMany({
+    where: { businessId, status },
+    include: { items: true, customer: true, location: true },
+    orderBy: { orderedAt: "desc" },
+  });
+
+  return orders.map(toUIOrder);
 }
 
-export function removeOrder(id: string): void {
-  orders = orders.filter((o) => o.id !== id);
+export async function findOrder(businessId: bigint, orderId: bigint) {
+  return prisma.order.findFirst({
+    where: { id: orderId, businessId },
+  });
 }
 
-export function findOrder(id: string): Order | undefined {
-  return orders.find((o) => o.id === id);
+export async function updateOrderStatus(
+  orderId: bigint,
+  status: OrderStatus
+) {
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+  });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { completeOnboardingAction, type OnboardingState } from "@/app/actions/onboarding";
@@ -14,7 +14,35 @@ export default function OnboardingPage() {
     initialState
   );
 
-  const errors = state.fieldErrors ?? {};
+  // Fields the user has edited since the last server response — hide their
+  // stale error immediately, even before resubmission.
+  const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
+
+  // Reset editedFields the moment a NEW state arrives — done synchronously
+  // during render (not in a useEffect) so there's no stale intermediate
+  // frame where old edits incorrectly mask a fresh error from this response.
+  const prevStateRef = useRef(state);
+  if (prevStateRef.current !== state) {
+    prevStateRef.current = state;
+    if (editedFields.size > 0) {
+      setEditedFields(new Set());
+    }
+  }
+
+  const serverFieldErrors = state.fieldErrors ?? {};
+  const errors: Record<string, string> = {};
+  for (const [key, message] of Object.entries(serverFieldErrors)) {
+    if (!editedFields.has(key)) errors[key] = message;
+  }
+
+  function markEdited(field: string) {
+    setEditedFields((prev) => {
+      if (prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.add(field);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (state.success) {
@@ -74,6 +102,7 @@ export default function OnboardingPage() {
               type="email"
               autoComplete="email"
               placeholder="your-email@example.com"
+              onChange={() => markEdited("email")}
               className={inputCls(errors.email)}
             />
           </Field>
@@ -88,6 +117,7 @@ export default function OnboardingPage() {
               type="password"
               autoComplete="new-password"
               placeholder="••••••••"
+              onChange={() => markEdited("password")}
               className={inputCls(errors.password)}
             />
           </Field>
@@ -98,6 +128,7 @@ export default function OnboardingPage() {
               type="password"
               autoComplete="new-password"
               placeholder="••••••••"
+              onChange={() => markEdited("confirmPassword")}
               className={inputCls(errors.confirmPassword)}
             />
           </Field>
