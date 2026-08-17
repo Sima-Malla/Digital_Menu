@@ -1,32 +1,45 @@
-// app/actions/order.ts
 "use server";
 
-import { revalidatePath } from "next/cache";
+// Adjust this import to wherever your Prisma client singleton lives.
 import { prisma } from "@/lib/prisma";
-
-function timeAgo(date: Date) {
-  const diffMs = Date.now() - date.getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
+import { revalidatePath } from "next/cache";
 
 export type SuperadminOrder = {
   id: string;
-  businessId: string;
   business: string;
   customer: string;
   customerPhone: string;
   orderType: string;
   amount: string;
   status: string;
-  paymentStatus: string;
   time: string;
 };
+
+export type Business = { id: string; name: string };
+export type Stats = {
+  totalOrders: number;
+  grossRevenue: number;
+  activeBusinesses: number;
+  pendingIssues: number;
+};
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+}
+
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+const VALID_STATUSES = ["new", "preparing", "ready", "completed", "delayed"];
 
 type GetOrdersParams = {
   search?: string;
@@ -36,80 +49,83 @@ type GetOrdersParams = {
   pageSize?: number;
 };
 
-export async function getOrders({
-  search = "",
-  status = "",
-  businessId = "",
-  page = 1,
-  pageSize = 10,
-}: GetOrdersParams): Promise<{ orders: SuperadminOrder[]; total: number }> {
-  const where: any = {};
+export async function getOrders(
+  params: GetOrdersParams = {}
+): Promise<{ orders: SuperadminOrder[]; total: number }> {
+  const { search, status, businessId, page = 1, pageSize = 10 } = params;
+
+  const where: Record<string, unknown> = {};
+
+  if (businessId) {
+    try {
+      where.businessId = BigInt(businessId);
+    } catch {
+      // ignore invalid id, returns empty results naturally via findMany
+    }
+  }
 
   if (status) where.status = status;
-  if (businessId) where.businessId = BigInt(businessId);
 
-  if (search) {
-    const conditions: any[] = [
-      { customer: { name: { contains: search, mode: "insensitive" } } },
-      { customer: { phone: { contains: search, mode: "insensitive" } } },
+  if (search?.trim()) {
+    const trimmed = search.trim();
+    const idCandidate = trimmed.replace(/^#/, "");
+    const isNumeric = /^\d+$/.test(idCandidate);
+
+    where.OR = [
+      { customer: { name: { contains: trimmed, mode: "insensitive" } } },
+      { customer: { phone: { contains: trimmed, mode: "insensitive" } } },
+      ...(isNumeric ? [{ id: BigInt(idCandidate) }] : []),
     ];
-    if (/^\d+$/.test(search.trim())) {
-      conditions.push({ id: BigInt(search.trim()) });
-    }
-    where.OR = conditions;
   }
+
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.max(1, Math.min(100, pageSize));
 
   const [rows, total] = await Promise.all([
     prisma.order.findMany({
       where,
-      include: {
-        business: { select: { businessName: true } },
-        customer: { select: { name: true, phone: true } },
-      },
+      include: { business: true, customer: true },
       orderBy: { orderedAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
     }),
     prisma.order.count({ where }),
   ]);
 
-  const orders = rows.map((o) => ({
+  const orders: SuperadminOrder[] = rows.map((o) => ({
     id: o.id.toString(),
-    businessId: o.businessId.toString(),
     business: o.business.businessName,
     customer: o.customer.name,
     customerPhone: o.customer.phone,
     orderType: o.orderType,
-    amount: `$${Number(o.totalAmount).toFixed(2)}`,
+    amount: formatCurrency(Number(o.totalAmount)),
     status: o.status,
-    paymentStatus: o.paymentStatus,
-    time: timeAgo(o.orderedAt),
+    time: formatTime(o.orderedAt),
   }));
 
   return { orders, total };
 }
 
-export async function getBusinesses() {
-  const businesses = await prisma.business.findMany({
+export async function getBusinesses(): Promise<Business[]> {
+  const rows = await prisma.business.findMany({
     select: { id: true, businessName: true },
     orderBy: { businessName: "asc" },
   });
-  return businesses.map((b) => ({ id: b.id.toString(), name: b.businessName }));
+  return rows.map((b) => ({ id: b.id.toString(), name: b.businessName }));
 }
 
-export async function getStats() {
-  const [totalOrders, revenueAgg, activeBusinesses, pendingIssues] =
-    await Promise.all([
-      prisma.order.count(),
-      prisma.order.aggregate({
-        _sum: { totalAmount: true },
-        where: { paymentStatus: "paid" },
-      }),
-      prisma.business.count({ where: { needsOnboarding: false } }),
-      prisma.order.count({
-        where: { OR: [{ status: "delayed" }, { paymentStatus: "unpaid" }] },
-      }),
-    ]);
+export async function getStats(): Promise<Stats> {
+  const [totalOrders, revenueAgg, activeBusinesses, pendingIssues] = await Promise.all([
+    prisma.order.count(),
+    prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: { paymentStatus: "paid" },
+    }),
+    prisma.business.count({ where: { status: "Active" } }),
+    prisma.order.count({
+      where: { OR: [{ status: "delayed" }, { escalated: true }] },
+    }),
+  ]);
 
   return {
     totalOrders,
@@ -120,13 +136,20 @@ export async function getStats() {
 }
 
 export async function getOrderDetail(id: string) {
+  let orderId: bigint;
+  try {
+    orderId = BigInt(id);
+  } catch {
+    return null;
+  }
+
   const order = await prisma.order.findUnique({
-    where: { id: BigInt(id) },
+    where: { id: orderId },
     include: {
-      business: { select: { businessName: true } },
-      customer: { select: { name: true, phone: true, email: true } },
-      location: { select: { label: true, type: true } },
-      items: { select: { name: true, quantity: true, unitPrice: true, notes: true } },
+      business: true,
+      customer: true,
+      location: true,
+      items: true,
     },
   });
 
@@ -137,54 +160,76 @@ export async function getOrderDetail(id: string) {
     business: order.business.businessName,
     customer: order.customer.name,
     customerPhone: order.customer.phone,
-    customerEmail: order.customer.email ?? "-",
-    location: order.location?.label ?? "-",
+    customerEmail: order.customer.email ?? "—",
+    location: order.location?.label ?? "—",
     orderType: order.orderType,
-    status: order.status,
     paymentStatus: order.paymentStatus,
+    status: order.status,
     delayReason: order.delayReason ?? "",
-    totalAmount: `$${Number(order.totalAmount).toFixed(2)}`,
-    time: timeAgo(order.orderedAt),
     items: order.items.map((it) => ({
-      name: it.name,
       quantity: it.quantity,
-      unitPrice: `$${Number(it.unitPrice).toFixed(2)}`,
-      notes: it.notes ?? "",
+      name: it.name,
+      notes: it.notes ?? undefined,
+      unitPrice: formatCurrency(Number(it.unitPrice)),
     })),
+    totalAmount: formatCurrency(Number(order.totalAmount)),
   };
 }
 
 type UpdateOrderInput = {
   status: string;
   paymentStatus: string;
-  delayReason?: string;
+  delayReason: string;
 };
 
-export async function updateOrderAction(id: string, data: UpdateOrderInput) {
+export async function updateOrderAction(id: string, input: UpdateOrderInput) {
   try {
+    let orderId: bigint;
+    try {
+      orderId = BigInt(id);
+    } catch {
+      return { success: false, message: "Invalid order id." };
+    }
+
+    if (!VALID_STATUSES.includes(input.status)) {
+      return { success: false, message: "Invalid status." };
+    }
+    if (!["paid", "unpaid"].includes(input.paymentStatus)) {
+      return { success: false, message: "Invalid payment status." };
+    }
+
     await prisma.order.update({
-      where: { id: BigInt(id) },
+      where: { id: orderId },
       data: {
-        status: data.status,
-        paymentStatus: data.paymentStatus,
-        delayReason: data.status === "delayed" ? data.delayReason || null : null,
+        status: input.status,
+        paymentStatus: input.paymentStatus,
+        delayReason: input.status === "delayed" ? input.delayReason?.trim() || null : null,
+        escalated: input.status === "delayed",
       },
     });
-    revalidatePath("/order");
+
+    revalidatePath("/orders");
     return { success: true, message: "Order updated." };
   } catch (err) {
-    console.error(err);
+    console.error("updateOrderAction error:", err);
     return { success: false, message: "Failed to update order." };
   }
 }
 
 export async function deleteOrder(id: string) {
   try {
-    await prisma.order.delete({ where: { id: BigInt(id) } });
-    revalidatePath("/order");
+    let orderId: bigint;
+    try {
+      orderId = BigInt(id);
+    } catch {
+      return { success: false, message: "Invalid order id." };
+    }
+
+    await prisma.order.delete({ where: { id: orderId } });
+    revalidatePath("/orders");
     return { success: true, message: "Order deleted." };
   } catch (err) {
-    console.error(err);
+    console.error("deleteOrder error:", err);
     return { success: false, message: "Failed to delete order." };
   }
 }

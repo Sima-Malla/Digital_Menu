@@ -39,6 +39,9 @@ model Business {
   orders            Order[]
   specials          Special[]
   staff             Staff[]
+  paymentGateways  PaymentGateway[]
+   paymentMethods   PaymentMethod[]
+  paymentSettings  PaymentSettings?
 }
 
 model Staff {
@@ -281,4 +284,81 @@ model SubUnit {
   Area          Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
   @@index([areaId])
+}
+model PlatformSettings {
+  id Int @id @default(1) // singleton row, always id = 1
+
+  // Branding
+  platformName String @default("Bistro Central")
+  brandColor   String @default("#F97316")
+
+  // Regional
+  defaultCurrency String @default("NPR")
+  timezone        String @default("Asia/Kathmandu")
+
+  // Legal
+  termsUrl   String?
+  privacyUrl String?
+
+  // Platform rules
+  defaultCommissionPct Decimal @default(12) @db.Decimal(5, 2)
+  minOrderValue        Decimal @default(200) @db.Decimal(10, 2)
+
+  onlineOrdering  Boolean @default(true)
+  guestOrders     Boolean @default(true)
+  customerReviews Boolean @default(true)
+  maintenanceMode Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  regions PlatformRegion[]
+}
+
+model PlatformRegion {
+  id         BigInt   @id @default(autoincrement())
+  settingsId Int      @default(1)
+  name       String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  settings PlatformSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([settingsId, name])
+  @@index([settingsId])
+}
+model PaymentGateway {
+  id           BigInt    @id @default(autoincrement())
+  businessId   BigInt
+  gatewayKey   String    // "esewa" | "khalti" | "stripe"
+  name         String
+  enabled      Boolean   @default(false)
+  apiKeyEnc    String?
+  secretKeyEnc String?
+  lastTestOk   Boolean?
+  updatedAt    DateTime  @updatedAt
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, gatewayKey])
+}
+
+model PaymentMethod {
+  id         BigInt   @id @default(autoincrement())
+  businessId BigInt
+  methodKey  String   // "cod" | "wallet" | "card" | "bank"
+  name       String
+  enabled    Boolean  @default(false)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, methodKey])
+}
+
+model PaymentSettings {
+  businessId       BigInt   @id
+  transactionFee   Decimal  @default(2.5) @db.Decimal(5, 2)
+  feeBearer        String   @default("Business")
+  autoRefund       Boolean  @default(true)
+  refundWindowDays Int      @default(7)
+  manualApproval   Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

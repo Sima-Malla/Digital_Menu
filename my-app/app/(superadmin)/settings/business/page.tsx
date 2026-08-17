@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import {
   Store,
   ClipboardCheck,
@@ -11,6 +11,7 @@ import {
   Trash2,
   Check,
   AlertTriangle,
+  Search,
 } from "lucide-react";
 import { getBusinessRules, saveBusinessRules, type BusinessRulesData } from "@/app/actions/business-rules";
 
@@ -37,20 +38,36 @@ export default function BusinessRulesPage() {
   const [requireVerification, setRequireVerification] = useState(true);
   const [defaultStatus, setDefaultStatus] = useState("Pending");
 
-  // Required documents — fetched from DB on mount, not hardcoded
+  // Required documents
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [docQuery, setDocQuery] = useState("");
+  const [docFilter, setDocFilter] = useState<"all" | "required" | "optional">("all");
 
-  // Commission tiers — fetched from DB on mount, not hardcoded
+  // Commission tiers
   const [tiers, setTiers] = useState<Tier[]>([]);
+  const [tierQuery, setTierQuery] = useState("");
 
   // Payout
   const [payoutFrequency, setPayoutFrequency] = useState("Weekly");
   const [payoutThreshold, setPayoutThreshold] = useState(1000);
-  const [payoutMethod, setPayoutMethod] = useState("Bank Transfer");
 
   // Order rules
   const [minOrderValue, setMinOrderValue] = useState(150);
-  const [allowPerBusinessOverride, setAllowPerBusinessOverride] = useState(true);
+
+  const loadFromServer = () => {
+    setLoading(true);
+    return getBusinessRules().then((data: BusinessRulesData) => {
+      setAutoApprove(data.autoApproveBusinesses);
+      setRequireVerification(data.requireVerification);
+      setDefaultStatus(data.defaultBusinessStatus);
+      setDocuments(data.documents);
+      setTiers(data.tiers);
+      setPayoutFrequency(data.payoutFrequency);
+      setPayoutThreshold(data.payoutThreshold);
+      setMinOrderValue(data.minOrderValue);
+      setLoading(false);
+    });
+  };
 
   // Load settings from the database on mount
   useEffect(() => {
@@ -64,9 +81,7 @@ export default function BusinessRulesPage() {
       setTiers(data.tiers);
       setPayoutFrequency(data.payoutFrequency);
       setPayoutThreshold(data.payoutThreshold);
-      setPayoutMethod(data.payoutMethod);
       setMinOrderValue(data.minOrderValue);
-      setAllowPerBusinessOverride(data.allowPerBusinessOverride);
       setLoading(false);
     });
     return () => {
@@ -83,9 +98,7 @@ export default function BusinessRulesPage() {
         defaultBusinessStatus: defaultStatus,
         payoutFrequency,
         payoutThreshold,
-        payoutMethod,
         minOrderValue,
-        allowPerBusinessOverride,
         documents: documents.map((d) => ({ id: d.id, name: d.name, required: d.required })),
         tiers: tiers.map((t) => ({ id: t.id, name: t.name, commission: t.commission })),
       });
@@ -99,6 +112,12 @@ export default function BusinessRulesPage() {
     });
   }
 
+  function handleDiscard() {
+    setError(null);
+    loadFromServer();
+  }
+
+  // ---- documents ---------------------------------------------------------
   function toggleDocument(id: string) {
     setDocuments((docs) => docs.map((d) => (d.id === id ? { ...d, required: !d.required } : d)));
   }
@@ -112,9 +131,21 @@ export default function BusinessRulesPage() {
   }
 
   function addDocument() {
+    setDocQuery("");
+    setDocFilter("all");
     setDocuments((docs) => [...docs, { id: crypto.randomUUID(), name: "New Document", required: false }]);
   }
 
+  const visibleDocuments = useMemo(() => {
+    return documents.filter((d) => {
+      const matchesQuery = d.name.toLowerCase().includes(docQuery.trim().toLowerCase());
+      const matchesFilter =
+        docFilter === "all" || (docFilter === "required" ? d.required : !d.required);
+      return matchesQuery && matchesFilter;
+    });
+  }, [documents, docQuery, docFilter]);
+
+  // ---- tiers ---------------------------------------------------------
   function updateTierCommission(id: string, value: number) {
     setTiers((t) => t.map((tier) => (tier.id === id ? { ...tier, commission: value } : tier)));
   }
@@ -128,8 +159,13 @@ export default function BusinessRulesPage() {
   }
 
   function addTier() {
+    setTierQuery("");
     setTiers((t) => [...t, { id: crypto.randomUUID(), name: "New Tier", commission: 10 }]);
   }
+
+  const visibleTiers = useMemo(() => {
+    return tiers.filter((t) => t.name.toLowerCase().includes(tierQuery.trim().toLowerCase()));
+  }, [tiers, tierQuery]);
 
   if (loading) {
     return (
@@ -199,11 +235,36 @@ export default function BusinessRulesPage() {
             icon={ClipboardCheck}
             description="Documents a business must provide during onboarding."
           >
+            {/* search + filter */}
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search documents..."
+                  value={docQuery}
+                  onChange={(e) => setDocQuery(e.target.value)}
+                  className="input pl-8"
+                />
+              </div>
+              <select
+                className="input sm:w-36"
+                value={docFilter}
+                onChange={(e) => setDocFilter(e.target.value as typeof docFilter)}
+              >
+                <option value="all">All</option>
+                <option value="required">Required</option>
+                <option value="optional">Optional</option>
+              </select>
+            </div>
+
             <div className="space-y-1">
-              {documents.length === 0 && (
-                <p className="py-2 text-sm text-slate-400">No documents required yet — add one below.</p>
+              {visibleDocuments.length === 0 && (
+                <p className="py-2 text-sm text-slate-400">
+                  {documents.length === 0 ? "No documents required yet — add one below." : "No documents match."}
+                </p>
               )}
-              {documents.map((doc) => (
+              {visibleDocuments.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3"
@@ -227,6 +288,7 @@ export default function BusinessRulesPage() {
                       {doc.required ? "Required" : "Optional"}
                     </button>
                     <button
+                      type="button"
                       onClick={() => removeDocument(doc.id)}
                       aria-label="Remove document"
                       className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
@@ -238,6 +300,7 @@ export default function BusinessRulesPage() {
               ))}
 
               <button
+                type="button"
                 onClick={addDocument}
                 className="mt-1 flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
               >
@@ -253,11 +316,24 @@ export default function BusinessRulesPage() {
             icon={Percent}
             description="Different commission rates per business tier. Assign a tier to a business from its profile."
           >
+            <div className="relative mb-3">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search tiers..."
+                value={tierQuery}
+                onChange={(e) => setTierQuery(e.target.value)}
+                className="input pl-8"
+              />
+            </div>
+
             <div className="space-y-3">
-              {tiers.length === 0 && (
-                <p className="py-2 text-sm text-slate-400">No tiers yet — add one below.</p>
+              {visibleTiers.length === 0 && (
+                <p className="py-2 text-sm text-slate-400">
+                  {tiers.length === 0 ? "No tiers yet — add one below." : "No tiers match."}
+                </p>
               )}
-              {tiers.map((tier) => (
+              {visibleTiers.map((tier) => (
                 <div key={tier.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <input
                     type="text"
@@ -278,6 +354,7 @@ export default function BusinessRulesPage() {
                       </span>
                     </div>
                     <button
+                      type="button"
                       onClick={() => removeTier(tier.id)}
                       aria-label="Remove tier"
                       className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
@@ -289,6 +366,7 @@ export default function BusinessRulesPage() {
               ))}
 
               <button
+                type="button"
                 onClick={addTier}
                 className="mt-1 flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
               >
@@ -317,26 +395,17 @@ export default function BusinessRulesPage() {
                   <option>Monthly</option>
                 </select>
               </Field>
-              <Field label="Payout Method">
-                <select
-                  value={payoutMethod}
-                  onChange={(e) => setPayoutMethod(e.target.value)}
-                  className="input"
-                >
-                  <option>Bank Transfer</option>
-                  <option>eSewa</option>
-                  <option>Khalti</option>
-                </select>
-              </Field>
-              <Field label="Minimum Payout Threshold" full>
+              <Field label="Minimum Payout Threshold">
                 <input
                   type="number"
                   value={payoutThreshold}
                   onChange={(e) => setPayoutThreshold(Number(e.target.value))}
                   className="input"
                 />
-                <p className="mt-1.5 text-xs text-slate-400">
-                  Earnings below this amount roll over to the next payout cycle.
+              </Field>
+              <Field label="" full>
+                <p className="text-xs text-slate-400">
+                  Earnings below the threshold roll over to the next payout cycle.
                 </p>
               </Field>
             </div>
@@ -348,25 +417,14 @@ export default function BusinessRulesPage() {
             icon={ShoppingBag}
             description="Minimum order value enforced across the platform."
           >
-            <div className="space-y-4">
-              <Field label="Minimum Order Value">
-                <input
-                  type="number"
-                  value={minOrderValue}
-                  onChange={(e) => setMinOrderValue(Number(e.target.value))}
-                  className="input max-w-xs"
-                />
-              </Field>
-              <SettingRow
-                label="Allow Per-Business Override"
-                description="Let individual businesses set their own minimum order value."
-              >
-                <Toggle
-                  checked={allowPerBusinessOverride}
-                  onChange={() => setAllowPerBusinessOverride((v) => !v)}
-                />
-              </SettingRow>
-            </div>
+            <Field label="Minimum Order Value">
+              <input
+                type="number"
+                value={minOrderValue}
+                onChange={(e) => setMinOrderValue(Number(e.target.value))}
+                className="input max-w-xs"
+              />
+            </Field>
           </Card>
         </div>
       </div>
@@ -385,12 +443,15 @@ export default function BusinessRulesPage() {
           </p>
           <div className="flex gap-3">
             <button
+              type="button"
+              onClick={handleDiscard}
               disabled={isPending}
               className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
             >
               Discard
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={isPending}
               className="flex-1 rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-60 sm:flex-none"
@@ -479,7 +540,7 @@ function Field({
 }) {
   return (
     <div className={full ? "sm:col-span-2" : ""}>
-      <label className="mb-1.5 block text-xs font-medium text-slate-600">{label}</label>
+      {label && <label className="mb-1.5 block text-xs font-medium text-slate-600">{label}</label>}
       {children}
     </div>
   );
