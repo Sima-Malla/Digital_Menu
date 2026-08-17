@@ -1,8 +1,9 @@
 // app/actions/superadmin-businesses.ts
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma"; // shared singleton
+import { getSession } from "@/lib/session";
 
 export type SuperadminBusiness = {
   id: number;
@@ -13,61 +14,82 @@ export type SuperadminBusiness = {
   phone: string;
   plan: string;
   status: string;
-  revenue: string;
+  revenue: string; // formatted, e.g. "$4,320"
 };
 
-type GetBusinessesParams = {
+export type ApiResult = {
+  success: boolean;
+  message?: string;
+};
+
+/** Every action re-checks the session itself — never trust a role passed
+ * in from the client. */
+async function requireSuperAdmin() {
+  const session = await getSession();
+  if (!session || session.role !== "superadmin") {
+    throw new Error("Not authorized.");
+  }
+  return session;
+}
+
+/**
+ * 1. Business list ल्याउने — search/status/plan सबै DB query मै हुन्छ
+ */
+export async function getSuperadminBusinesses(filters: {
   search?: string;
   status?: string;
   plan?: string;
-};
+}): Promise<SuperadminBusiness[]> {
+  await requireSuperAdmin().catch(() => null);
 
-export async function getSuperadminBusinesses({
-  search,
-  status,
-  plan,
-}: GetBusinessesParams): Promise<SuperadminBusiness[]> {
-  const where: any = {};
+  const where: Record<string, unknown> = {};
 
-  if (status) where.status = status;
-  if (plan) where.plan = plan;
-
-  if (search) {
+  if (filters.search) {
     where.OR = [
-      { businessName: { contains: search, mode: "insensitive" } },
-      { ownerName: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
+      { businessName: { contains: filters.search, mode: "insensitive" } },
+      { ownerName: { contains: filters.search, mode: "insensitive" } },
+      { email: { contains: filters.search, mode: "insensitive" } },
     ];
   }
+  if (filters.status) where.status = filters.status;
+  if (filters.plan) where.plan = filters.plan;
 
-  const businesses = await prisma.business.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      orders: {
-        where: { paymentStatus: "paid" },
-        select: { totalAmount: true },
-      },
-    },
-  });
+  try {
+    const businesses = await prisma.business.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
 
-  return businesses.map((b) => {
-    const revenue = b.orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
-    return {
+    // Revenue = SUM of totalAmount across every order for that business.
+    const revenueByBusiness = await prisma.order.groupBy({
+      by: ["businessId"],
+      _sum: { totalAmount: true },
+    });
+    const revenueMap = new Map(
+      revenueByBusiness.map((r) => [r.businessId.toString(), Number(r._sum.totalAmount ?? 0)])
+    );
+
+    return businesses.map((b) => ({
       id: Number(b.id),
       logo: b.logoEmoji,
       name: b.businessName,
-      owner: b.ownerName ?? "-",
-      email: b.email ?? "-",
-      phone: b.businessPhone ?? "-",
+      owner: b.ownerName ?? "—",
+      email: b.email ?? "—",
+      phone: b.businessPhone ?? "—",
       plan: b.plan,
       status: b.status,
-      revenue: `$${revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-    };
-  });
+      revenue: `$${(revenueMap.get(b.id.toString()) ?? 0).toLocaleString()}`,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch businesses:", error);
+    return [];
+  }
 }
 
-type BusinessFormInput = {
+/**
+ * 2. नयाँ Business थप्ने
+ */
+export async function createBusinessAction(payload: {
   logo: string;
   name: string;
   owner: string;
@@ -75,67 +97,94 @@ type BusinessFormInput = {
   phone: string;
   plan: string;
   status: string;
-};
+}): Promise<ApiResult> {
+  const session = await requireSuperAdmin().catch(() => null);
+  if (!session) return { success: false, message: "You must be signed in as super admin." };
 
-export async function createBusinessAction(data: BusinessFormInput) {
+  if (!payload.name || !payload.owner || !payload.email) {
+    return { success: false, message: "Name, owner, and email are required." };
+  }
+
   try {
-    if (data.email) {
-      const existing = await prisma.business.findUnique({ where: { email: data.email } });
-      if (existing) {
-        return { success: false, message: "A business with this email already exists." };
-      }
-    }
-
     await prisma.business.create({
       data: {
-        businessName: data.name,
-        ownerName: data.owner,
-        email: data.email,
-        businessPhone: data.phone,
-        logoEmoji: data.logo || "🍽️",
-        plan: data.plan,
-        status: data.status,
+        businessName: payload.name,
+        ownerName: payload.owner,
+        email: payload.email,
+        businessPhone: payload.phone || null,
+        logoEmoji: payload.logo || "🍽️",
+        plan: payload.plan || "Basic",
+        status: payload.status || "Active",
       },
     });
 
-    revalidatePath("/superdashboard"); // adjust to your actual businesses page route
-    return { success: true, message: "Business created." };
-  } catch (err) {
-    console.error(err);
-    return { success: false, message: "Failed to create business." };
+    revalidatePath("/superadmin/businesses");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to create business:", error);
+    // email has a @unique constraint — surface a clearer message for that case
+    const message =
+      error instanceof Error && error.message.includes("Unique constraint")
+        ? "A business with this email already exists."
+        : "Failed to create business.";
+    return { success: false, message };
   }
 }
 
-export async function updateBusinessAction(id: number, data: BusinessFormInput) {
+/**
+ * 3. Business update गर्ने
+ */
+export async function updateBusinessAction(
+  id: number,
+  payload: Partial<{
+    name: string;
+    owner: string;
+    email: string;
+    phone: string;
+    plan: string;
+    status: string;
+  }>
+): Promise<ApiResult> {
+  const session = await requireSuperAdmin().catch(() => null);
+  if (!session) return { success: false, message: "You must be signed in as super admin." };
+
   try {
     await prisma.business.update({
       where: { id: BigInt(id) },
       data: {
-        businessName: data.name,
-        ownerName: data.owner,
-        email: data.email,
-        businessPhone: data.phone,
-        logoEmoji: data.logo,
-        plan: data.plan,
-        status: data.status,
+        ...(payload.name !== undefined && { businessName: payload.name }),
+        ...(payload.owner !== undefined && { ownerName: payload.owner }),
+        ...(payload.email !== undefined && { email: payload.email }),
+        ...(payload.phone !== undefined && { businessPhone: payload.phone }),
+        ...(payload.plan !== undefined && { plan: payload.plan }),
+        ...(payload.status !== undefined && { status: payload.status }),
       },
     });
 
-    revalidatePath("/superdashboard");
-    return { success: true, message: "Business updated." };
-  } catch (err) {
-    console.error(err);
+    revalidatePath("/superadmin/businesses");
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to update business ${id}:`, error);
     return { success: false, message: "Failed to update business." };
   }
 }
 
-export async function deleteBusinessAction(id: number) {
+/**
+ * 4. Business मेटाउने
+ */
+export async function deleteBusinessAction(id: number): Promise<ApiResult> {
+  const session = await requireSuperAdmin().catch(() => null);
+  if (!session) return { success: false, message: "You must be signed in as super admin." };
+
   try {
+    // schema मा onDelete: Cascade भएकोले, यसको Staff/MenuItem/Order/etc.
+    // पनि सँगै delete हुन्छन्।
     await prisma.business.delete({ where: { id: BigInt(id) } });
-    revalidatePath("/superdashboard");
-    return { success: true, message: "Business deleted." };
-  } catch (err) {
-    console.error(err);
+
+    revalidatePath("/superadmin/businesses");
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to delete business ${id}:`, error);
     return { success: false, message: "Failed to delete business." };
   }
 }
