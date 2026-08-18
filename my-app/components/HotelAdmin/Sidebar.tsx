@@ -4,7 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -19,10 +19,13 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   LogOut,
-  HelpCircle, // Changed from Headphones to HelpCircle
+  HelpCircle,
   Clock,
   FileText,
+  ClipboardList,
 } from "lucide-react";
+import { getSidebarBusinessAction, logoutAction } from "@/app/actions/admin/sidebar";
+import type { BusinessSummary } from "@/lib/business";
 
 /* ─── Nav data ───────────────────────────────────────────── */
 const navItems = [
@@ -31,6 +34,7 @@ const navItems = [
   { label: "Live Orders", href: "/orders", icon: Radio, badge: 4 },
   { label: "Area Management", href: "/floorplan", icon: LayoutGrid },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "All Orders", href: "/allorders", icon: ClipboardList },
 ];
 
 const settingsSubItems = [
@@ -51,6 +55,8 @@ export default function Sidebar() {
   const isOnSupportRoute = pathname.startsWith(SUPPORT_HREF);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(isOnSettingsRoute);
+  const [business, setBusiness] = useState<BusinessSummary | null>(null);
+  const [isLoggingOut, startLogoutTransition] = useTransition();
 
   useEffect(() => {
     if (isOnSettingsRoute) {
@@ -58,9 +64,24 @@ export default function Sidebar() {
     }
   }, [isOnSettingsRoute]);
 
+  useEffect(() => {
+    let active = true;
+    getSidebarBusinessAction().then((result) => {
+      if (active) setBusiness(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleLogout = () => {
-    console.log("Logging out...");
+    startLogoutTransition(async () => {
+      await logoutAction();
+    });
   };
+
+  const businessName = business?.businessName ?? "Loading…";
+  const logoSrc = business?.logoUrl || "/hotel.png";
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-gray-100 bg-white px-4 py-6 lg:flex">
@@ -69,26 +90,26 @@ export default function Sidebar() {
         <div className="flex items-center gap-3 px-2">
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-200">
             <Image
-              src="/hotel.png"
-              alt="Admin"
+              src={logoSrc}
+              alt={businessName}
               width={40}
               height={40}
               className="h-full w-full object-cover"
             />
           </div>
           <div>
-             <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
-            src="/logo.png"
-            alt="MenuTap"
-            width={120}
-            height={30}
-            priority
-            className="h-9 w-auto object-contain"
-          />
-        </Link>
+            <Link href="/" className="inline-flex shrink-0 items-center">
+              <Image
+                src="/logo.png"
+                alt="MenuTap"
+                width={120}
+                height={30}
+                priority
+                className="h-9 w-auto object-contain"
+              />
+            </Link>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-              Grand Plaza Heights
+              {businessName}
             </p>
           </div>
         </div>
@@ -203,10 +224,11 @@ export default function Sidebar() {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {isLoggingOut ? "Logging out…" : "Logout"}
           </button>
         </div>
       </div>

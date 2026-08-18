@@ -14,6 +14,36 @@ import {
   SuperadminBusiness,
 } from "@/app/actions/superadmin-businesses";
 
+// A logo can be an emoji/short string OR an image URL (e.g. Uploadcare/CDN link).
+// Render accordingly instead of dumping raw text into a fixed-size box.
+function isImageUrl(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function BusinessLogo({ logo, name, sizeClass }: { logo: string; name: string; sizeClass: string }) {
+  if (logo && isImageUrl(logo)) {
+    return (
+      <div className={`relative shrink-0 overflow-hidden rounded-xl bg-[#F6F4F2] ${sizeClass}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logo}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            // Fallback if the image fails to load — hide broken icon, show initial instead.
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className={`flex shrink-0 items-center justify-center rounded-xl bg-[#F6F4F2] ${sizeClass}`}>
+      <span className="leading-none">{logo?.trim() ? logo : "🍽️"}</span>
+    </div>
+  );
+}
+
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<SuperadminBusiness[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,20 +243,20 @@ export default function BusinessesPage() {
                     {businesses.length > 0 ? businesses.map((b) => (
                       <tr key={b.id} className="border-t border-[#F2DDD2] hover:bg-[#F6F4F2] transition">
                         <td className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F6F4F2] text-xl">{b.logo}</div>
-                            <div>
-                              <p className="font-semibold text-gray-900">{b.name}</p>
+                          <div className="flex min-w-0 max-w-[220px] items-center gap-3 sm:max-w-[260px]">
+                            <BusinessLogo logo={b.logo} name={b.name} sizeClass="h-11 w-11 text-xl" />
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-gray-900" title={b.name}>{b.name}</p>
                               <p className="text-xs text-gray-500">Restaurant</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-4 sm:px-6">
-                          <p className="font-medium">{b.owner}</p>
+                          <p className="max-w-[160px] truncate font-medium" title={b.owner}>{b.owner}</p>
                           <p className="text-xs text-gray-500">Business Owner</p>
                         </td>
                         <td className="px-4 py-4 sm:px-6">
-                          <p>{b.email}</p>
+                          <p className="max-w-[180px] truncate" title={b.email}>{b.email}</p>
                           <p className="text-xs text-gray-500">{b.phone}</p>
                         </td>
                         <td className="px-4 py-4 sm:px-6">
@@ -259,14 +289,14 @@ export default function BusinessesPage() {
               {businesses.length > 0 ? businesses.map((b) => (
                 <div key={b.id} className="rounded-2xl border border-[#E8C7B4] bg-white p-5 shadow-sm transition hover:shadow-lg hover:border-[#B54A00]/50 sm:p-6">
                   <div className="flex flex-col items-center gap-3 border-b pb-5 text-center">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#F6F4F2] text-5xl sm:h-24 sm:w-24 sm:text-6xl">{b.logo}</div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{b.name}</h3>
-                      <p className="text-sm text-gray-500">{b.owner}</p>
+                    <BusinessLogo logo={b.logo} name={b.name} sizeClass="h-20 w-20 text-5xl sm:h-24 sm:w-24 sm:text-6xl" />
+                    <div className="min-w-0 w-full">
+                      <h3 className="truncate text-lg font-semibold text-gray-900" title={b.name}>{b.name}</h3>
+                      <p className="truncate text-sm text-gray-500" title={b.owner}>{b.owner}</p>
                     </div>
                   </div>
                   <div className="mt-5 space-y-3 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600 truncate"><Mail size={16} className="shrink-0" />{b.email}</div>
+                    <div className="flex items-center gap-2 text-gray-600"><Mail size={16} className="shrink-0" /><span className="truncate">{b.email}</span></div>
                     <div className="flex items-center gap-2 text-gray-600"><Phone size={16} className="shrink-0" />{b.phone}</div>
                     <div className="flex items-center gap-2 font-medium"><DollarSign size={16} className="shrink-0" />{b.revenue}</div>
                   </div>
@@ -297,16 +327,16 @@ export default function BusinessesPage() {
               <button onClick={() => setViewItem(null)}><X size={22} /></button>
             </div>
             <div className="space-y-4 p-5 sm:p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F6F4F2] text-4xl">{viewItem.logo}</div>
-                <div>
-                  <h3 className="text-xl font-semibold">{viewItem.name}</h3>
-                  <p className="text-gray-500">Owner: {viewItem.owner}</p>
+              <div className="flex min-w-0 items-center gap-4">
+                <BusinessLogo logo={viewItem.logo} name={viewItem.name} sizeClass="h-16 w-16 text-4xl" />
+                <div className="min-w-0">
+                  <h3 className="truncate text-xl font-semibold" title={viewItem.name}>{viewItem.name}</h3>
+                  <p className="truncate text-gray-500" title={viewItem.owner}>Owner: {viewItem.owner}</p>
                 </div>
               </div>
               <div className="grid gap-3 text-sm sm:grid-cols-2">
-                <p><span className="font-medium">Email:</span> {viewItem.email}</p>
-                <p><span className="font-medium">Phone:</span> {viewItem.phone}</p>
+                <p className="truncate"><span className="font-medium">Email:</span> {viewItem.email}</p>
+                <p className="truncate"><span className="font-medium">Phone:</span> {viewItem.phone}</p>
                 <p><span className="font-medium">Plan:</span> {viewItem.plan}</p>
                 <p><span className="font-medium">Status:</span> {viewItem.status}</p>
               </div>
@@ -331,6 +361,18 @@ export default function BusinessesPage() {
               <button onClick={() => setEditForm(null)}><X size={22} /></button>
             </div>
             <div className="space-y-4 p-5 sm:p-6">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Logo (emoji or image URL)</label>
+                <div className="flex items-center gap-3">
+                  <BusinessLogo logo={editForm.logo} name={editForm.name} sizeClass="h-10 w-10 text-lg" />
+                  <input
+                    value={editForm.logo}
+                    onChange={(e) => setEditForm({ ...editForm, logo: e.target.value })}
+                    className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]"
+                    placeholder="e.g. 🍔 or https://..."
+                  />
+                </div>
+              </div>
               {(["name", "owner", "email", "phone"] as const).map((field) => (
                 <div key={field}>
                   <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>

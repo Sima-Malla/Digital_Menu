@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -13,82 +8,40 @@ datasource db {
 }
 
 model Business {
-  id              BigInt   @id @default(autoincrement())
-  businessName    String
-  businessType    String?
-  businessAddress String?
-  businessPhone   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // General Settings — Business Profile
-  logoUrl    String?
-  bannerUrl  String?
-
-  // General Settings — Localization
-  language String @default("English (US)")
-  currency String @default("USD ($)")
-  timezone String @default("EST (UTC-5)")
-
-  // General Settings — Financial & Tax
+  id                BigInt     @id @default(autoincrement())
+  businessName      String
+  businessType      String?
+  businessAddress   String?
+  businessPhone     String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  allowReviews      Boolean    @default(true)
+  bannerUrl         String?
+  currency          String     @default("USD ($)")
+  email             String?    @unique
+  facebook          String?
+  instagram         String?
+  language          String     @default("English (US)")
+  listInMarketplace Boolean    @default(true)
+  logoUrl           String?
+  showOnMap         Boolean    @default(true)
   taxId             String?
   taxRegistration   String?
-
-  // General Settings — Marketplace Visibility
-  listInMarketplace Boolean @default(true)
-  showOnMap         Boolean @default(true)
-  allowReviews      Boolean @default(true)
-
-  // General Settings — Contact & Social
-  email     String? @unique
-  website   String?
-  instagram String?
-  facebook  String?
-  twitter   String?
-
-  staff      Staff[]
-  menuItems  MenuItem[]
-  specials   Special[]
-  locations  Location[]
-  orders     Order[]
-  areas      Area[]
-}
-
-model Area {
-  id            BigInt   @id @default(autoincrement())
-  businessId    BigInt
-  type          String   // "dining" | "rooms"
-  name          String
-  status        String   @default("available") // AreaStatus
-  capacity      Int
-  unitCount     Int
-  style         String
-  note          String?
-  occupancyRate Int      @default(0)
-  revenueToday  Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  subUnits SubUnit[]
-
-  @@index([businessId])
-}
-
-model SubUnit {
-  id            BigInt    @id @default(autoincrement())
-  areaId        BigInt
-  label         String
-  status        String    @default("available") // AreaStatus (dining) or RoomOrderStatus (rooms)
-  guestName     String?
-  orderItems    String[]  @default([])
-  orderPlacedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
-
-  @@index([areaId])
+  timezone          String     @default("EST (UTC-5)")
+  twitter           String?
+  website           String?
+  ownerName         String?               // <-- NAYA
+  plan              String     @default("Basic")     // <-- NAYA
+  status            String     @default("Pending")   // <-- NAYA
+  Area              Area[]
+  locations         Location[]
+  menuItems         MenuItem[]
+  orders            Order[]
+  specials          Special[]
+  staff             Staff[]
+  paymentGateways  PaymentGateway[]
+   paymentMethods   PaymentMethod[]
+  paymentSettings  PaymentSettings?
 }
 
 model Staff {
@@ -97,15 +50,14 @@ model Staff {
   fullName        String
   email           String   @unique
   password        String
-  role            String   @default("staff") // "owner" | "manager" | "staff" — PERMISSION level
-  position        String   @default("Waiter") // job title, e.g. "Chef", "Host" — DISPLAY only
-  isActive        Boolean  @default(true)
-  needsOnboarding Boolean  @default(true)
+  role            String   @default("staff")
   phone           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  isActive        Boolean  @default(true)
+  position        String   @default("Waiter")
+  needsOnboarding Boolean  @default(true)
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }
@@ -119,21 +71,20 @@ model SuperAdmin {
 }
 
 model MenuItem {
-  id          BigInt   @id @default(autoincrement())
+  id          BigInt      @id @default(autoincrement())
   businessId  BigInt
   name        String
   description String?
   category    String
-  price       Decimal  @db.Decimal(10, 2)
+  price       Decimal     @db.Decimal(10, 2)
   calories    Int?
   imageUrl    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  specials   Special[]
-  orderItems OrderItem[]
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  specials    Special[]
 
   @@index([businessId])
 }
@@ -143,69 +94,60 @@ model Special {
   businessId   BigInt
   menuItemId   BigInt
   badgeLabel   String
-  scheduleType String // "recurring" | "one-time"
-  weekday      Int? // 0=Sunday..6=Saturday, used when scheduleType = "recurring"
-  date         DateTime? // used when scheduleType = "one-time"
-  imageUrl     String? // optional override photo; falls back to the dish's own photo
+  scheduleType String
+  weekday      Int?
+  date         DateTime?
+  imageUrl     String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
   @@index([menuItemId])
 }
 
-// Add these three models, plus the relation lines noted at the bottom for
-// Users and MenuItem.
-
 model Customer {
   id        BigInt   @id @default(autoincrement())
   name      String
-  phone     String
+  phone     String   @unique
   email     String?
   createdAt DateTime @default(now())
-
-  orders Order[]
-
-  @@unique([phone]) // one Customer row per phone number, reused across visits
+  orders    Order[]
 }
 
 model Location {
   id         BigInt   @id @default(autoincrement())
   businessId BigInt
-  label      String // e.g. "Table 4", "Pickup Counter"
-  type       String   @default("dine-in") // "dine-in" | "pickup" | "delivery"
+  label      String
+  type       String   @default("dine-in")
   status     String   @default("active")
   createdAt  DateTime @default(now())
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  orders   Order[]
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orders     Order[]
 
   @@unique([businessId, label])
   @@index([businessId])
 }
 
 model Order {
-  id            BigInt   @id @default(autoincrement())
+  id            BigInt      @id @default(autoincrement())
   businessId    BigInt
   customerId    BigInt
   locationId    BigInt?
   orderType     String
-  status        String   @default("new")
+  status        String      @default("new")
   delayReason   String?
-  paymentStatus String   @default("unpaid")
-  totalAmount   Decimal  @db.Decimal(10, 2)
-  escalated     Boolean  @default(false)   // 👈 new
-  notifiedAt    DateTime?                   // 👈 new
-  orderedAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customer Customer    @relation(fields: [customerId], references: [id])
-  location Location?   @relation(fields: [locationId], references: [id])
-  items    OrderItem[]
+  paymentStatus String      @default("unpaid")
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  orderedAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  escalated     Boolean     @default(false)
+  notifiedAt    DateTime?
+  business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  location      Location?   @relation(fields: [locationId], references: [id])
+  items         OrderItem[]
 
   @@index([businessId])
   @@index([status])
@@ -215,41 +157,38 @@ model OrderItem {
   id         BigInt   @id @default(autoincrement())
   orderId    BigInt
   menuItemId BigInt
-  name       String // snapshot of the dish name at order time
-  unitPrice  Decimal  @db.Decimal(10, 2) // snapshot of price at order time
+  name       String
+  unitPrice  Decimal  @db.Decimal(10, 2)
   quantity   Int
-  notes      String? // e.g. "No Parsley"
+  notes      String?
   createdAt  DateTime @default(now())
-
-  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
 
 model PlatformUser {
-  id           BigInt    @id @default(autoincrement())
+  id           BigInt                 @id @default(autoincrement())
   fullName     String
-  email        String    @unique
+  email        String                 @unique
   phone        String?
-  role         String    @default("Viewer") // "Super Admin" | "Admin" | "Moderator" | "Support" | "Viewer"
+  role         String                 @default("Viewer")
   department   String?
-  status       String    @default("Active") // "Active" | "Suspended"
-  permissions  String[]  @default([])
+  status       String                 @default("Active")
+  permissions  String[]               @default([])
   lastActiveAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  activities PlatformUserActivity[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  activities   PlatformUserActivity[]
 }
 
 model PlatformUserActivity {
-  id        BigInt   @id @default(autoincrement())
+  id        BigInt       @id @default(autoincrement())
   userId    BigInt
   label     String
-  createdAt DateTime @default(now())
-
-  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  user      PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -257,14 +196,14 @@ model PlatformUserActivity {
 model SystemLog {
   id              BigInt   @id @default(autoincrement())
   event           String
-  module          String // "Authentication" | "Businesses" | "Payments" | "Global Config" | "System" ...
-  level           String   @default("Info") // "Info" | "Warning" | "Critical"
-  status          String // "Success" | "Completed" | "Failed" | "Blocked"
+  module          String
+  level           String   @default("Info")
+  status          String
   userName        String?
   userInitials    String?
   business        String?
   ipAddress       String?
-  details         String? // extra text shown in the View modal
+  details         String?
   isSecurityEvent Boolean  @default(false)
   archived        Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -275,48 +214,151 @@ model SystemLog {
   @@index([archived])
 }
 
-// Add to schema.prisma
-
 model BusinessRule {
-  id                    BigInt  @id @default(autoincrement())
-  // there is only ever ONE row here — treated as a singleton settings record
-  autoApproveBusinesses Boolean @default(false)
-  requireVerification   Boolean @default(true)
-  defaultBusinessStatus String  @default("Pending") // "Pending" | "Active" | "Suspended"
-
-  payoutFrequency String  @default("Weekly") // "Daily" | "Weekly" | "Bi-Weekly" | "Monthly"
-  payoutThreshold Decimal @default(1000) @db.Decimal(10, 2)
-  payoutMethod    String  @default("Bank Transfer") // "Bank Transfer" | "eSewa" | "Khalti"
-
-  minOrderValue            Decimal @default(150) @db.Decimal(10, 2)
-  allowPerBusinessOverride Boolean @default(true)
-
-  updatedAt DateTime @updatedAt
-
-  documents RequiredDocument[]
-  tiers     CommissionTier[]
+  id                       BigInt             @id @default(autoincrement())
+  autoApproveBusinesses    Boolean            @default(false)
+  requireVerification      Boolean            @default(true)
+  defaultBusinessStatus    String             @default("Pending")
+  payoutFrequency          String             @default("Weekly")
+  payoutThreshold          Decimal            @default(1000) @db.Decimal(10, 2)
+  payoutMethod             String             @default("Bank Transfer")
+  minOrderValue            Decimal            @default(150) @db.Decimal(10, 2)
+  allowPerBusinessOverride Boolean            @default(true)
+  updatedAt                DateTime           @updatedAt
+  tiers                    CommissionTier[]
+  documents                RequiredDocument[]
 }
 
 model RequiredDocument {
-  id        BigInt  @id @default(autoincrement())
+  id        BigInt       @id @default(autoincrement())
   ruleId    BigInt
   name      String
-  required  Boolean @default(false)
-  sortOrder Int     @default(0)
-
-  rule BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  required  Boolean      @default(false)
+  sortOrder Int          @default(0)
+  rule      BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([ruleId])
 }
 
 model CommissionTier {
-  id         BigInt  @id @default(autoincrement())
+  id         BigInt       @id @default(autoincrement())
   ruleId     BigInt
   name       String
-  commission Decimal @db.Decimal(5, 2) // percentage, e.g. 12.00
-  sortOrder  Int     @default(0)
-
-  rule BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  commission Decimal      @db.Decimal(5, 2)
+  sortOrder  Int          @default(0)
+  rule       BusinessRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([ruleId])
+}
+
+model Area {
+  id            BigInt    @id @default(autoincrement())
+  businessId    BigInt
+  type          String
+  name          String
+  status        String    @default("available")
+  capacity      Int
+  unitCount     Int
+  style         String
+  note          String?
+  occupancyRate Int       @default(0)
+  revenueToday  Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  Business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  SubUnit       SubUnit[]
+
+  @@index([businessId])
+}
+
+model SubUnit {
+  id            BigInt    @id @default(autoincrement())
+  areaId        BigInt
+  label         String
+  status        String    @default("available")
+  guestName     String?
+  orderItems    String[]  @default([])
+  orderPlacedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  Area          Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([areaId])
+}
+model PlatformSettings {
+  id Int @id @default(1) // singleton row, always id = 1
+
+  // Branding
+  platformName String @default("Bistro Central")
+  brandColor   String @default("#F97316")
+
+  // Regional
+  defaultCurrency String @default("NPR")
+  timezone        String @default("Asia/Kathmandu")
+
+  // Legal
+  termsUrl   String?
+  privacyUrl String?
+
+  // Platform rules
+  defaultCommissionPct Decimal @default(12) @db.Decimal(5, 2)
+  minOrderValue        Decimal @default(200) @db.Decimal(10, 2)
+
+  onlineOrdering  Boolean @default(true)
+  guestOrders     Boolean @default(true)
+  customerReviews Boolean @default(true)
+  maintenanceMode Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  regions PlatformRegion[]
+}
+
+model PlatformRegion {
+  id         BigInt   @id @default(autoincrement())
+  settingsId Int      @default(1)
+  name       String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  settings PlatformSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([settingsId, name])
+  @@index([settingsId])
+}
+model PaymentGateway {
+  id           BigInt    @id @default(autoincrement())
+  businessId   BigInt
+  gatewayKey   String    // "esewa" | "khalti" | "stripe"
+  name         String
+  enabled      Boolean   @default(false)
+  apiKeyEnc    String?
+  secretKeyEnc String?
+  lastTestOk   Boolean?
+  updatedAt    DateTime  @updatedAt
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, gatewayKey])
+}
+
+model PaymentMethod {
+  id         BigInt   @id @default(autoincrement())
+  businessId BigInt
+  methodKey  String   // "cod" | "wallet" | "card" | "bank"
+  name       String
+  enabled    Boolean  @default(false)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, methodKey])
+}
+
+model PaymentSettings {
+  businessId       BigInt   @id
+  transactionFee   Decimal  @default(2.5) @db.Decimal(5, 2)
+  feeBearer        String   @default("Business")
+  autoRefund       Boolean  @default(true)
+  refundWindowDays Int      @default(7)
+  manualApproval   Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

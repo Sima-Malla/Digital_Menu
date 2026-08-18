@@ -1,17 +1,23 @@
 // app/(orders)/page.tsx
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/HotelAdmin/Sidebar";
-import { getOrdersByStatus } from "@/lib/orders";
+import { getOrdersByStatus, prisma } from "@/lib/orders";
 import { getSession } from "@/lib/session";
 import LiveOrdersBoard from "./LiveOrderBoard";
 
 export default async function LiveOrdersPage() {
   const session = await getSession();
-  if (!session?.businessId) {
+  if (!session || (session.role !== "owner" && session.role !== "manager")) {
     redirect("/login");
   }
 
-  const businessId = BigInt(session.businessId);
+  const staff = await prisma.staff.findUnique({
+    where: { id: BigInt(session.userId) },
+    select: { businessId: true },
+  });
+  if (!staff) redirect("/login");
+
+  const businessId = staff.businessId;
 
   const [newOrders, preparingOrders, readyOrders, delayedOrders] = await Promise.all([
     getOrdersByStatus(businessId, "new"),

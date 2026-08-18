@@ -13,9 +13,9 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
   // बाँकी सबै Staff Dashboard Pages मा Sidebar देखाउने
   return (
-    <div className="flex">
+    <div className="flex min-h-screen">
       <GourmetHubSidebar />
-      <main className="flex-1 pt-16 lg:ml-64 lg:pt-0">{children}</main>
+      <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">{children}</main>
     </div>
   );
 }
