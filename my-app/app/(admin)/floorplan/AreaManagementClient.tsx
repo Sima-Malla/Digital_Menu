@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import { useMemo, useState, useTransition } from "react";
 import QRCode from "qrcode";
 import type { Area, AreaType, AreaStatus, RoomOrderStatus, SubUnit, SubUnitStatus } from "@/lib/areas";
@@ -438,7 +437,7 @@ export default function AreaManagementClient({ initialAreas }: { initialAreas: A
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
-      <Sidebar />
+      
 
       {openMenuId && <div className="fixed inset-0 z-30" onClick={() => setOpenMenuId(null)} />}
 

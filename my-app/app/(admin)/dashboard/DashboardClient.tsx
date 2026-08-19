@@ -6,7 +6,6 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import type { DashboardData } from "@/app/actions/admin/dashboard";
 
 const statusStyle: Record<string, string> = {
@@ -113,12 +112,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Header businessName={businessName} />
+    <div className="flex min-w-0 flex-1 flex-col">
+      <Header businessName={businessName} />
 
-        <main className="flex-1 px-6 py-6 lg:px-8">
+      <main className="flex-1 px-6 py-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-gray-900">Welcome, {businessName}</h1>
@@ -260,8 +257,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </Link>
             </div>
           </div>
-        </main>
-      </div>
+      </main>
     </div>
   );
 }

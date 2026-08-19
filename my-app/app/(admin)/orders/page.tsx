@@ -1,6 +1,4 @@
-// app/(orders)/page.tsx
 import { redirect } from "next/navigation";
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import { getOrdersByStatus, prisma } from "@/lib/orders";
 import { getSession } from "@/lib/session";
 import LiveOrdersBoard from "./LiveOrderBoard";
@@ -27,14 +25,11 @@ export default async function LiveOrdersPage() {
   ]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <LiveOrdersBoard
-        initialNew={newOrders}
-        initialPreparing={preparingOrders}
-        initialReady={readyOrders}
-        initialDelayed={delayedOrders}
-      />
-    </div>
+    <LiveOrdersBoard
+      initialNew={newOrders}
+      initialPreparing={preparingOrders}
+      initialReady={readyOrders}
+      initialDelayed={delayedOrders}
+    />
   );
 }

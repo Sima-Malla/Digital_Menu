@@ -98,7 +98,7 @@ function toUIArea(a: {
   note: string | null;
   occupancyRate: number;
   revenueToday: unknown;
-  subUnits: Parameters<typeof toUISubUnit>[0][];
+  SubUnit: Parameters<typeof toUISubUnit>[0][];
 }): Area {
   return {
     id: a.id.toString(),
@@ -111,7 +111,7 @@ function toUIArea(a: {
     note: a.note ?? "",
     occupancyRate: a.occupancyRate,
     revenueToday: Number(a.revenueToday),
-    subUnits: a.subUnits.map(toUISubUnit),
+    subUnits: a.SubUnit.map(toUISubUnit),
   };
 }
 
@@ -120,7 +120,7 @@ function toUIArea(a: {
 export async function getAreasForBusiness(businessId: bigint): Promise<Area[]> {
   const areas = await prisma.area.findMany({
     where: { businessId },
-    include: { subUnits: { orderBy: { id: "asc" } } },
+    include: { SubUnit: { orderBy: { id: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
   return areas.map(toUIArea);
@@ -161,7 +161,7 @@ export async function createArea(businessId: bigint, input: AreaInput): Promise<
       note: input.note,
       subUnits: { create: buildSubUnitRows(input.type, input.unitCount) },
     },
-    include: { subUnits: true },
+    include: { SubUnit: true },
   });
   return toUIArea(area);
 }
@@ -194,7 +194,7 @@ export async function updateArea(
           ? { create: buildSubUnitRows(input.type, input.unitCount) }
           : undefined,
       },
-      include: { subUnits: { orderBy: { id: "asc" } } },
+      include: { SubUnit: { orderBy: { id: "asc" } } },
     });
   });
 
@@ -204,7 +204,7 @@ export async function updateArea(
 export async function duplicateArea(businessId: bigint, areaId: bigint): Promise<Area | null> {
   const source = await prisma.area.findFirst({
     where: { id: areaId, businessId },
-    include: { subUnits: true },
+    include: { SubUnit: true },
   });
   if (!source) return null;
 
@@ -222,7 +222,7 @@ export async function duplicateArea(businessId: bigint, areaId: bigint): Promise
       revenueToday: 0,
       subUnits: { create: buildSubUnitRows(source.type as AreaType, source.unitCount) },
     },
-    include: { subUnits: true },
+    include: { SubUnit: true },
   });
   return toUIArea(area);
 }

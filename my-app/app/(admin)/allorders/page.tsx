@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/orders";
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import AllOrdersClient from "./AllOrdersClient";
 
 export default async function AllOrdersPage() {
@@ -17,11 +16,8 @@ export default async function AllOrdersPage() {
   if (!staff) redirect("/login");
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 min-w-0">
-        <AllOrdersClient />
-      </div>
+    <div className="min-w-0 flex-1">
+      <AllOrdersClient />
     </div>
   );
 }

@@ -23,6 +23,7 @@ import {
   Clock,
   FileText,
   ClipboardList,
+  ShoppingCart,
 } from "lucide-react";
 import { getSidebarBusinessAction, logoutAction } from "@/app/actions/admin/sidebar";
 import type { BusinessSummary } from "@/lib/business";
@@ -35,6 +36,7 @@ const navItems = [
   { label: "Area Management", href: "/floorplan", icon: LayoutGrid },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "All Orders", href: "/allorders", icon: ClipboardList },
+  { label: "Point of Sale", href: "/Pos", icon: ShoppingCart },
 ];
 
 const settingsSubItems = [

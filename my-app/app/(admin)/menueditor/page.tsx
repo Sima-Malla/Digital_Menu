@@ -61,11 +61,8 @@ export default async function MenuEditorPage() {
   }));
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 p-6 lg:p-10">
-        <MenuEditorClient initialItems={serializedItems} initialSpecials={serializedSpecials} />
-      </main>
-    </div>
+    <main className="flex-1 p-6 lg:p-10">
+      <MenuEditorClient initialItems={serializedItems} initialSpecials={serializedSpecials} />
+    </main>
   );
 }

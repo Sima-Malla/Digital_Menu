@@ -11,6 +11,7 @@ import {
   ListOrdered,
   BarChart3,
   Settings,
+  ShoppingCart,
   Menu,
   X,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const menus = [
   { name: "Menu", icon: UtensilsCrossed, href: "/menu-editor" },
   { name: "Live Orders", icon: ClipboardList, href: "/live-orders" },
   { name: "Orders", icon: ListOrdered, href: "/sorder" },
+  { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
   { name: "Analytics", icon: BarChart3, href: "/aanalytics" },
   { name: "Settings", icon: Settings, href: "/settings" },
 ];
@@ -60,7 +62,7 @@ export default function GourmetHubSidebar() {
           border-r border-slate-100 bg-white px-5 py-6
           transition-transform duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0
+          lg:relative lg:translate-x-0 lg:shrink-0
         `}
       >
         <div className="mb-6 flex items-center justify-between lg:hidden">
