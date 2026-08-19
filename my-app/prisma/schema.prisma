@@ -362,3 +362,27 @@ model PaymentSettings {
   updatedAt        DateTime @updatedAt
   business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
+model SubscriptionPlan {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  price     Decimal  @default(0) @db.Decimal(10, 2)
+  cycle     String   @default("Monthly") // "Monthly" | "Yearly"
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionSettings {
+  id                  Int      @id @default(1) // singleton row, always id = 1
+  trialEnabled        Boolean  @default(true)
+  trialDays           Int      @default(14)
+  requireCardForTrial Boolean  @default(false)
+  taxRate             Decimal  @default(13) @db.Decimal(5, 2)
+  invoicePrefix       String   @default("INV-")
+  autoGenerateInvoice Boolean  @default(true)
+  gracePeriodDays     Int      @default(5)
+  sendReminders       Boolean  @default(true)
+  autoSuspend         Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}

@@ -6,6 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { loginSchema } from "@/lib/validations/login";
 import { createSession } from "@/lib/session";
+import { logEvent } from "@/lib/log-event";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -87,6 +88,16 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   }
 
   if (!account || !passwordMatches) {
+    // Logged as a security event so repeated failures surface in the
+    // Security Events widget — don't await-block the redirect flow on this.
+    await logEvent({
+      event: "Failed Login Attempt",
+      module: "Auth",
+      level: "Warning",
+      status: "Failed",
+      userName: email,
+      isSecurityEvent: true,
+    });
     return { success: false, message: INVALID_CREDENTIALS_MESSAGE };
   }
 
@@ -102,6 +113,13 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     },
     remember
   );
+
+  await logEvent({
+    event: role === "superadmin" ? "Super Admin Login" : "Staff Login",
+    module: "Auth",
+    status: "Success",
+    userName: account.email,
+  });
 
   // Staff/owners whose account hasn't completed setup get sent to
   // onboarding first, before ever reaching their normal dashboard.

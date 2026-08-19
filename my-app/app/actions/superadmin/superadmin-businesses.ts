@@ -4,6 +4,7 @@
 // e.g. `import prisma from "@/lib/prisma"` — this assumes a named export.
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { logEvent } from "@/lib/log-event";
 
 export type SuperadminBusiness = {
   id: number;
@@ -108,7 +109,7 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       return { success: false, message: "A business with this email already exists." };
     }
 
-    await prisma.business.create({
+    const created = await prisma.business.create({
       data: {
         businessName: input.name.trim(),
         ownerName: input.owner.trim(),
@@ -118,6 +119,14 @@ export async function createBusinessAction(input: CreateBusinessInput) {
         plan: input.plan || "Basic",
         status: input.status || "Pending",
       },
+    });
+
+    await logEvent({
+      event: "Business Created",
+      module: "Businesses",
+      status: "Success",
+      business: created.businessName,
+      details: `Owner: ${created.ownerName ?? "—"} · Plan: ${created.plan}`,
     });
 
     revalidatePath("/superadmin/businesses");
@@ -138,13 +147,23 @@ type UpdateBusinessInput = Partial<{
   status: string;
 }>;
 
+// Statuses whose change is security/business-critical enough to flag as a warning.
+const SENSITIVE_STATUSES = new Set(["Suspended", "Rejected", "Banned"]);
+
 export async function updateBusinessAction(id: number, input: UpdateBusinessInput) {
   try {
     if (!id) {
       return { success: false, message: "Missing business id." };
     }
 
-    await prisma.business.update({
+    // Fetch the current row first so we can tell whether status actually
+    // changed, and still know the business name if something goes wrong.
+    const before = await prisma.business.findUnique({
+      where: { id: BigInt(id) },
+      select: { businessName: true, status: true },
+    });
+
+    const updated = await prisma.business.update({
       where: { id: BigInt(id) },
       data: {
         ...(input.name !== undefined && { businessName: input.name.trim() }),
@@ -156,6 +175,26 @@ export async function updateBusinessAction(id: number, input: UpdateBusinessInpu
         ...(input.status !== undefined && { status: input.status }),
       },
     });
+
+    const statusChanged = input.status !== undefined && before && input.status !== before.status;
+
+    if (statusChanged) {
+      await logEvent({
+        event: `Business Status: ${before!.status} → ${input.status}`,
+        module: "Businesses",
+        level: SENSITIVE_STATUSES.has(input.status!) ? "Warning" : "Info",
+        status: "Completed",
+        business: updated.businessName,
+        isSecurityEvent: SENSITIVE_STATUSES.has(input.status!),
+      });
+    } else {
+      await logEvent({
+        event: "Business Updated",
+        module: "Businesses",
+        status: "Success",
+        business: updated.businessName,
+      });
+    }
 
     revalidatePath("/superadmin/businesses");
     return { success: true, message: "Business updated." };
@@ -178,7 +217,24 @@ export async function deleteBusinessAction(id: number) {
     if (!id) {
       return { success: false, message: "Missing business id." };
     }
+
+    // Grab the name before deleting — it's gone once the row is removed.
+    const existing = await prisma.business.findUnique({
+      where: { id: BigInt(id) },
+      select: { businessName: true },
+    });
+
     await prisma.business.delete({ where: { id: BigInt(id) } });
+
+    await logEvent({
+      event: "Business Deleted",
+      module: "Businesses",
+      level: "Warning",
+      status: "Completed",
+      business: existing?.businessName,
+      isSecurityEvent: true,
+    });
+
     revalidatePath("/superadmin/businesses");
     return { success: true, message: "Business deleted." };
   } catch (err) {

@@ -3,6 +3,7 @@
 // Adjust this import to wherever your Prisma client singleton lives.
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { logEvent } from "@/lib/log-event";
 
 export type SuperadminOrder = {
   id: string;
@@ -198,7 +199,7 @@ export async function updateOrderAction(id: string, input: UpdateOrderInput) {
       return { success: false, message: "Invalid payment status." };
     }
 
-    await prisma.order.update({
+    const updated = await prisma.order.update({
       where: { id: orderId },
       data: {
         status: input.status,
@@ -206,6 +207,16 @@ export async function updateOrderAction(id: string, input: UpdateOrderInput) {
         delayReason: input.status === "delayed" ? input.delayReason?.trim() || null : null,
         escalated: input.status === "delayed",
       },
+      include: { business: true },
+    });
+
+    await logEvent({
+      event: `Order #${id} → ${input.status}`,
+      module: "Orders",
+      level: input.status === "delayed" ? "Warning" : "Info",
+      status: "Completed",
+      business: updated.business.businessName,
+      details: `Payment: ${input.paymentStatus}${input.delayReason ? ` · Delay reason: ${input.delayReason}` : ""}`,
     });
 
     revalidatePath("/orders");
@@ -225,7 +236,22 @@ export async function deleteOrder(id: string) {
       return { success: false, message: "Invalid order id." };
     }
 
+    // Fetch business name before deleting — it's gone once the row is removed.
+    const existing = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { business: true },
+    });
+
     await prisma.order.delete({ where: { id: orderId } });
+
+    await logEvent({
+      event: `Order #${id} Deleted`,
+      module: "Orders",
+      level: "Warning",
+      status: "Completed",
+      business: existing?.business.businessName,
+    });
+
     revalidatePath("/orders");
     return { success: true, message: "Order deleted." };
   } catch (err) {

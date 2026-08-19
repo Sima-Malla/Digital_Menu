@@ -4,41 +4,48 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Bell, Search, DollarSign, Building2, Clock3, ShieldCheck,
-  Eye, Check, X, Filter, Calendar, ArrowUpRight, ArrowDownRight, Loader2,
+  Eye, Check, X as XIcon, Filter, Calendar, ArrowUpRight, ArrowDownRight, Loader2,
 } from "lucide-react";
 import {
   getDashboardStats,
   getRegistrationQueue,
+  getQueueTypeOptions,
   approveBusinessAction,
+  rejectBusinessAction,
   getBusinessTypeBreakdown,
   getBusinessPerformance,
   type DashboardStats,
   type QueueBusiness,
   type TypeBreakdown,
   type BusinessPerformance,
-} from "@/app/actions/superadmin-dashboard";
+} from "@/app/actions/superadmin/superadmin-dashboard";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [queue, setQueue] = useState<QueueBusiness[]>([]);
+  const [queueTypes, setQueueTypes] = useState<string[]>([]);
   const [typeBreakdown, setTypeBreakdown] = useState<TypeBreakdown[]>([]);
   const [performance, setPerformance] = useState<BusinessPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [viewItem, setViewItem] = useState<QueueBusiness | null>(null);
 
   const approveLockRef = useRef<Set<number>>(new Set());
+  const rejectLockRef = useRef<Set<number>>(new Set());
 
   async function loadAll() {
     setLoading(true);
-    const [statsData, queueData, typeData, perfData] = await Promise.all([
+    const [statsData, queueData, typeOptions, typeData, perfData] = await Promise.all([
       getDashboardStats(),
       getRegistrationQueue(),
+      getQueueTypeOptions(),
       getBusinessTypeBreakdown(),
       getBusinessPerformance(),
     ]);
     setStats(statsData);
     setQueue(queueData);
+    setQueueTypes(typeOptions);
     setTypeBreakdown(typeData);
     setPerformance(perfData);
     setLoading(false);
@@ -48,32 +55,51 @@ export default function Dashboard() {
     loadAll();
   }, []);
 
-  // Header search filters the registration queue (debounced)
+  // Search + type filter → refetch the queue (debounced)
   useEffect(() => {
     const t = setTimeout(async () => {
-      const data = await getRegistrationQueue(search || undefined);
+      const data = await getRegistrationQueue({ search: search || undefined, type: typeFilter || undefined });
       setQueue(data);
     }, 350);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, typeFilter]);
 
   async function handleApprove(id: number) {
     if (approveLockRef.current.has(id)) return;
     approveLockRef.current.add(id);
 
     const previous = queue;
-    setQueue((prev) => prev.filter((b) => b.id !== id)); // optimistic
+    setQueue((prev) => prev.filter((b) => b.id !== id));
     try {
       const res = await approveBusinessAction(id);
       if (!res.success) {
         setQueue(previous);
         alert(res.message);
       } else {
-        const statsData = await getDashboardStats();
-        setStats(statsData);
+        setStats(await getDashboardStats());
       }
     } finally {
       approveLockRef.current.delete(id);
+    }
+  }
+
+  async function handleReject(id: number) {
+    if (rejectLockRef.current.has(id)) return;
+    if (!confirm("Reject and remove this business registration? This cannot be undone.")) return;
+    rejectLockRef.current.add(id);
+
+    const previous = queue;
+    setQueue((prev) => prev.filter((b) => b.id !== id));
+    try {
+      const res = await rejectBusinessAction(id);
+      if (!res.success) {
+        setQueue(previous);
+        alert(res.message);
+      } else {
+        setStats(await getDashboardStats());
+      }
+    } finally {
+      rejectLockRef.current.delete(id);
     }
   }
 
@@ -92,8 +118,8 @@ export default function Dashboard() {
       {/* ── Header ───────────────────────────────────────────────── */}
       <header className="flex flex-col gap-4 border-b bg-white px-2 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <h1 className="text-xl font-bold text-orange-700 sm:text-3xl">Platform-wide Analytics</h1>
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="flex w-full items-center gap-2 rounded-full border px-4 py-2 sm:w-80">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex w-full items-center gap-2 rounded-full border px-4 py-2 sm:w-72">
             <Search size={18} className="shrink-0 text-gray-400" />
             <input
               type="text"
@@ -103,15 +129,17 @@ export default function Dashboard() {
               className="w-full outline-none"
             />
           </div>
-          <button className="relative shrink-0">
-            <Bell size={22} />
-            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500"></span>
-          </button>
-          <div className="hidden items-center gap-3 sm:flex">
-            <Image src="/man.png" width={42} height={42} alt="Admin" className="rounded-full" style={{ width: "42px", height: "42px" }} />
-            <div>
-              <h3 className="font-semibold">Sima Malla</h3>
-              <p className="text-xs text-blue-600">SUPER ADMIN</p>
+          <div className="flex items-center justify-between gap-4 sm:justify-start">
+            <button className="relative shrink-0">
+              <Bell size={22} />
+              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500"></span>
+            </button>
+            <div className="flex items-center gap-3">
+              <Image src="/man.png" width={42} height={42} alt="Admin" className="rounded-full" style={{ width: "42px", height: "42px" }} />
+              <div className="hidden sm:block">
+                <h3 className="font-semibold">Sima Malla</h3>
+                <p className="text-xs text-blue-600">SUPER ADMIN</p>
+              </div>
             </div>
           </div>
         </div>
@@ -128,14 +156,24 @@ export default function Dashboard() {
       {/* ── Queue + Type Breakdown ───────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <div className="xl:col-span-9">
-          {/* Registration Queue */}
           <div className="overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white">
-            <div className="flex items-center justify-between px-4 py-5 sm:px-6">
+            <div className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <h2 className="text-lg font-semibold sm:text-2xl">Business Registration Queue</h2>
-              <span className="text-xs font-semibold tracking-[0.2em] text-gray-400">{queue.length} PENDING</span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="h-9 rounded-lg border border-[#E8C7B4] px-2 text-xs outline-none focus:border-[#B54A00] sm:text-sm"
+                >
+                  <option value="">All Types</option>
+                  {queueTypes.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <span className="text-xs font-semibold tracking-[0.2em] text-gray-400">{queue.length} PENDING</span>
+              </div>
             </div>
 
-            {/* Table header - desktop only */}
             <div className="hidden bg-[#F6F4F2] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 sm:grid sm:grid-cols-5">
               <p>Business Name</p>
               <p>Type</p>
@@ -179,14 +217,23 @@ export default function Dashboard() {
                     <button
                       onClick={() => setViewItem(item)}
                       className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E8C7B4] transition hover:bg-gray-100"
+                      title="View details"
                     >
                       <Eye size={18} />
                     </button>
                     <button
                       onClick={() => handleApprove(item.id)}
                       className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316] text-white transition hover:bg-[#e06610]"
+                      title="Approve"
                     >
                       <Check size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleReject(item.id)}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
+                      title="Reject"
+                    >
+                      <XIcon size={18} />
                     </button>
                   </div>
                 </div>
@@ -196,8 +243,6 @@ export default function Dashboard() {
         </div>
 
         <div className="xl:col-span-3">
-          {/* Business Type Breakdown — replaces "Active Territories" (no
-              geo field exists on Business, so grouping by businessType instead). */}
           <div className="h-full rounded-2xl border border-[#E8C7B4] bg-white p-5 sm:p-6">
             <h2 className="mb-5 text-xl font-semibold sm:text-2xl">Business Types</h2>
             <div className="space-y-4">
@@ -219,7 +264,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Business Performance (replaces "Chain Performance Index") ── */}
+      {/* ── Business Performance ── */}
       <div className="overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-orange-200 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
@@ -277,13 +322,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* View Modal — Registration Queue "eye" details */}
+      {/* View Modal */}
       {viewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b p-5 sm:p-6">
               <h2 className="text-xl font-bold">{viewItem.name}</h2>
-              <button onClick={() => setViewItem(null)}><X size={22} /></button>
+              <button onClick={() => setViewItem(null)}><XIcon size={22} /></button>
             </div>
             <div className="space-y-4 p-5 sm:p-6">
               <div className="flex items-center gap-4">
@@ -306,6 +351,15 @@ export default function Dashboard() {
             </div>
             <div className="flex flex-col-reverse gap-3 border-t p-5 sm:flex-row sm:justify-end sm:p-6">
               <button onClick={() => setViewItem(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Close</button>
+              <button
+                onClick={() => {
+                  handleReject(viewItem.id);
+                  setViewItem(null);
+                }}
+                className="rounded-xl border border-red-200 px-5 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+              >
+                Reject
+              </button>
               <button
                 onClick={() => {
                   handleApprove(viewItem.id);

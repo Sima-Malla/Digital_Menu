@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Layers,
   Clock,
@@ -9,7 +9,17 @@ import {
   Plus,
   Trash2,
   Check,
+  Search,
 } from "lucide-react";
+import {
+  getSubscriptionPlans,
+  createPlan,
+  updatePlan as updatePlanAction,
+  deletePlan,
+  setDefaultPlan,
+  getSubscriptionSettings,
+  updateSubscriptionSettings,
+} from "@/app/actions/superadmin/subscription";
 
 interface Plan {
   id: string;
@@ -19,15 +29,17 @@ interface Plan {
   isDefault: boolean;
 }
 
+type CycleFilter = "all" | "Monthly" | "Yearly";
+
 export default function SubscriptionSettingsPage() {
+  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
   // Plans
-  const [plans, setPlans] = useState<Plan[]>([
-    { id: "1", name: "Free", price: 0, cycle: "Monthly", isDefault: true },
-    { id: "2", name: "Pro", price: 1499, cycle: "Monthly", isDefault: false },
-    { id: "3", name: "Enterprise", price: 4999, cycle: "Monthly", isDefault: false },
-  ]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [planSearch, setPlanSearch] = useState("");
+  const [cycleFilter, setCycleFilter] = useState<CycleFilter>("all");
 
   // Trial
   const [trialEnabled, setTrialEnabled] = useState(true);
@@ -44,28 +56,105 @@ export default function SubscriptionSettingsPage() {
   const [sendReminders, setSendReminders] = useState(true);
   const [autoSuspend, setAutoSuspend] = useState(true);
 
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  useEffect(() => {
+    (async () => {
+      const [pls, settings] = await Promise.all([getSubscriptionPlans(), getSubscriptionSettings()]);
+      setPlans(
+        pls.map((p) => ({
+          id: p.id.toString(),
+          name: p.name,
+          price: Number(p.price),
+          cycle: p.cycle as Plan["cycle"],
+          isDefault: p.isDefault,
+        }))
+      );
+      setTrialEnabled(settings.trialEnabled);
+      setTrialDays(settings.trialDays);
+      setRequireCardForTrial(settings.requireCardForTrial);
+      setTaxRate(Number(settings.taxRate));
+      setInvoicePrefix(settings.invoicePrefix);
+      setAutoGenerateInvoice(settings.autoGenerateInvoice);
+      setGracePeriodDays(settings.gracePeriodDays);
+      setSendReminders(settings.sendReminders);
+      setAutoSuspend(settings.autoSuspend);
+      setLoading(false);
+    })();
+  }, []);
 
-  function updatePlan<K extends keyof Plan>(id: string, field: K, value: Plan[K]) {
+  const filteredPlans = useMemo(() => {
+    const q = planSearch.trim().toLowerCase();
+    return plans.filter((p) => {
+      const matchesSearch = !q || p.name.toLowerCase().includes(q);
+      const matchesCycle = cycleFilter === "all" || p.cycle === cycleFilter;
+      return matchesSearch && matchesCycle;
+    });
+  }, [plans, planSearch, cycleFilter]);
+
+  function updatePlanField<K extends keyof Plan>(id: string, field: K, value: Plan[K]) {
     setPlans((ps) => ps.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
   }
 
-  function setDefaultPlan(id: string) {
+  function handleSetDefault(id: string) {
     setPlans((ps) => ps.map((p) => ({ ...p, isDefault: p.id === id })));
+    startTransition(async () => {
+      await setDefaultPlan(BigInt(id));
+    });
   }
 
-  function removePlan(id: string) {
+  function handleRemovePlan(id: string) {
+    const removed = plans.find((p) => p.id === id);
     setPlans((ps) => ps.filter((p) => p.id !== id));
+    startTransition(async () => {
+      const res = await deletePlan(BigInt(id));
+      if (res.error && removed) {
+        // couldn't delete (e.g. it's the default plan) — restore it
+        setPlans((ps) => [...ps, removed]);
+      }
+    });
   }
 
-  function addPlan() {
-    setPlans((ps) => [
-      ...ps,
-      { id: crypto.randomUUID(), name: "New Plan", price: 0, cycle: "Monthly", isDefault: false },
-    ]);
+  function handleAddPlan() {
+    startTransition(async () => {
+      const res = await createPlan({ name: "New Plan", price: 0, cycle: "Monthly" });
+      if (res.data) {
+        setPlans((ps) => [...ps, { id: res.data!.id, name: "New Plan", price: 0, cycle: "Monthly", isDefault: false }]);
+      }
+    });
+  }
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateSubscriptionSettings({
+        trialEnabled,
+        trialDays,
+        requireCardForTrial,
+        taxRate,
+        invoicePrefix,
+        autoGenerateInvoice,
+        gracePeriodDays,
+        sendReminders,
+        autoSuspend,
+      });
+
+      for (const plan of plans) {
+        await updatePlanAction(BigInt(plan.id), {
+          name: plan.name,
+          price: plan.price,
+          cycle: plan.cycle,
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">
+        Loading subscription settings...
+      </div>
+    );
   }
 
   return (
@@ -88,6 +177,28 @@ export default function SubscriptionSettingsPage() {
             icon={Layers}
             description="Subscription plans available to businesses on the platform."
           >
+            <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={planSearch}
+                  onChange={(e) => setPlanSearch(e.target.value)}
+                  placeholder="Search plans..."
+                  className="input pl-8"
+                />
+              </div>
+              <select
+                value={cycleFilter}
+                onChange={(e) => setCycleFilter(e.target.value as CycleFilter)}
+                className="input w-full sm:w-40"
+              >
+                <option value="all">All Cycles</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Yearly">Yearly</option>
+              </select>
+            </div>
+
             <div className="space-y-3">
               <div className="hidden grid-cols-[1fr_120px_130px_90px_36px] gap-3 px-1 text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:grid">
                 <span>Plan Name</span>
@@ -97,60 +208,66 @@ export default function SubscriptionSettingsPage() {
                 <span />
               </div>
 
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="grid grid-cols-1 items-center gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-[1fr_120px_130px_90px_36px] sm:bg-transparent sm:p-0"
-                >
-                  <input
-                    type="text"
-                    value={plan.name}
-                    onChange={(e) => updatePlan(plan.id, "name", e.target.value)}
-                    className="input"
-                  />
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      NPR
-                    </span>
+              {filteredPlans.length === 0 ? (
+                <p className="py-6 text-center text-xs text-slate-400">No plans match your search.</p>
+              ) : (
+                filteredPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="grid grid-cols-1 items-center gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-[1fr_120px_130px_90px_36px] sm:bg-transparent sm:p-0"
+                  >
                     <input
-                      type="number"
-                      value={plan.price}
-                      onChange={(e) => updatePlan(plan.id, "price", Number(e.target.value))}
-                      className="input pl-10"
+                      type="text"
+                      value={plan.name}
+                      onChange={(e) => updatePlanField(plan.id, "name", e.target.value)}
+                      className="input"
                     />
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                        NPR
+                      </span>
+                      <input
+                        type="number"
+                        value={plan.price}
+                        onChange={(e) => updatePlanField(plan.id, "price", Number(e.target.value))}
+                        className="input pl-10"
+                        style={{ paddingLeft: "2.5rem" }}
+                      />
+                    </div>
+                    <select
+                      value={plan.cycle}
+                      onChange={(e) => updatePlanField(plan.id, "cycle", e.target.value as Plan["cycle"])}
+                      className="input"
+                    >
+                      <option>Monthly</option>
+                      <option>Yearly</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleSetDefault(plan.id)}
+                      className={`flex items-center justify-center rounded-lg py-2 text-xs font-medium transition-colors ${
+                        plan.isDefault
+                          ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
+                          : "bg-white text-slate-400 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {plan.isDefault ? "Default" : "Set default"}
+                    </button>
+                    <button
+                      onClick={() => handleRemovePlan(plan.id)}
+                      aria-label="Remove plan"
+                      className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 sm:justify-self-center"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <select
-                    value={plan.cycle}
-                    onChange={(e) => updatePlan(plan.id, "cycle", e.target.value as Plan["cycle"])}
-                    className="input"
-                  >
-                    <option>Monthly</option>
-                    <option>Yearly</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setDefaultPlan(plan.id)}
-                    className={`flex items-center justify-center rounded-lg py-2 text-xs font-medium transition-colors ${
-                      plan.isDefault
-                        ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
-                        : "bg-white text-slate-400 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {plan.isDefault ? "Default" : "Set default"}
-                  </button>
-                  <button
-                    onClick={() => removePlan(plan.id)}
-                    aria-label="Remove plan"
-                    className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 sm:justify-self-center"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
 
               <button
-                onClick={addPlan}
-                className="mt-1 flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
+                onClick={handleAddPlan}
+                disabled={isPending}
+                className="mt-1 flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700 disabled:opacity-60"
               >
                 <Plus size={15} />
                 Add plan
@@ -276,9 +393,10 @@ export default function SubscriptionSettingsPage() {
             </button>
             <button
               onClick={handleSave}
-              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700"
+              disabled={isPending}
+              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-60"
             >
-              Save Changes
+              {isPending ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
