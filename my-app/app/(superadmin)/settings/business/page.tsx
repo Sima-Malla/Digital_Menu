@@ -13,7 +13,7 @@ import {
   AlertTriangle,
   Search,
 } from "lucide-react";
-import { getBusinessRules, saveBusinessRules, type BusinessRulesData } from "@/app/actions/business-rules";
+import { getBusinessRules, saveBusinessRules, type BusinessRulesData } from "@/app/actions/superadmin/business-rules";
 
 interface Document {
   id: string;

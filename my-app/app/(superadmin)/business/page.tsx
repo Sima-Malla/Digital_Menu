@@ -12,7 +12,7 @@ import {
   updateBusinessAction,
   deleteBusinessAction,
   SuperadminBusiness,
-} from "@/app/actions/superadmin-businesses";
+} from "@/app/actions/superadmin/superadmin-businesses";
 
 // A logo can be an emoji/short string OR an image URL (e.g. Uploadcare/CDN link).
 // Render accordingly instead of dumping raw text into a fixed-size box.

@@ -1,0 +1,138 @@
+"use server";
+
+// app/actions/superadmin/subscription.ts
+// Backend for /app/settings/subscription/page.tsx.
+// Platform-level settings (not per-business) — same singleton pattern as
+// PlatformSettings elsewhere in the app.
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+// import { requireSuperAdmin } from "@/lib/session"; // TODO: wire real auth
+
+type ActionResult<T> = { data?: T; error?: string };
+
+// ---------------------------------------------------------------------------
+// Plans
+// ---------------------------------------------------------------------------
+
+export async function getSubscriptionPlans() {
+  // await requireSuperAdmin();
+  const plans = await prisma.subscriptionPlan.findMany({ orderBy: { sortOrder: "asc" } });
+  // Prisma's Decimal type can't be passed from a Server Action to a Client
+  // Component as-is — convert it to a plain number first.
+  return plans.map((p) => ({
+    id: p.id.toString(),
+    name: p.name,
+    price: Number(p.price),
+    cycle: p.cycle,
+    isDefault: p.isDefault,
+    sortOrder: p.sortOrder,
+  }));
+}
+
+const planInputSchema = z.object({
+  name: z.string().min(1).max(60),
+  price: z.number().min(0),
+  cycle: z.enum(["Monthly", "Yearly"]),
+});
+
+export async function createPlan(
+  input: z.infer<typeof planInputSchema>
+): Promise<ActionResult<{ id: string }>> {
+  // await requireSuperAdmin();
+  const parsed = planInputSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  const count = await prisma.subscriptionPlan.count();
+  const plan = await prisma.subscriptionPlan.create({
+    data: { ...parsed.data, sortOrder: count },
+  });
+
+  revalidatePath("/settings/subscription");
+  return { data: { id: plan.id.toString() } };
+}
+
+export async function updatePlan(
+  id: bigint,
+  input: z.infer<typeof planInputSchema>
+): Promise<ActionResult<true>> {
+  // await requireSuperAdmin();
+  const parsed = planInputSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  await prisma.subscriptionPlan.update({ where: { id }, data: parsed.data });
+
+  revalidatePath("/settings/subscription");
+  return { data: true };
+}
+
+export async function deletePlan(id: bigint): Promise<ActionResult<true>> {
+  // await requireSuperAdmin();
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  if (!plan) return { error: "Plan not found." };
+  if (plan.isDefault) return { error: "Can't delete the default plan — set another plan as default first." };
+
+  await prisma.subscriptionPlan.delete({ where: { id } });
+
+  revalidatePath("/settings/subscription");
+  return { data: true };
+}
+
+export async function setDefaultPlan(id: bigint): Promise<ActionResult<true>> {
+  // await requireSuperAdmin();
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  if (!plan) return { error: "Plan not found." };
+
+  await prisma.$transaction([
+    prisma.subscriptionPlan.updateMany({ data: { isDefault: false }, where: {} }),
+    prisma.subscriptionPlan.update({ where: { id }, data: { isDefault: true } }),
+  ]);
+
+  revalidatePath("/settings/subscription");
+  return { data: true };
+}
+
+// ---------------------------------------------------------------------------
+// Trial / Billing / Grace period settings
+// ---------------------------------------------------------------------------
+
+export async function getSubscriptionSettings() {
+  // await requireSuperAdmin();
+  const settings = await prisma.subscriptionSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+  // Same Decimal-serialization issue as above — convert before returning.
+  return { ...settings, taxRate: Number(settings.taxRate) };
+}
+
+const settingsInputSchema = z.object({
+  trialEnabled: z.boolean(),
+  trialDays: z.number().int().min(0).max(365),
+  requireCardForTrial: z.boolean(),
+  taxRate: z.number().min(0).max(100),
+  invoicePrefix: z.string().min(1).max(10),
+  autoGenerateInvoice: z.boolean(),
+  gracePeriodDays: z.number().int().min(0).max(90),
+  sendReminders: z.boolean(),
+  autoSuspend: z.boolean(),
+});
+
+export async function updateSubscriptionSettings(
+  input: z.infer<typeof settingsInputSchema>
+): Promise<ActionResult<true>> {
+  // await requireSuperAdmin();
+  const parsed = settingsInputSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  await prisma.subscriptionSettings.upsert({
+    where: { id: 1 },
+    update: parsed.data,
+    create: { id: 1, ...parsed.data },
+  });
+
+  revalidatePath("/settings/subscription");
+  return { data: true };
+}

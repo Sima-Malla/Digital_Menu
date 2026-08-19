@@ -20,7 +20,7 @@ import {
   testPaymentGateway,
   getPaymentMethods,
   togglePaymentMethod,
-} from "@/app/actions/payment";
+} from "@/app/actions/superadmin/payment";
 // import { getCurrentBusinessId } from "@/lib/session"; // <-- wire to your auth
 
 const businessId = "1"; // TODO: replace with real session businessId

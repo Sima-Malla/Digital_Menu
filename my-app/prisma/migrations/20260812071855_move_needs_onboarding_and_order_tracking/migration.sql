@@ -5,13 +5,13 @@
 
 */
 -- AlterTable
-ALTER TABLE "Business" DROP COLUMN "needsOnboarding";
+ALTER TABLE "Business" DROP COLUMN IF EXISTS "needsOnboarding";
 
 -- AlterTable
-ALTER TABLE "Staff" ADD COLUMN     "needsOnboarding" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Staff" ADD COLUMN IF NOT EXISTS "needsOnboarding" BOOLEAN NOT NULL DEFAULT true;
 
 -- CreateTable
-CREATE TABLE "PlatformUser" (
+CREATE TABLE IF NOT EXISTS "PlatformUser" (
     "id" BIGSERIAL NOT NULL,
     "fullName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE "PlatformUser" (
 );
 
 -- CreateTable
-CREATE TABLE "PlatformUserActivity" (
+CREATE TABLE IF NOT EXISTS "PlatformUserActivity" (
     "id" BIGSERIAL NOT NULL,
     "userId" BIGINT NOT NULL,
     "label" TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE "PlatformUserActivity" (
 );
 
 -- CreateTable
-CREATE TABLE "SystemLog" (
+CREATE TABLE IF NOT EXISTS "SystemLog" (
     "id" BIGSERIAL NOT NULL,
     "event" TEXT NOT NULL,
     "module" TEXT NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE "SystemLog" (
 );
 
 -- CreateTable
-CREATE TABLE "BusinessRule" (
+CREATE TABLE IF NOT EXISTS "BusinessRule" (
     "id" BIGSERIAL NOT NULL,
     "autoApproveBusinesses" BOOLEAN NOT NULL DEFAULT false,
     "requireVerification" BOOLEAN NOT NULL DEFAULT true,
@@ -73,7 +73,7 @@ CREATE TABLE "BusinessRule" (
 );
 
 -- CreateTable
-CREATE TABLE "RequiredDocument" (
+CREATE TABLE IF NOT EXISTS "RequiredDocument" (
     "id" BIGSERIAL NOT NULL,
     "ruleId" BIGINT NOT NULL,
     "name" TEXT NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE "RequiredDocument" (
 );
 
 -- CreateTable
-CREATE TABLE "CommissionTier" (
+CREATE TABLE IF NOT EXISTS "CommissionTier" (
     "id" BIGSERIAL NOT NULL,
     "ruleId" BIGINT NOT NULL,
     "name" TEXT NOT NULL,
@@ -95,34 +95,46 @@ CREATE TABLE "CommissionTier" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PlatformUser_email_key" ON "PlatformUser"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "PlatformUser_email_key" ON "PlatformUser"("email");
 
 -- CreateIndex
-CREATE INDEX "PlatformUserActivity_userId_idx" ON "PlatformUserActivity"("userId");
+CREATE INDEX IF NOT EXISTS "PlatformUserActivity_userId_idx" ON "PlatformUserActivity"("userId");
 
 -- CreateIndex
-CREATE INDEX "SystemLog_level_idx" ON "SystemLog"("level");
+CREATE INDEX IF NOT EXISTS "SystemLog_level_idx" ON "SystemLog"("level");
 
 -- CreateIndex
-CREATE INDEX "SystemLog_module_idx" ON "SystemLog"("module");
+CREATE INDEX IF NOT EXISTS "SystemLog_module_idx" ON "SystemLog"("module");
 
 -- CreateIndex
-CREATE INDEX "SystemLog_createdAt_idx" ON "SystemLog"("createdAt");
+CREATE INDEX IF NOT EXISTS "SystemLog_createdAt_idx" ON "SystemLog"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "SystemLog_archived_idx" ON "SystemLog"("archived");
+CREATE INDEX IF NOT EXISTS "SystemLog_archived_idx" ON "SystemLog"("archived");
 
 -- CreateIndex
-CREATE INDEX "RequiredDocument_ruleId_idx" ON "RequiredDocument"("ruleId");
+CREATE INDEX IF NOT EXISTS "RequiredDocument_ruleId_idx" ON "RequiredDocument"("ruleId");
 
 -- CreateIndex
-CREATE INDEX "CommissionTier_ruleId_idx" ON "CommissionTier"("ruleId");
+CREATE INDEX IF NOT EXISTS "CommissionTier_ruleId_idx" ON "CommissionTier"("ruleId");
 
 -- AddForeignKey
-ALTER TABLE "PlatformUserActivity" ADD CONSTRAINT "PlatformUserActivity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "PlatformUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "PlatformUserActivity" ADD CONSTRAINT "PlatformUserActivity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "PlatformUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "RequiredDocument" ADD CONSTRAINT "RequiredDocument_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "BusinessRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "RequiredDocument" ADD CONSTRAINT "RequiredDocument_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "BusinessRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommissionTier" ADD CONSTRAINT "CommissionTier_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "BusinessRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "CommissionTier" ADD CONSTRAINT "CommissionTier_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "BusinessRule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;

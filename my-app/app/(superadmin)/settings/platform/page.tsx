@@ -20,7 +20,7 @@ import {
   toggleRegionActive,
   type Settings,
   type Region,
-} from "@/app/actions/platform-super";
+} from "@/app/actions/superadmin/platform-super";
 
 type TabKey = "branding" | "regional" | "legal" | "rules";
 

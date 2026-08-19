@@ -16,7 +16,7 @@ import {
   deletePlatformUserAction,
   PlatformUserRow,
   PlatformUserDetail,
-} from "@/app/actions/platform-users";
+} from "@/app/actions/superadmin/platform-users";
 
 // ============================================================================
 // Types

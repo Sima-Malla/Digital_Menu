@@ -7,9 +7,9 @@ import {
 } from "lucide-react";
 import {
   getSystemLogs, getLogDetail, getLogModules, getLogStats,
-  getWeeklyActivity, getRecentSecurityEvents, archiveLogsAction,
+  getWeeklyActivity, getRecentSecurityEvents, archiveLogsAction, getSystemHealth,
   LogRow, LogDetail,
-} from "@/app/actions/system-logs";
+} from "@/app/actions/superadmin/system-logs";
 
 const LOG_LEVELS = ["All Levels", "Info", "Warning", "Critical"];
 const DATE_RANGES = ["Today", "Last 7 Days", "Last 30 Days", "All Time"];
@@ -96,6 +96,7 @@ export default function SystemLogsPage() {
   const [stats, setStats] = useState({ total: 0, warnings: 0, critical: 0, securityEvents: 0, levelBreakdown: { info: 0, warning: 0, critical: 0 } });
   const [weeklyActivity, setWeeklyActivity] = useState<{ day: string; count: number; h: number }[]>([]);
   const [securityEvents, setSecurityEvents] = useState<{ id: string; title: string; detail: string; level: string }[]>([]);
+  const [health, setHealth] = useState<{ database: "Optimal" | "Degraded" | "Down"; latencyMs: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
@@ -125,13 +126,14 @@ export default function SystemLogsPage() {
   }
 
   async function loadSidebarData() {
-    const [statsData, activity, events, mods] = await Promise.all([
-      getLogStats(), getWeeklyActivity(), getRecentSecurityEvents(), getLogModules(),
+    const [statsData, activity, events, mods, healthData] = await Promise.all([
+      getLogStats(), getWeeklyActivity(), getRecentSecurityEvents(), getLogModules(), getSystemHealth(),
     ]);
     setStats(statsData);
     setWeeklyActivity(activity);
     setSecurityEvents(events);
     setModules(["All Modules", ...mods]);
+    setHealth(healthData);
   }
 
   useEffect(() => {
@@ -177,9 +179,9 @@ export default function SystemLogsPage() {
   }
 
   function exportToCSV() {
-    const headers = ["Timestamp", "Event", "Module", "User", "Business", "IP Address", "Status", "Level"];
+    const headers = ["Timestamp", "Event", "Module", "User", "Business", "Status", "Level"];
     const csvRows = logs.map((l) =>
-      [l.displayTime, l.event, l.module, l.user, l.business, l.ip, l.status, l.level]
+      [l.displayTime, l.event, l.module, l.user, l.business, l.status, l.level]
         .map((field) => `"${String(field).replace(/"/g, '""')}"`)
         .join(",")
     );
@@ -213,8 +215,8 @@ export default function SystemLogsPage() {
           </div>
         </header>
 
-        {/* Stat cards — real counts */}
-        <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Stat cards */}
+        <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <StatCard icon={<FileText className="h-5 w-5 text-orange-500" />} iconBg="bg-orange-50" label="Total Logs" value={stats.total.toLocaleString()} />
           <StatCard icon={<AlertTriangle className="h-5 w-5 text-amber-500" />} iconBg="bg-amber-50" label="Warnings" value={stats.warnings.toLocaleString()} />
           <StatCard icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" label="Errors" value={stats.critical.toLocaleString()} valueClass="text-red-600" />
@@ -227,14 +229,14 @@ export default function SystemLogsPage() {
             <button
               type="button"
               onClick={exportToCSV}
-              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-orange-700"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-orange-700 sm:flex-none"
             >
               <Download className="h-4 w-4" /> Export Logs
             </button>
             <button
               type="button"
               onClick={handleArchiveVisible}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-900"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-900 sm:flex-none"
             >
               <Archive className="h-4 w-4" /> Archive Logs
             </button>
@@ -287,10 +289,9 @@ export default function SystemLogsPage() {
                       <tr className="bg-slate-50 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
                         <th className="whitespace-nowrap px-4 py-3">Timestamp</th>
                         <th className="whitespace-nowrap px-4 py-3">Event</th>
-                        <th className="whitespace-nowrap px-4 py-3">Module</th>
+                        <th className="hidden whitespace-nowrap px-4 py-3 sm:table-cell">Module</th>
                         <th className="whitespace-nowrap px-4 py-3">User</th>
-                        <th className="whitespace-nowrap px-4 py-3">Business</th>
-                        <th className="whitespace-nowrap px-4 py-3">IP Address</th>
+                        <th className="hidden whitespace-nowrap px-4 py-3 md:table-cell">Business</th>
                         <th className="whitespace-nowrap px-4 py-3">Status</th>
                         <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
                       </tr>
@@ -300,7 +301,7 @@ export default function SystemLogsPage() {
                         <tr key={log.id} className="transition hover:bg-slate-50">
                           <td className="whitespace-nowrap px-4 py-3 text-slate-500">{log.displayTime}</td>
                           <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-800">{log.event}</td>
-                          <td className="whitespace-nowrap px-4 py-3">
+                          <td className="hidden whitespace-nowrap px-4 py-3 sm:table-cell">
                             <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{log.module}</span>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3">
@@ -309,11 +310,10 @@ export default function SystemLogsPage() {
                               <span className="text-slate-700">{log.user}</span>
                             </div>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-500">{log.business}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-500">{log.ip}</td>
+                          <td className="hidden whitespace-nowrap px-4 py-3 text-slate-500 md:table-cell">{log.business}</td>
                           <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={log.status} /></td>
                           <td className="whitespace-nowrap px-4 py-3 text-right">
-                            <button onClick={() => handleView(log.id)} className="text-sm font-medium text-orange-600 hover:text-orange-700">
+                            <button type="button" onClick={() => handleView(log.id)} className="text-sm font-medium text-orange-600 hover:text-orange-700">
                               View
                             </button>
                           </td>
@@ -321,7 +321,7 @@ export default function SystemLogsPage() {
                       ))}
                       {logs.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                          <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
                             No logs match your filters. Try adjusting search, level, module or date range.
                           </td>
                         </tr>
@@ -336,27 +336,30 @@ export default function SystemLogsPage() {
                 <p className="text-xs text-slate-400">
                   Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} of {total} logs
                 </p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 overflow-x-auto">
                   <button
+                    type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
+                    className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => (
                     <button
+                      type="button"
                       key={i}
                       onClick={() => setPage(i + 1)}
-                      className={`h-8 w-8 rounded-lg text-xs font-medium ${page === i + 1 ? "bg-orange-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                      className={`h-8 w-8 shrink-0 rounded-lg text-xs font-medium ${page === i + 1 ? "bg-orange-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
                     >
                       {i + 1}
                     </button>
                   ))}
                   <button
+                    type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
+                    className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
@@ -364,7 +367,7 @@ export default function SystemLogsPage() {
               </div>
             </div>
 
-            {/* Bottom charts row — real data */}
+            {/* Bottom charts row */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
@@ -429,8 +432,28 @@ export default function SystemLogsPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Database Connectivity</span>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">OPTIMAL</span>
+                  {health ? (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        health.database === "Optimal"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : health.database === "Degraded"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {health.database.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Checking...</span>
+                  )}
                 </div>
+                {health && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Query Latency</span>
+                    <span className="text-xs font-medium text-slate-600">{health.latencyMs}ms</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -443,7 +466,7 @@ export default function SystemLogsPage() {
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b p-5 sm:p-6">
               <h2 className="text-xl font-bold">Log Details</h2>
-              <button onClick={() => setViewLog(null)}><X size={22} /></button>
+              <button type="button" onClick={() => setViewLog(null)}><X size={22} /></button>
             </div>
             {viewLoading || !viewLog ? (
               <div className="flex h-40 items-center justify-center">
@@ -456,7 +479,6 @@ export default function SystemLogsPage() {
                 <p><span className="font-medium">Module:</span> {viewLog.module}</p>
                 <p><span className="font-medium">User:</span> {viewLog.user}</p>
                 <p><span className="font-medium">Business:</span> {viewLog.business}</p>
-                <p><span className="font-medium">IP Address:</span> {viewLog.ip}</p>
                 <p className="flex items-center gap-2"><span className="font-medium">Status:</span> <StatusBadge status={viewLog.status} /></p>
                 <div className="rounded-lg bg-slate-50 p-3 text-slate-600">{viewLog.details}</div>
               </div>

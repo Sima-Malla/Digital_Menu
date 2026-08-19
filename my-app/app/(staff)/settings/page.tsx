@@ -16,7 +16,7 @@ import {
   getStaffProfile,
   updateStaffProfile,
   changeStaffPassword,
-} from "@/app/actions/staff-settings";
+} from "@/app/actions/staff/staff-settings";
 
 // Keyed by `position` (job title — "Chef", "Waiter", "Manager", "Host", etc.),
 // NOT by `role` (which is the permission level: owner/manager/staff).
