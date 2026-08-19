@@ -9,7 +9,7 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
-import { getStaffOrders, type OrderRow, type OrderStatus, type PaymentStatus } from "@/app/actions/staff-orders";
+import { getStaffOrders, type OrderRow, type OrderStatus, type PaymentStatus } from "@/app/actions/staff/staff-orders";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
   New: "bg-orange-50 text-orange-600",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
-import { requireStaffAuth } from "./staff-auth";
+import { requireStaffAuth } from "../staff-auth";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;

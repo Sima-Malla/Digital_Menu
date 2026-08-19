@@ -17,7 +17,7 @@ import {
   updateStaffDishStatus,
   AvailabilityStatus,
   MenuItemData,
-} from "@/app/actions/staff-menu";
+} from "@/app/actions/staff/staff-menu";
 
 const STATUS_CONFIG: Record<
   AvailabilityStatus,
