@@ -14,11 +14,11 @@ const NAV_LINKS = [
 export default function Nav({
   onMenuToggle,
   menuOpen = false,
-  session,
+  session = null,
 }: {
   onMenuToggle?: () => void;
   menuOpen?: boolean;
-  session: SessionPayload | null;
+  session?: SessionPayload | null;
 }) {
   const isLoggedIn = !!session;
   const isAdmin = session?.role === "admin"; // adjust this to match your SessionPayload shape
