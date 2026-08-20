@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  // Redirect बन्द गरिएको छ - अव सिधै Staff Dashboard र Live Orders खुल्नेछ
+export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 

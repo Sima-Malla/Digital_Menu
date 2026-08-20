@@ -24,9 +24,8 @@ export type MenuItemData = {
   status: AvailabilityStatus;
 };
 
-function normalizeStatus(status: string): AvailabilityStatus {
-  if (status === "low-stock" || status === "out-of-stock") return status;
-  return "available";
+function normalizeStatus(isActive: boolean): AvailabilityStatus {
+  return isActive ? "available" : "out-of-stock";
 }
 
 // ── 1. Menu items fetch garne ───────────────────────────────
@@ -49,7 +48,7 @@ export async function getStaffMenuItems(): Promise<MenuItemData[]> {
     meta: item.description || "",
     category: item.category,
     price: `$${Number(item.price).toFixed(2)}`,
-    status: normalizeStatus(item.status),
+    status: normalizeStatus(item.isActive),
   }));
 }
 
@@ -73,7 +72,7 @@ export async function updateStaffDishStatus(
 
     await prisma.menuItem.update({
       where: { id: BigInt(id) },
-      data: { status: newStatus },
+      data: { isActive: newStatus !== "out-of-stock" },
     });
 
     revalidatePath("/menu-editor");

@@ -58,30 +58,77 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const existingUser = await prisma.users.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    if (existingUser) {
+    if (role === "admin") {
+      const existingStaff = await prisma.staff.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+      if (existingStaff) {
+        return NextResponse.json(
+          { message: "An account with this email already exists." },
+          { status: 409 }
+        );
+      }
+
+      const createdUser = await prisma.$transaction(async (tx) => {
+        const createdBusiness = await tx.business.create({
+          data: {
+            businessName: business?.name?.trim() || fullName.trim(),
+            businessType: business?.type?.trim() || null,
+            businessAddress: business?.address?.trim() || null,
+            businessPhone: business?.phone?.trim() || null,
+          },
+        });
+
+        return tx.staff.create({
+          data: {
+            businessId: createdBusiness.id,
+            fullName: fullName.trim(),
+            email: normalizedEmail,
+            password: hashedPassword,
+            role: "owner",
+            phone: phone?.trim() || null,
+            needsOnboarding: false,
+          },
+        });
+      });
+
       return NextResponse.json(
-        { message: "An account with this email already exists." },
+        {
+          message: "Account created successfully.",
+          user: {
+            id: createdUser.id.toString(),
+            fullName: createdUser.fullName,
+            email: createdUser.email,
+            role: createdUser.role,
+          },
+        },
+        { status: 201 }
+      );
+    }
+
+    if (!phone?.trim()) {
+      return NextResponse.json({ message: "Phone is required for user accounts." }, { status: 400 });
+    }
+
+    const existingCustomer = await prisma.customer.findUnique({
+      where: { phone: phone.trim() },
+      select: { id: true },
+    });
+    if (existingCustomer) {
+      return NextResponse.json(
+        { message: "An account with this phone number already exists." },
         { status: 409 }
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    const createdUser = await prisma.users.create({
+    const createdUser = await prisma.customer.create({
       data: {
-        fullName: fullName.trim(),
+        name: fullName.trim(),
+        phone: phone.trim(),
         email: normalizedEmail,
-        password: hashedPassword,
-        role,
-        phone: phone?.trim() ?? null,
-        businessName: business?.name?.trim() ?? null,
-        businessType: business?.type?.trim() ?? null,
-        businessAddress: business?.address?.trim() ?? null,
-        businessPhone: business?.phone?.trim() ?? null,
       },
     });
 
@@ -90,9 +137,9 @@ export async function POST(request: Request) {
         message: "Account created successfully.",
         user: {
           id: createdUser.id.toString(),
-          fullName: createdUser.fullName,
+          fullName: createdUser.name,
           email: createdUser.email,
-          role: createdUser.role,
+          role: "user",
         },
       },
       { status: 201 }
