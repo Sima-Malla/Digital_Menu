@@ -98,7 +98,7 @@ function toUIArea(a: {
   note: string | null;
   occupancyRate: number;
   revenueToday: unknown;
-  SubUnit: Parameters<typeof toUISubUnit>[0][];
+  SubUnit?: Parameters<typeof toUISubUnit>[0][];
 }): Area {
   return {
     id: a.id.toString(),
@@ -111,7 +111,7 @@ function toUIArea(a: {
     note: a.note ?? "",
     occupancyRate: a.occupancyRate,
     revenueToday: Number(a.revenueToday),
-    subUnits: a.SubUnit.map(toUISubUnit),
+    subUnits: (a.SubUnit ?? []).map(toUISubUnit),
   };
 }
 
@@ -146,6 +146,7 @@ function buildSubUnitRows(type: AreaType, count: number) {
   return Array.from({ length: count }).map((_, i) => ({
     label: `${label} ${i + 1}`,
     status,
+    updatedAt: new Date(),
   }));
 }
 
@@ -159,7 +160,8 @@ export async function createArea(businessId: bigint, input: AreaInput): Promise<
       unitCount: input.unitCount,
       style: input.style,
       note: input.note,
-      subUnits: { create: buildSubUnitRows(input.type, input.unitCount) },
+      updatedAt: new Date(),
+      SubUnit: { create: buildSubUnitRows(input.type, input.unitCount) },
     },
     include: { SubUnit: true },
   });
@@ -190,7 +192,7 @@ export async function updateArea(
         unitCount: input.unitCount,
         style: input.style,
         note: input.note,
-        subUnits: regenerateSubUnits
+        SubUnit: regenerateSubUnits
           ? { create: buildSubUnitRows(input.type, input.unitCount) }
           : undefined,
       },
@@ -220,7 +222,8 @@ export async function duplicateArea(businessId: bigint, areaId: bigint): Promise
       note: source.note,
       occupancyRate: 0,
       revenueToday: 0,
-      subUnits: { create: buildSubUnitRows(source.type as AreaType, source.unitCount) },
+      updatedAt: new Date(),
+      SubUnit: { create: buildSubUnitRows(source.type as AreaType, source.unitCount) },
     },
     include: { SubUnit: true },
   });

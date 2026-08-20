@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useOrder } from "@/components/OrderContext";
 
 export default function OrderSummary() {
-  const { items, incrementQty, decrementQty, removeItem, clearOrder, totalItems, totalPrice, totalSavings } =
+  const { items, incrementQty, decrementQty, removeItem, clearCart, totalItems, totalPrice } =
     useOrder();
 
   return (
@@ -11,7 +11,7 @@ export default function OrderSummary() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">Your Order</h2>
         {items.length > 0 && (
-          <button onClick={clearOrder} className="text-xs font-medium text-gray-400 hover:text-red-500">
+          <button onClick={clearCart} className="text-xs font-medium text-gray-400 hover:text-red-500">
             Clear all
           </button>
         )}
@@ -45,7 +45,7 @@ export default function OrderSummary() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => decrementQty(item.name, item.category)}
+                    onClick={() => decrementQty(item.menuItemId)}
                     aria-label={`Decrease ${item.name} quantity`}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
                   >
@@ -53,7 +53,7 @@ export default function OrderSummary() {
                   </button>
                   <span className="w-4 text-center text-xs font-semibold">{item.quantity}</span>
                   <button
-                    onClick={() => incrementQty(item.name, item.category)}
+                    onClick={() => incrementQty(item.menuItemId)}
                     aria-label={`Increase ${item.name} quantity`}
                     className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
                   >
@@ -61,7 +61,7 @@ export default function OrderSummary() {
                   </button>
                 </div>
                 <button
-                  onClick={() => removeItem(item.name, item.category)}
+                  onClick={() => removeItem(item.menuItemId)}
                   aria-label={`Remove ${item.name}`}
                   className="ml-1 text-gray-300 hover:text-red-500"
                 >
@@ -76,12 +76,6 @@ export default function OrderSummary() {
               <span>Items</span>
               <span>{totalItems}</span>
             </div>
-            {totalSavings > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>You save</span>
-                <span>Rs. {totalSavings}</span>
-              </div>
-            )}
             <div className="flex justify-between text-base font-bold text-gray-900">
               <span>Total</span>
               <span>Rs. {totalPrice}</span>

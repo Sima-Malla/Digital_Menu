@@ -4,6 +4,7 @@ import type { StaticImageData } from "next/image";
 import { useOrder } from "@/components/OrderContext";
 
 type CardsProps = {
+  menuItemId: string;
   name: string;
   description: string;
   image: string | StaticImageData;
@@ -13,11 +14,11 @@ type CardsProps = {
   category: string;
 };
 
-export default function Cards({ name, description, image, price, originalPrice, rating, category }: CardsProps) {
+export default function Cards({ menuItemId, name, description, image, price, originalPrice, rating, category }: CardsProps) {
   const { items, addItem, incrementQty, decrementQty } = useOrder();
   const discount = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const cartItem = items.find((i) => i.name === name && i.category === category);
-  const safeImage = image || "/placeholder.jpg";
+  const safeImage = typeof image === "string" ? image : image.src;
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md">
@@ -55,7 +56,7 @@ export default function Cards({ name, description, image, price, originalPrice, 
         <div className="mt-3">
           {!cartItem ? (
             <button
-              onClick={() => addItem({ name, description, image, price, originalPrice, category })}
+              onClick={() => addItem({ menuItemId, name, category, image: safeImage, price })}
               className="w-full rounded-full bg-orange-500 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-600"
             >
               Add to order
@@ -63,7 +64,7 @@ export default function Cards({ name, description, image, price, originalPrice, 
           ) : (
             <div className="flex items-center justify-between rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
               <button
-                onClick={() => decrementQty(name, category)}
+                onClick={() => decrementQty(menuItemId)}
                 aria-label={`Decrease ${name} quantity`}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-orange-500 shadow-sm hover:bg-orange-100"
               >
@@ -71,7 +72,7 @@ export default function Cards({ name, description, image, price, originalPrice, 
               </button>
               <span className="text-sm font-semibold text-gray-800">{cartItem.quantity}</span>
               <button
-                onClick={() => incrementQty(name, category)}
+                onClick={() => incrementQty(menuItemId)}
                 aria-label={`Increase ${name} quantity`}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-orange-500 shadow-sm hover:bg-orange-100"
               >

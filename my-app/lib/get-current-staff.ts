@@ -19,8 +19,8 @@ export async function getCurrentStaff(allowedRoles?: string[]) {
   }
 
   const staff = await prisma.staff.findUnique({
-    where: { id: session.userId },
-    select: { id: true, name: true, role: true, onDuty: true },
+    where: { id: BigInt(session.userId) },
+    select: { id: true, fullName: true, role: true },
   });
 
   if (!staff) {
