@@ -46,6 +46,7 @@ export default function PosClient({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orderType, setOrderType] = useState<"dine-in" | "pickup" | "delivery">("dine-in");
   const [locationId, setLocationId] = useState("");
+  const [isWalkIn, setIsWalkIn] = useState(true); // default ON — most counter orders are walk-ins
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -111,7 +112,7 @@ export default function PosClient({
       setError("Add at least one item to the order.");
       return;
     }
-    if (!customerPhone.trim()) {
+    if (!isWalkIn && !customerPhone.trim()) {
       setError("Customer phone number is required.");
       return;
     }
@@ -125,8 +126,9 @@ export default function PosClient({
         cart,
         orderType,
         locationId: orderType === "dine-in" ? locationId : null,
-        customerName,
-        customerPhone,
+        isWalkIn,
+        customerName: isWalkIn ? "" : customerName,
+        customerPhone: isWalkIn ? "" : customerPhone,
       });
 
       if (res.success) {
@@ -135,6 +137,7 @@ export default function PosClient({
         setCustomerName("");
         setCustomerPhone("");
         setLocationId("");
+        setIsWalkIn(true);
       } else {
         setError(res.message ?? "Couldn't create the order — please try again.");
       }
@@ -327,22 +330,37 @@ export default function PosClient({
             </select>
           )}
 
-          <div className="mb-3 grid grid-cols-1 gap-2">
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Customer name"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
-            />
-            <input
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Phone number"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
-            />
+          <div className="mb-3">
+            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs">
+              <input
+                type="checkbox"
+                checked={isWalkIn}
+                onChange={(e) => setIsWalkIn(e.target.checked)}
+                className="h-3.5 w-3.5 accent-orange-500"
+              />
+              <span className="font-semibold text-gray-700">Walk-in customer</span>
+              <span className="ml-auto text-gray-400">(no name/phone needed)</span>
+            </label>
           </div>
+
+          {!isWalkIn && (
+            <div className="mb-3 grid grid-cols-1 gap-2">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Customer name"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
+              />
+              <input
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="Phone number"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
+              />
+            </div>
+          )}
 
           {error && <p className="mb-3 text-[11px] font-medium text-red-600">{error}</p>}
 

@@ -64,11 +64,11 @@ function WeeklySalesChart({ data }: { data: { day: string; value: number }[] }) 
               tickFormatter={(v) => `Rs. ${v}`}
               width={48}
             />
-            <Tooltip
-              cursor={{ fill: "#f3f4f6" }}
-              formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, "Revenue"]}
-              contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-            />
+           <Tooltip
+  cursor={{ fill: "#f3f4f6" }}
+  formatter={(value: unknown) => [`Rs. ${Number(value ?? 0).toLocaleString()}`, "Revenue"]}
+  contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+/>
             <Bar dataKey="value" radius={[6, 6, 0, 0]}>
               {data.map((entry, i) => (
                 <Cell key={entry.day} fill={i === maxIndex ? "#C2410C" : "#F3C6AB"} />

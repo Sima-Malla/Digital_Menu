@@ -27,10 +27,17 @@ export type CartLine = {
   notes: string;
 };
 
+// Customer.phone is unique + required, so walk-ins can't each get a blank
+// row. One reusable placeholder Customer per business instead.
+function walkInPhoneFor(businessId: bigint) {
+  return `WALKIN-${businessId}`;
+}
+
 export async function createPosOrderAction(input: {
   cart: CartLine[];
   orderType: "dine-in" | "pickup" | "delivery";
   locationId: string | null;
+  isWalkIn: boolean;
   customerName: string;
   customerPhone: string;
 }): Promise<{ success: boolean; message?: string; orderId?: string }> {
@@ -41,9 +48,13 @@ export async function createPosOrderAction(input: {
     return { success: false, message: "Cart is empty" };
   }
 
-  const phone = input.customerPhone.trim();
-  if (!phone) {
+  const phone = input.isWalkIn ? walkInPhoneFor(businessId) : input.customerPhone.trim();
+  if (!input.isWalkIn && !phone) {
     return { success: false, message: "Customer phone is required" };
+  }
+
+  if (input.orderType === "dine-in" && !input.locationId) {
+    return { success: false, message: "Select a table for dine-in orders" };
   }
 
   const totalAmount = input.cart.reduce(
@@ -53,11 +64,22 @@ export async function createPosOrderAction(input: {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
+      // Validate the location belongs to this business — guards against a
+      // tampered locationId from the client.
+      if (input.locationId) {
+        const location = await tx.location.findFirst({
+          where: { id: BigInt(input.locationId), businessId },
+        });
+        if (!location) {
+          throw new Error("INVALID_LOCATION");
+        }
+      }
+
       const customer = await tx.customer.upsert({
         where: { phone },
-        update: { name: input.customerName.trim() || undefined },
+        update: input.isWalkIn ? {} : { name: input.customerName.trim() || undefined },
         create: {
-          name: input.customerName.trim() || "Walk-in Customer",
+          name: input.isWalkIn ? "Walk-in Customer" : input.customerName.trim() || "Guest",
           phone,
         },
       });
@@ -89,6 +111,9 @@ export async function createPosOrderAction(input: {
 
     return { success: true, orderId: order.id.toString() };
   } catch (err) {
+    if (err instanceof Error && err.message === "INVALID_LOCATION") {
+      return { success: false, message: "Selected table is not valid — please pick again." };
+    }
     console.error("Failed to create POS order:", err);
     return { success: false, message: "Something went wrong. Please try again." };
   }

@@ -41,6 +41,7 @@ export type RecentOrder = {
   id: string;
   customer: string;
   initials: string;
+  avatarBg: string;
   items: string;
   total: string;
   status: string;

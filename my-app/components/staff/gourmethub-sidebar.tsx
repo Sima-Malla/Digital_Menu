@@ -22,7 +22,7 @@ const menus = [
   { name: "Live Orders", icon: ClipboardList, href: "/live-orders" },
   { name: "Orders", icon: ListOrdered, href: "/sorder" },
   { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
-  { name: "Analytics", icon: BarChart3, href: "/aanalytics" },
+
   { name: "Settings", icon: Settings, href: "/settings" },
 ];
 
