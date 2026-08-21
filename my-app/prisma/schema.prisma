@@ -30,9 +30,12 @@ model Business {
   timezone          String     @default("EST (UTC-5)")
   twitter           String?
   website           String?
-  ownerName         String?               // <-- NAYA
-  plan              String     @default("Basic")     // <-- NAYA
-  status            String     @default("Pending")   // <-- NAYA
+  ownerName         String?               
+  plan              String     @default("Basic")    
+  status            String     @default("Pending")  
+
+  lastPaymentFailedAt DateTime?
+  lastPaymentAt       DateTime?
   Area              Area[]
   locations         Location[]
   menuItems         MenuItem[]

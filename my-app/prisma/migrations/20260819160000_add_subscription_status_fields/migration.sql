@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Business" ADD COLUMN IF NOT EXISTS "lastPaymentFailedAt" TIMESTAMP(3);
+ALTER TABLE "Business" ADD COLUMN IF NOT EXISTS "lastPaymentAt" TIMESTAMP(3);
