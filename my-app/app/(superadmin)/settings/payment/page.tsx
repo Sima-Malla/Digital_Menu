@@ -5,7 +5,6 @@ import { useEffect, useState, useTransition } from "react";
 import {
   CreditCard,
   Wallet,
-  Percent,
   RotateCcw,
   Eye,
   EyeOff,
@@ -54,11 +53,8 @@ export default function PaymentSettingsPage() {
 
   const [methods, setMethods] = useState<Method[]>([]);
 
-  const [transactionFee, setTransactionFee] = useState(2.5);
-  const [feeBearer, setFeeBearer] = useState("Business");
   const [autoRefund, setAutoRefund] = useState(true);
   const [refundWindow, setRefundWindow] = useState(7);
-  const [manualApproval, setManualApproval] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -67,11 +63,8 @@ export default function PaymentSettingsPage() {
         getPaymentGateways(BigInt(businessId)),
         getPaymentMethods(BigInt(businessId)),
       ]);
-      setTransactionFee(Number(settings.transactionFee));
-      setFeeBearer(settings.feeBearer);
       setAutoRefund(settings.autoRefund);
       setRefundWindow(settings.refundWindowDays);
-      setManualApproval(settings.manualApproval);
       setGateways(gws);
       setMethods(mts);
       setLoading(false);
@@ -123,11 +116,8 @@ export default function PaymentSettingsPage() {
   function handleSave() {
     startTransition(async () => {
       await updatePaymentSettings(BigInt(businessId), {
-        transactionFee,
-        feeBearer: feeBearer as "Business" | "Customer" | "Split Equally",
         autoRefund,
         refundWindowDays: refundWindow,
-        manualApproval,
       });
 
       for (const [gatewayKey, keys] of Object.entries(draftKeys)) {
@@ -160,12 +150,12 @@ export default function PaymentSettingsPage() {
         <div className="mb-8">
           <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Payment</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Payment gateways, supported methods, transaction fees, and refund policy.
+            Payment gateways, supported methods, and refund policy.
           </p>
         </div>
 
         <div className="space-y-6">
-          <Card title="Payment Gateways" icon={CreditCard} description="Connect and configure the payment providers used across the platform.">
+          <Card title="Payment Gateways" icon={CreditCard} description="Connect and configure eSewa and Khalti for this business.">
             <div className="space-y-5 divide-y divide-slate-100">
               {gateways.map((gw) => (
                 <div key={gw.id} className="pt-5 first:pt-0">
@@ -243,27 +233,6 @@ export default function PaymentSettingsPage() {
             </div>
           </Card>
 
-          <Card title="Transaction Fees" icon={Percent} description="Fee applied on top of each transaction processed through the platform.">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Transaction Fee (%)">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={transactionFee}
-                  onChange={(e) => setTransactionFee(Number(e.target.value))}
-                  className="input"
-                />
-              </Field>
-              <Field label="Fee Charged To">
-                <select value={feeBearer} onChange={(e) => setFeeBearer(e.target.value)} className="input">
-                  <option>Business</option>
-                  <option>Customer</option>
-                  <option>Split Equally</option>
-                </select>
-              </Field>
-            </div>
-          </Card>
-
           <Card title="Refund Policy" icon={RotateCcw} description="Rules that govern how refunds are processed on the platform.">
             <div className="divide-y divide-slate-100">
               <SettingRow label="Enable Auto-Refunds" description="Automatically refund failed or cancelled orders without manual review.">
@@ -276,9 +245,6 @@ export default function PaymentSettingsPage() {
                   onChange={(e) => setRefundWindow(Number(e.target.value))}
                   className="input w-24"
                 />
-              </SettingRow>
-              <SettingRow label="Require Manual Approval for Large Refunds" description="Refunds above a set threshold need admin approval before processing.">
-                <Toggle checked={manualApproval} onChange={() => setManualApproval((v) => !v)} />
               </SettingRow>
             </div>
           </Card>

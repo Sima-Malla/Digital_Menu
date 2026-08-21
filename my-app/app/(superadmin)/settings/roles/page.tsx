@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   KeyRound,
   Users,
@@ -9,112 +9,49 @@ import {
   Lock,
   Check,
   X,
+  Loader2,
 } from "lucide-react";
-
-type Action = "View" | "Create" | "Edit" | "Delete";
-const ACTIONS: Action[] = ["View", "Create", "Edit", "Delete"];
-
-const RESOURCES = [
-  "Businesses",
-  "Orders",
-  "Platform Users",
-  "System Logs",
-  "Payments",
-  "Global Settings",
-] as const;
-type Resource = (typeof RESOURCES)[number];
-
-type PermissionMap = Record<Resource, Record<Action, boolean>>;
-
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  locked?: boolean; // Super Admin — always full access, not editable
-  permissions: PermissionMap;
-}
-
-interface AdminUser {
-  id: string;
-  name: string;
-  email: string;
-  roleId: string;
-}
-
-function fullAccess(): PermissionMap {
-  return RESOURCES.reduce((acc, r) => {
-    acc[r] = { View: true, Create: true, Edit: true, Delete: true };
-    return acc;
-  }, {} as PermissionMap);
-}
-
-function noAccess(): PermissionMap {
-  return RESOURCES.reduce((acc, r) => {
-    acc[r] = { View: false, Create: false, Edit: false, Delete: false };
-    return acc;
-  }, {} as PermissionMap);
-}
-
-const initialRoles: Role[] = [
-  {
-    id: "super-admin",
-    name: "Super Admin",
-    description: "Full access to every module. Cannot be edited or removed.",
-    locked: true,
-    permissions: fullAccess(),
-  },
-  {
-    id: "admin",
-    name: "Admin",
-    description: "Manages day-to-day operations across the platform.",
-    permissions: {
-      ...noAccess(),
-      Businesses: { View: true, Create: true, Edit: true, Delete: false },
-      Orders: { View: true, Create: false, Edit: true, Delete: false },
-      "Platform Users": { View: true, Create: true, Edit: true, Delete: false },
-      "System Logs": { View: true, Create: false, Edit: false, Delete: false },
-      Payments: { View: true, Create: false, Edit: false, Delete: false },
-      "Global Settings": { View: true, Create: false, Edit: false, Delete: false },
-    },
-  },
-  {
-    id: "moderator",
-    name: "Moderator",
-    description: "Reviews and moderates business and order activity.",
-    permissions: {
-      ...noAccess(),
-      Businesses: { View: true, Create: false, Edit: true, Delete: false },
-      Orders: { View: true, Create: false, Edit: true, Delete: false },
-      "System Logs": { View: true, Create: false, Edit: false, Delete: false },
-    },
-  },
-  {
-    id: "support",
-    name: "Support Staff",
-    description: "Handles user support tickets and read-only lookups.",
-    permissions: {
-      ...noAccess(),
-      Orders: { View: true, Create: false, Edit: false, Delete: false },
-      "Platform Users": { View: true, Create: false, Edit: false, Delete: false },
-    },
-  },
-];
-
-const initialAdmins: AdminUser[] = [
-  { id: "1", name: "Sima Malla", email: "sima@bistrocentral.com", roleId: "super-admin" },
-  { id: "2", name: "Aayush Shrestha", email: "aayush@bistrocentral.com", roleId: "admin" },
-  { id: "3", name: "Prakriti Gurung", email: "prakriti@bistrocentral.com", roleId: "moderator" },
-  { id: "4", name: "Bibek Karki", email: "bibek@bistrocentral.com", roleId: "support" },
-];
+import {
+  getRoles,
+  getAdmins,
+  createRoleAction,
+  updateRoleFieldAction,
+  updateRolePermissionsAction,
+  deleteRoleAction,
+  updateAdminRoleAction,
+  removeAdminAction,
+  type RoleData,
+  type AdminUser,
+} from "@/app/actions/superadmin/roles";
+import { RESOURCES, ACTIONS, type Resource, type Action } from "@/lib/roles-constants";
 
 export default function RolesPermissionsPage() {
-  const [roles, setRoles] = useState<Role[]>(initialRoles);
-  const [admins, setAdmins] = useState<AdminUser[]>(initialAdmins);
-  const [selectedRoleId, setSelectedRoleId] = useState(roles[1].id);
+  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<RoleData[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  async function loadAll() {
+    setLoading(true);
+    const [rolesData, adminsData] = await Promise.all([getRoles(), getAdmins()]);
+    setRoles(rolesData);
+    setAdmins(adminsData);
+    if (!selectedRoleId && rolesData.length > 0) {
+      const nonLocked = rolesData.find((r) => !r.locked);
+      setSelectedRoleId((nonLocked ?? rolesData[0]).id);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const selectedRole = useMemo(
-    () => roles.find((r) => r.id === selectedRoleId)!,
+    () => roles.find((r) => r.id === selectedRoleId) ?? null,
     [roles, selectedRoleId]
   );
 
@@ -124,52 +61,108 @@ export default function RolesPermissionsPage() {
   }
 
   function togglePermission(resource: Resource, action: Action) {
-    setRoles((rs) =>
-      rs.map((r) =>
-        r.id === selectedRoleId && !r.locked
-          ? {
-              ...r,
-              permissions: {
-                ...r.permissions,
-                [resource]: {
-                  ...r.permissions[resource],
-                  [action]: !r.permissions[resource][action],
-                },
-              },
-            }
-          : r
-      )
-    );
+    if (!selectedRole || selectedRole.locked) return;
+    const updated: RoleData = {
+      ...selectedRole,
+      permissions: {
+        ...selectedRole.permissions,
+        [resource]: {
+          ...selectedRole.permissions[resource],
+          [action]: !selectedRole.permissions[resource][action],
+        },
+      },
+    };
+    setRoles((rs) => rs.map((r) => (r.id === selectedRole.id ? updated : r)));
+    startTransition(async () => {
+      await updateRolePermissionsAction(updated.id, updated.permissions);
+    });
   }
 
   function addRole() {
-    const id = crypto.randomUUID();
-    const newRole: Role = {
-      id,
-      name: "New Role",
-      description: "Describe what this role can do.",
-      permissions: noAccess(),
-    };
-    setRoles((rs) => [...rs, newRole]);
-    setSelectedRoleId(id);
+    startTransition(async () => {
+      const res = await createRoleAction();
+      if (res.success && res.data) {
+        await loadAll();
+        setSelectedRoleId(res.data.id);
+      } else if (!res.success) {
+        alert(res.message);
+      }
+    });
   }
 
   function updateRoleField(id: string, field: "name" | "description", value: string) {
     setRoles((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+    startTransition(async () => {
+      await updateRoleFieldAction(id, { [field]: value });
+    });
   }
 
   function removeRole(id: string) {
-    if (admins.some((a) => a.roleId === id)) return; // guard: reassign admins first
+    const role = roles.find((r) => r.id === id);
+    if (!role || role.adminCount > 0) return;
+
+    const previous = roles;
     setRoles((rs) => rs.filter((r) => r.id !== id));
-    if (selectedRoleId === id) setSelectedRoleId(roles[0].id);
+    if (selectedRoleId === id) {
+      const fallback = roles.find((r) => r.id !== id);
+      setSelectedRoleId(fallback?.id ?? null);
+    }
+    startTransition(async () => {
+      const res = await deleteRoleAction(id);
+      if (!res.success) {
+        setRoles(previous);
+        alert(res.message);
+      }
+    });
   }
 
   function updateAdminRole(adminId: string, roleId: string) {
+    const previous = admins;
     setAdmins((as) => as.map((a) => (a.id === adminId ? { ...a, roleId } : a)));
+    startTransition(async () => {
+      const res = await updateAdminRoleAction(adminId, roleId);
+      if (!res.success) {
+        setAdmins(previous);
+        alert(res.message);
+      } else {
+        loadAll(); // refresh adminCount per role
+      }
+    });
   }
 
   function removeAdmin(adminId: string) {
+    if (!confirm("Remove this admin? This cannot be undone.")) return;
+    const previous = admins;
     setAdmins((as) => as.filter((a) => a.id !== adminId));
+    startTransition(async () => {
+      const res = await removeAdminAction(adminId);
+      if (!res.success) {
+        setAdmins(previous);
+        alert(res.message);
+      } else {
+        loadAll();
+      }
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center gap-2 text-sm text-slate-400">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Loading roles...
+      </div>
+    );
+  }
+
+  if (!selectedRole) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 text-sm text-slate-400">
+        <p>Couldn't load roles.</p>
+        <p className="text-xs">
+          Make sure you're logged in as a superadmin, then refresh this page.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -203,15 +196,15 @@ export default function RolesPermissionsPage() {
                   {role.locked && <Lock size={12} className="text-slate-400" />}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {admins.filter((a) => a.roleId === role.id).length} admin
-                  {admins.filter((a) => a.roleId === role.id).length !== 1 ? "s" : ""}
+                  {role.adminCount} admin{role.adminCount !== 1 ? "s" : ""}
                 </p>
               </button>
             ))}
 
             <button
               onClick={addRole}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-orange-600 hover:bg-orange-50"
+              disabled={isPending}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-orange-600 hover:bg-orange-50 disabled:opacity-60"
             >
               <Plus size={15} />
               Add role
@@ -251,10 +244,10 @@ export default function RolesPermissionsPage() {
                 {!selectedRole.locked && (
                   <button
                     onClick={() => removeRole(selectedRole.id)}
-                    disabled={admins.some((a) => a.roleId === selectedRole.id)}
+                    disabled={selectedRole.adminCount > 0}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                     title={
-                      admins.some((a) => a.roleId === selectedRole.id)
+                      selectedRole.adminCount > 0
                         ? "Reassign admins before deleting this role"
                         : "Delete role"
                     }
@@ -319,57 +312,71 @@ export default function RolesPermissionsPage() {
 
             {/* Admins assigned to roles */}
             <Card icon={Users} title="Assigned Admins">
-              <div className="overflow-hidden rounded-lg border border-slate-100">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-4 py-2.5">Name</th>
-                      <th className="px-4 py-2.5">Email</th>
-                      <th className="px-4 py-2.5">Role</th>
-                      <th className="px-4 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {admins.map((admin) => (
-                      <tr key={admin.id}>
-                        <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-800">
-                          {admin.name}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-500">{admin.email}</td>
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <select
-                            value={admin.roleId}
-                            onChange={(e) => updateAdminRole(admin.id, e.target.value)}
-                            className="input w-40"
-                          >
-                            {roles.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <button
-                            onClick={() => removeAdmin(admin.id)}
-                            className="text-xs font-medium text-red-500 hover:text-red-600"
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {admins.length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-400">No admins yet.</p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-slate-100">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                          <th className="px-4 py-2.5">Name</th>
+                          <th className="px-4 py-2.5">Email</th>
+                          <th className="px-4 py-2.5">Role</th>
+                          <th className="px-4 py-2.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {admins.map((admin) => (
+                          <tr key={admin.id}>
+                            <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-800">
+                              {admin.name}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-slate-500">{admin.email}</td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              {admin.isSuperAdminAccount ? (
+                                <span className="inline-flex items-center gap-1.5 text-slate-500">
+                                  <Lock size={12} /> Super Admin
+                                </span>
+                              ) : (
+                                <select
+                                  value={admin.roleId}
+                                  onChange={(e) => updateAdminRole(admin.id, e.target.value)}
+                                  className="input w-40"
+                                >
+                                  {roles.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                      {r.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right">
+                              {!admin.isSuperAdminAccount && (
+                                <button
+                                  onClick={() => removeAdmin(admin.id)}
+                                  className="text-xs font-medium text-red-500 hover:text-red-600"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
         </div>
       </div>
 
-      {/* Sticky save bar */}
+      {/* Sticky save bar — permissions/fields already autosave on change, this is just a visible confirmation */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-xs text-slate-400">
             {saved ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
