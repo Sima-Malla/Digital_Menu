@@ -62,7 +62,7 @@ export default function GourmetHubSidebar() {
 
   const staffName = staff?.fullName ?? "Loading...";
   const businessName = staff?.businessName ?? "Loading...";
-  const profileImage = staff?.logoUrl || "https://i.pravatar.cc/64?img=12";
+  const profileImage = staff?.logoUrl || "/logo.png";
 
   return (
     <>

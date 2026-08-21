@@ -17,6 +17,7 @@ import {
   updateStaffProfile,
   changeStaffPassword,
 } from "@/app/actions/staff/staff-settings";
+import { getStaffSidebarSummaryAction } from "@/app/actions/staff/sidebar";
 
 // Keyed by `position` (job title — "Chef", "Waiter", "Manager", "Host", etc.),
 // NOT by `role` (which is the permission level: owner/manager/staff).
@@ -56,6 +57,7 @@ export default function StaffSettingsPage() {
     phone: string;
     email: string;
   } | null>(null);
+  const [brand, setBrand] = useState<{ businessName: string; logoUrl: string | null } | null>(null);
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -75,7 +77,11 @@ export default function StaffSettingsPage() {
 
   useEffect(() => {
     async function load() {
-      const data = await getStaffProfile();
+      const [data, summary] = await Promise.all([
+        getStaffProfile(),
+        getStaffSidebarSummaryAction(),
+      ]);
+
       if (data) {
         setStaff(data);
         setFullName(data.fullName);
@@ -84,6 +90,14 @@ export default function StaffSettingsPage() {
         const keys = POSITION_NOTIFICATIONS[data.position] ?? DEFAULT_NOTIFICATIONS;
         setNotifPrefs(Object.fromEntries(keys.map((n) => [n.key, true])));
       }
+
+      if (summary) {
+        setBrand({
+          businessName: summary.businessName,
+          logoUrl: summary.logoUrl,
+        });
+      }
+
       setLoading(false);
     }
     load();
@@ -158,20 +172,23 @@ export default function StaffSettingsPage() {
   }
 
   const notificationKeys = POSITION_NOTIFICATIONS[staff.position] ?? DEFAULT_NOTIFICATIONS;
+  const profileImage = brand?.logoUrl || "/logo.png";
 
   return (
     <div className={`min-h-screen ${t.page} pb-16 transition-colors duration-200`}>
       <main className="max-w-3xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         <div className="mb-6">
           <h1 className={`text-2xl font-extrabold sm:text-3xl ${t.heading}`}>Settings</h1>
-          <p className={`mt-1 text-sm ${t.subtext}`}>Manage your account and notification preferences.</p>
+          <p className={`mt-1 text-sm ${t.subtext}`}>
+            {brand?.businessName ? `Manage ${brand.businessName} account settings.` : "Manage your account and notification preferences."}
+          </p>
         </div>
 
         <div className="flex flex-col gap-5">
           <Section title="My Profile" t={t}>
             <div className="flex items-center gap-4">
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                <Image src="/vegmomo.jpg" alt={staff.fullName} fill className="object-cover" />
+                <Image src={profileImage} alt={brand?.businessName || staff.fullName} fill className="object-cover" />
               </div>
               {editingProfile && (
                 <label
