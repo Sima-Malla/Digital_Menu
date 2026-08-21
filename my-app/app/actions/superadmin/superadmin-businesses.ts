@@ -96,6 +96,37 @@ type CreateBusinessInput = {
   status: string;
 };
 
+/**
+ * Applies Business Rules (Auto Approve / Require Verification / Default
+ * Status) to decide the actual status a new business gets, regardless of
+ * whatever status the create form defaulted to.
+ *
+ * Precedence: Require Verification always wins — a business can't be
+ * auto-approved into Active if verification is required, since no
+ * documents have been reviewed yet at creation time. Only when
+ * verification is OFF does Auto Approve get to set it Active directly.
+ */
+async function resolveInitialStatus(): Promise<{ status: string; reason: string }> {
+  const rules = await prisma.businessRule.findFirst();
+
+  if (!rules) {
+    return { status: "Pending", reason: "No business rules configured — defaulted to Pending" };
+  }
+
+  if (rules.requireVerification) {
+    return {
+      status: rules.defaultBusinessStatus,
+      reason: "Require Verification is on — auto-approve skipped",
+    };
+  }
+
+  if (rules.autoApproveBusinesses) {
+    return { status: "Active", reason: "Auto Approve Businesses is on" };
+  }
+
+  return { status: rules.defaultBusinessStatus, reason: "Using default business status" };
+}
+
 export async function createBusinessAction(input: CreateBusinessInput) {
   try {
     if (!input.name?.trim() || !input.owner?.trim() || !input.email?.trim()) {
@@ -109,6 +140,8 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       return { success: false, message: "A business with this email already exists." };
     }
 
+    const { status: resolvedStatus, reason } = await resolveInitialStatus();
+
     const created = await prisma.business.create({
       data: {
         businessName: input.name.trim(),
@@ -117,7 +150,7 @@ export async function createBusinessAction(input: CreateBusinessInput) {
         businessPhone: input.phone?.trim() || null,
         logoUrl: input.logo || "🍽️",
         plan: input.plan || "Basic",
-        status: input.status || "Pending",
+        status: resolvedStatus,
       },
     });
 
@@ -126,11 +159,11 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       module: "Businesses",
       status: "Success",
       business: created.businessName,
-      details: `Owner: ${created.ownerName ?? "—"} · Plan: ${created.plan}`,
+      details: `Owner: ${created.ownerName ?? "—"} · Plan: ${created.plan} · Status: ${resolvedStatus} (${reason})`,
     });
 
     revalidatePath("/superadmin/businesses");
-    return { success: true, message: "Business created." };
+    return { success: true, message: `Business created with status: ${resolvedStatus}.` };
   } catch (err) {
     console.error("createBusinessAction error:", err);
     return { success: false, message: "Failed to create business." };

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { logEvent } from "@/lib/log-event";
 
 const PATH = "/settings/business";
 
@@ -11,14 +12,11 @@ export type BusinessRulesData = {
   defaultBusinessStatus: string;
   payoutFrequency: string;
   payoutThreshold: number;
-  minOrderValue: number;
   documents: { id: string; name: string; required: boolean }[];
   tiers: { id: string; name: string; commission: number }[];
 };
 
 export type SaveResult = { success: true } | { success: false; message: string };
-
-// ---- mappers: raw Prisma rows (bigint/Decimal) -> plain client types ----
 
 type RawRule = Awaited<ReturnType<typeof getOrCreateRule>>;
 
@@ -47,21 +45,15 @@ function mapRule(rule: RawRule): BusinessRulesData {
     defaultBusinessStatus: rule.defaultBusinessStatus,
     payoutFrequency: rule.payoutFrequency,
     payoutThreshold: Number(rule.payoutThreshold),
-    minOrderValue: Number(rule.minOrderValue),
     documents: rule.documents.map((d) => ({ id: d.id.toString(), name: d.name, required: d.required })),
     tiers: rule.tiers.map((t) => ({ id: t.id.toString(), name: t.name, commission: Number(t.commission) })),
   };
 }
 
-// ---- read ------------------------------------------------------------
-
 export async function getBusinessRules(): Promise<BusinessRulesData> {
   const rule = await getOrCreateRule();
   return mapRule(rule);
 }
-
-// ---- save (full replace of documents/tiers — simplest, avoids id-matching
-// between client-generated UUIDs for new rows and DB bigint ids) ----------
 
 export async function saveBusinessRules(data: BusinessRulesData): Promise<SaveResult> {
   try {
@@ -75,7 +67,8 @@ export async function saveBusinessRules(data: BusinessRulesData): Promise<SaveRe
         defaultBusinessStatus: data.defaultBusinessStatus,
         payoutFrequency: data.payoutFrequency,
         payoutThreshold: data.payoutThreshold,
-        minOrderValue: data.minOrderValue,
+        // minOrderValue intentionally left untouched — dropped from the
+        // UI/type, but the schema column still exists with its default.
       },
     });
 
@@ -102,6 +95,12 @@ export async function saveBusinessRules(data: BusinessRulesData): Promise<SaveRe
         })),
       });
     }
+
+    await logEvent({
+      event: "Business Rules Updated",
+      module: "Settings",
+      status: "Success",
+    });
 
     revalidatePath(PATH);
     return { success: true };

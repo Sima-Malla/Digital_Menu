@@ -6,7 +6,6 @@ import {
   ClipboardCheck,
   Percent,
   Wallet,
-  ShoppingBag,
   Plus,
   Trash2,
   Check,
@@ -51,9 +50,6 @@ export default function BusinessRulesPage() {
   const [payoutFrequency, setPayoutFrequency] = useState("Weekly");
   const [payoutThreshold, setPayoutThreshold] = useState(1000);
 
-  // Order rules
-  const [minOrderValue, setMinOrderValue] = useState(150);
-
   const loadFromServer = () => {
     setLoading(true);
     return getBusinessRules().then((data: BusinessRulesData) => {
@@ -64,12 +60,10 @@ export default function BusinessRulesPage() {
       setTiers(data.tiers);
       setPayoutFrequency(data.payoutFrequency);
       setPayoutThreshold(data.payoutThreshold);
-      setMinOrderValue(data.minOrderValue);
       setLoading(false);
     });
   };
 
-  // Load settings from the database on mount
   useEffect(() => {
     let cancelled = false;
     getBusinessRules().then((data: BusinessRulesData) => {
@@ -81,7 +75,6 @@ export default function BusinessRulesPage() {
       setTiers(data.tiers);
       setPayoutFrequency(data.payoutFrequency);
       setPayoutThreshold(data.payoutThreshold);
-      setMinOrderValue(data.minOrderValue);
       setLoading(false);
     });
     return () => {
@@ -98,7 +91,6 @@ export default function BusinessRulesPage() {
         defaultBusinessStatus: defaultStatus,
         payoutFrequency,
         payoutThreshold,
-        minOrderValue,
         documents: documents.map((d) => ({ id: d.id, name: d.name, required: d.required })),
         tiers: tiers.map((t) => ({ id: t.id, name: t.name, commission: t.commission })),
       });
@@ -117,7 +109,6 @@ export default function BusinessRulesPage() {
     loadFromServer();
   }
 
-  // ---- documents ---------------------------------------------------------
   function toggleDocument(id: string) {
     setDocuments((docs) => docs.map((d) => (d.id === id ? { ...d, required: !d.required } : d)));
   }
@@ -145,7 +136,6 @@ export default function BusinessRulesPage() {
     });
   }, [documents, docQuery, docFilter]);
 
-  // ---- tiers ---------------------------------------------------------
   function updateTierCommission(id: string, value: number) {
     setTiers((t) => t.map((tier) => (tier.id === id ? { ...tier, commission: value } : tier)));
   }
@@ -178,7 +168,6 @@ export default function BusinessRulesPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
             Business Rules
@@ -196,23 +185,12 @@ export default function BusinessRulesPage() {
         )}
 
         <div className="space-y-6">
-          {/* Business Defaults */}
-          <Card
-            title="Business Defaults"
-            icon={Store}
-            description="Applied automatically when a new business signs up."
-          >
+          <Card title="Business Defaults" icon={Store} description="Applied automatically when a new business signs up.">
             <div className="divide-y divide-slate-100">
-              <SettingRow
-                label="Auto Approve Businesses"
-                description="Skip manual review and activate new businesses immediately."
-              >
+              <SettingRow label="Auto Approve Businesses" description="Skip manual review and activate new businesses immediately.">
                 <Toggle checked={autoApprove} onChange={() => setAutoApprove((v) => !v)} />
               </SettingRow>
-              <SettingRow
-                label="Require Business Verification"
-                description="Businesses must submit required documents before going live."
-              >
+              <SettingRow label="Require Business Verification" description="Businesses must submit required documents before going live.">
                 <Toggle checked={requireVerification} onChange={() => setRequireVerification((v) => !v)} />
               </SettingRow>
               <SettingRow label="Default Business Status">
@@ -229,13 +207,7 @@ export default function BusinessRulesPage() {
             </div>
           </Card>
 
-          {/* Onboarding & Documents */}
-          <Card
-            title="Onboarding & Verification"
-            icon={ClipboardCheck}
-            description="Documents a business must provide during onboarding."
-          >
-            {/* search + filter */}
+          <Card title="Onboarding & Verification" icon={ClipboardCheck} description="Documents a business must provide during onboarding.">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -265,10 +237,7 @@ export default function BusinessRulesPage() {
                 </p>
               )}
               {visibleDocuments.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3"
-                >
+                <div key={doc.id} className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3">
                   <input
                     type="text"
                     value={doc.name}
@@ -280,9 +249,7 @@ export default function BusinessRulesPage() {
                       type="button"
                       onClick={() => toggleDocument(doc.id)}
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                        doc.required
-                          ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
-                          : "bg-slate-100 text-slate-500"
+                        doc.required ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200" : "bg-slate-100 text-slate-500"
                       }`}
                     >
                       {doc.required ? "Required" : "Optional"}
@@ -310,12 +277,7 @@ export default function BusinessRulesPage() {
             </div>
           </Card>
 
-          {/* Commission Tiers */}
-          <Card
-            title="Commission Tiers"
-            icon={Percent}
-            description="Different commission rates per business tier. Assign a tier to a business from its profile."
-          >
+          <Card title="Commission Tiers" icon={Percent} description="Different commission rates per business tier. Assign a tier to a business from its profile.">
             <div className="relative mb-3">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
@@ -349,9 +311,7 @@ export default function BusinessRulesPage() {
                         onChange={(e) => updateTierCommission(tier.id, Number(e.target.value))}
                         className="input pr-7"
                       />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                        %
-                      </span>
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
                     </div>
                     <button
                       type="button"
@@ -376,19 +336,10 @@ export default function BusinessRulesPage() {
             </div>
           </Card>
 
-          {/* Payout Schedule */}
-          <Card
-            title="Payout Schedule"
-            icon={Wallet}
-            description="How and when businesses receive their earnings."
-          >
+          <Card title="Payout Schedule" icon={Wallet} description="How and when businesses receive their earnings.">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field label="Payout Frequency">
-                <select
-                  value={payoutFrequency}
-                  onChange={(e) => setPayoutFrequency(e.target.value)}
-                  className="input"
-                >
+                <select value={payoutFrequency} onChange={(e) => setPayoutFrequency(e.target.value)} className="input">
                   <option>Daily</option>
                   <option>Weekly</option>
                   <option>Bi-Weekly</option>
@@ -404,32 +355,13 @@ export default function BusinessRulesPage() {
                 />
               </Field>
               <Field label="" full>
-                <p className="text-xs text-slate-400">
-                  Earnings below the threshold roll over to the next payout cycle.
-                </p>
+                <p className="text-xs text-slate-400">Earnings below the threshold roll over to the next payout cycle.</p>
               </Field>
             </div>
-          </Card>
-
-          {/* Order Rules */}
-          <Card
-            title="Order Rules"
-            icon={ShoppingBag}
-            description="Minimum order value enforced across the platform."
-          >
-            <Field label="Minimum Order Value">
-              <input
-                type="number"
-                value={minOrderValue}
-                onChange={(e) => setMinOrderValue(Number(e.target.value))}
-                className="input max-w-xs"
-              />
-            </Field>
           </Card>
         </div>
       </div>
 
-      {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6 lg:px-8">
           <p className="text-xs text-slate-400">
@@ -462,7 +394,6 @@ export default function BusinessRulesPage() {
         </div>
       </div>
 
-      {/* Shared input styling */}
       <style jsx global>{`
         .input {
           width: 100%;
@@ -483,9 +414,6 @@ export default function BusinessRulesPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
 function Card({
   title,
   description,
@@ -520,11 +448,11 @@ function SettingRow({
 }) {
   return (
     <div className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="pr-4">
-        <p className="text-sm font-medium text-slate-700">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-slate-400">{description}</p>}
+      <div className="min-w-0 flex-1 pr-4">
+        <p className="break-words text-sm font-medium text-slate-700">{label}</p>
+        {description && <p className="mt-0.5 break-words text-xs text-slate-400">{description}</p>}
       </div>
-      {children}
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
@@ -546,6 +474,8 @@ function Field({
   );
 }
 
+// Hardened with inline styles so it never overflows/detaches regardless of
+// Tailwind class purge — same fix applied on the notifications page.
 function Toggle({
   checked,
   onChange,
@@ -559,14 +489,19 @@ function Toggle({
     <button
       type="button"
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+      style={{ position: "relative", overflow: "hidden" }}
+      className={`h-6 w-11 shrink-0 rounded-full transition-colors ${
         checked ? (danger ? "bg-red-600" : "bg-orange-600") : "bg-slate-300"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
-        }`}
+        style={{
+          position: "absolute",
+          top: "2px",
+          left: "2px",
+          transform: checked ? "translateX(20px)" : "translateX(0)",
+        }}
+        className="h-5 w-5 rounded-full bg-white shadow transition-transform"
       />
     </button>
   );
