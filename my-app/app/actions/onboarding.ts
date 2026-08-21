@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { onboardingSchema } from "@/lib/validations/onboarding";
 import { getSession, destroySession } from "@/lib/session";
+import { validatePasswordAgainstPolicy } from "@/app/actions/validate-password";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -72,6 +73,16 @@ export async function completeOnboardingAction(
       success: false,
       message: "That email is already in use by another account.",
       fieldErrors: { email: "This email is already registered." },
+    };
+  }
+
+  // Enforce the platform's live password policy (Super Admin → Security Settings)
+  const policyCheck = await validatePasswordAgainstPolicy(password);
+  if (!policyCheck.valid) {
+    return {
+      success: false,
+      message: "Password doesn't meet security requirements.",
+      fieldErrors: { password: policyCheck.errors.join(" ") },
     };
   }
 

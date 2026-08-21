@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import {
   Globe,
   Palette,
@@ -8,19 +8,16 @@ import {
   SlidersHorizontal,
   AlertTriangle,
   Check,
-  Search,
+  ShoppingCart,
+  Star,
+  Loader2,
   X,
 } from "lucide-react";
 import {
-  getSettingsAndRegions,
-  updateSettings,
-  searchRegions,
-  addRegion,
-  removeRegion,
-  toggleRegionActive,
-  type Settings,
-  type Region,
-} from "@/app/actions/superadmin/platform-super";
+  getPlatformSettings,
+  updatePlatformSettingsAction,
+  PlatformSettingsData,
+}  from "@/app/actions/superadmin/platform-super";
 
 type TabKey = "branding" | "regional" | "legal" | "rules";
 
@@ -31,113 +28,92 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "rules", label: "Platform Rules", icon: SlidersHorizontal },
 ];
 
-const EMPTY_SETTINGS: Settings = {
-  platformName: "",
-  brandColor: "#F97316",
-  defaultCurrency: "NPR",
-  timezone: "Asia/Kathmandu",
-  termsUrl: "",
-  privacyUrl: "",
-  defaultCommissionPct: 0,
-  minOrderValue: 0,
-  onlineOrdering: true,
-  guestOrders: true,
-  customerReviews: true,
-  maintenanceMode: false,
-};
-
-export default function PlatformSettings() {
+export default function PlatformSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("branding");
-  const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [isSaving, startSaving] = useTransition();
+  const [error, setError] = useState("");
+
+  const [settings, setSettings] = useState<PlatformSettingsData | null>(null);
+  const [savedSettings, setSavedSettings] = useState<PlatformSettingsData | null>(null);
 
   const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false);
-
-  // regions
-  const [regions, setRegions] = useState<Region[]>([]);
-  const [regionQuery, setRegionQuery] = useState("");
-  const [regionFilter, setRegionFilter] = useState<"all" | "active" | "inactive">("all");
   const [newRegion, setNewRegion] = useState("");
-  const [isSearching, startSearching] = useTransition();
 
-  // ---- initial load -------------------------------------------------
   useEffect(() => {
-    (async () => {
-      const data = await getSettingsAndRegions();
-      const { regions: r, ...s } = data;
-      setSettings(s);
-      setRegions(r);
+    getPlatformSettings().then((data) => {
+      setSettings(data);
+      setSavedSettings(data);
       setLoading(false);
-    })();
+    });
   }, []);
 
-  // ---- regions: search + filter (debounced) --------------------------
-  useEffect(() => {
-    if (loading) return;
-    const t = setTimeout(() => {
-      startSearching(async () => {
-        const result = await searchRegions(regionQuery, regionFilter);
-        setRegions(result);
-      });
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regionQuery, regionFilter]);
+  const hasUnsavedChanges =
+    settings && savedSettings && JSON.stringify(settings) !== JSON.stringify(savedSettings);
 
-  function handleAddRegion() {
-    const name = newRegion.trim();
-    if (!name) return;
-    setNewRegion("");
-    startSearching(async () => {
-      try {
-        const region = await addRegion(name);
-        setRegionQuery("");
-        setRegionFilter("all");
-        setRegions((prev: Region[]) => [...prev, region].sort((a, b) => a.name.localeCompare(b.name)));
-      } catch (err) {
-        console.error("Failed to add region:", err);
-        alert("Could not add region — check the console for details.");
-      }
-    });
+  function update<K extends keyof PlatformSettingsData>(key: K, value: PlatformSettingsData[K]) {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
-  function handleRemoveRegion(id: string) {
-    setRegions((prev: Region[]) => prev.filter((r) => r.id !== id)); // optimistic
-    startSearching(async () => {
-      await removeRegion(id);
-    });
-  }
+  async function handleSave() {
+    if (!settings) return;
+    setSaving(true);
+    setError("");
+    const res = await updatePlatformSettingsAction(settings);
+    setSaving(false);
 
-  function handleToggleRegion(region: Region) {
-    setRegions((prev: Region[]) => prev.map((r) => (r.id === region.id ? { ...r, active: !r.active } : r))); // optimistic
-    startSearching(async () => {
-      await toggleRegionActive(region.id, !region.active);
-    });
-  }
-
-  // ---- save settings ----------------------------------------------------
-  function handleSave() {
-    startSaving(async () => {
-      const saved = await updateSettings(settings);
-      setSettings((prev) => ({ ...prev, ...saved }));
+    if (res.success) {
+      setSavedSettings(settings);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    });
+    } else {
+      setError(res.message);
+    }
   }
 
-  function update<K extends keyof Settings>(key: K, value: Settings[K]) {
-    setSettings((prev: Settings) => ({ ...prev, [key]: value }));
+  function handleDiscard() {
+    if (savedSettings) setSettings(savedSettings);
   }
 
-  if (loading) {
-    return <div className="p-8 text-sm text-slate-400">Loading settings…</div>;
+  function handleAddRegion() {
+    const region = newRegion.trim();
+    if (!region || !settings) return;
+    if (!settings.regions.includes(region)) {
+      update("regions", [...settings.regions, region]);
+    }
+    setNewRegion("");
+  }
+
+  function handleRemoveRegion(region: string) {
+    if (!settings) return;
+    update(
+      "regions",
+      settings.regions.filter((r) => r !== region)
+    );
+  }
+
+  function confirmMaintenanceToggle() {
+    if (!settings) return;
+    update("maintenanceMode", !settings.maintenanceMode);
+    setShowMaintenanceConfirm(false);
+  }
+
+  if (loading || !settings) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+          <span className="text-sm text-slate-500">Loading settings...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
             Platform Settings
@@ -148,6 +124,7 @@ export default function PlatformSettings() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
+          {/* Vertical sub-nav */}
           <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
             {TABS.map((tab) => {
               const Icon = tab.icon;
@@ -158,7 +135,9 @@ export default function PlatformSettings() {
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors lg:w-full ${
-                    active ? "bg-orange-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                    active
+                      ? "bg-orange-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
                   <Icon size={16} />
@@ -168,6 +147,7 @@ export default function PlatformSettings() {
             })}
           </nav>
 
+          {/* Content */}
           <div className="space-y-6">
             {activeTab === "branding" && (
               <Card title="Branding" description="How the platform identifies itself.">
@@ -204,77 +184,57 @@ export default function PlatformSettings() {
               <Card title="Regional" description="Defaults applied across the platform unless overridden per business.">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <Field label="Default Currency">
-                    <select className="input" value={settings.defaultCurrency} onChange={(e) => update("defaultCurrency", e.target.value)}>
+                    <select
+                      value={settings.defaultCurrency}
+                      onChange={(e) => update("defaultCurrency", e.target.value)}
+                      className="input"
+                    >
                       <option value="NPR">NPR — Nepalese Rupee</option>
                       <option value="USD">USD — US Dollar</option>
                       <option value="INR">INR — Indian Rupee</option>
                     </select>
                   </Field>
                   <Field label="Timezone">
-                    <select className="input" value={settings.timezone} onChange={(e) => update("timezone", e.target.value)}>
+                    <select
+                      value={settings.timezone}
+                      onChange={(e) => update("timezone", e.target.value)}
+                      className="input"
+                    >
                       <option value="Asia/Kathmandu">Asia/Kathmandu (UTC+5:45)</option>
                       <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
                       <option value="UTC">UTC</option>
                     </select>
                   </Field>
-
                   <Field label="Supported Regions" full>
-                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="Search regions..."
-                          value={regionQuery}
-                          onChange={(e) => setRegionQuery(e.target.value)}
-                          className="input pl-8"
-                        />
-                      </div>
-                      <select className="input sm:w-36" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value as typeof regionFilter)}>
-                        <option value="all">All</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {regions.length === 0 && !isSearching && (
-                        <span className="text-xs text-slate-400">No regions match.</span>
-                      )}
-                      {regions.map((r) => (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {settings.regions.map((r) => (
                         <span
-                          key={r.id}
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
-                            r.active ? "bg-orange-50 text-orange-700 ring-orange-200" : "bg-slate-100 text-slate-500 ring-slate-200"
-                          }`}
+                          key={r}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
                         >
-                          <button type="button" onClick={() => handleToggleRegion(r)} title={r.active ? "Mark inactive" : "Mark active"}>
-                            {r.name}
-                          </button>
-                          <button type="button" onClick={() => handleRemoveRegion(r.id)}>
+                          {r}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRegion(r)}
+                            className="text-orange-400 hover:text-orange-700"
+                          >
                             <X size={12} />
                           </button>
                         </span>
                       ))}
-                    </div>
-
-                    <div className="mt-3 flex gap-2">
                       <input
                         type="text"
-                        placeholder="New region name"
                         value={newRegion}
                         onChange={(e) => setNewRegion(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleAddRegion()}
-                        className="input"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddRegion();
+                          }
+                        }}
+                        placeholder="+ Add region"
+                        className="w-28 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-600 outline-none focus:border-orange-400"
                       />
-                      <button
-                        type="button"
-                        onClick={handleAddRegion}
-                        disabled={isSearching}
-                        className="shrink-0 rounded-lg border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        {isSearching ? "Adding..." : "+ Add region"}
-                      </button>
                     </div>
                   </Field>
                 </div>
@@ -285,10 +245,22 @@ export default function PlatformSettings() {
               <Card title="Legal" description="Documents shown to users and businesses across the platform.">
                 <div className="space-y-5">
                   <Field label="Terms of Service URL">
-                    <input type="url" value={settings.termsUrl} onChange={(e) => update("termsUrl", e.target.value)} className="input" />
+                    <input
+                      type="url"
+                      value={settings.termsUrl}
+                      onChange={(e) => update("termsUrl", e.target.value)}
+                      placeholder="https://..."
+                      className="input"
+                    />
                   </Field>
                   <Field label="Privacy Policy URL">
-                    <input type="url" value={settings.privacyUrl} onChange={(e) => update("privacyUrl", e.target.value)} className="input" />
+                    <input
+                      type="url"
+                      value={settings.privacyUrl}
+                      onChange={(e) => update("privacyUrl", e.target.value)}
+                      placeholder="https://..."
+                      className="input"
+                    />
                   </Field>
                 </div>
               </Card>
@@ -296,18 +268,32 @@ export default function PlatformSettings() {
 
             {activeTab === "rules" && (
               <>
-                <Card title="Commission & Order Limits" icon={SlidersHorizontal} description="Global defaults for commission and order limits.">
+                <Card
+                  title="Commission & Order Limits"
+                  icon={SlidersHorizontal}
+                  description="Global defaults for commission and order limits."
+                >
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Field label="Default Commission (%)">
-                      <input type="number" value={settings.defaultCommissionPct} onChange={(e) => update("defaultCommissionPct", Number(e.target.value))} className="input" />
+                      <input
+                        type="number"
+                        value={settings.defaultCommissionPct}
+                        onChange={(e) => update("defaultCommissionPct", Number(e.target.value))}
+                        className="input"
+                      />
                     </Field>
                     <Field label="Minimum Order Value">
-                      <input type="number" value={settings.minOrderValue} onChange={(e) => update("minOrderValue", Number(e.target.value))} className="input" />
+                      <input
+                        type="number"
+                        value={settings.minOrderValue}
+                        onChange={(e) => update("minOrderValue", Number(e.target.value))}
+                        className="input"
+                      />
                     </Field>
                   </div>
                 </Card>
 
-                <Card title="Online Ordering" description="Platform-wide defaults for how orders are placed.">
+                <Card title="Online Ordering" icon={ShoppingCart} description="Platform-wide defaults for how orders are placed.">
                   <div className="divide-y divide-slate-100">
                     <SettingRow label="Enable Online Ordering">
                       <Toggle checked={settings.onlineOrdering} onChange={() => update("onlineOrdering", !settings.onlineOrdering)} />
@@ -318,7 +304,7 @@ export default function PlatformSettings() {
                   </div>
                 </Card>
 
-                <Card title="Customer Reviews" description="Manage whether ratings and reviews appear across the platform.">
+                <Card title="Customer Reviews" icon={Star} description="Manage whether ratings and reviews appear across the platform.">
                   <div className="divide-y divide-slate-100">
                     <SettingRow label="Enable Customer Reviews">
                       <Toggle checked={settings.customerReviews} onChange={() => update("customerReviews", !settings.customerReviews)} />
@@ -344,7 +330,11 @@ export default function PlatformSettings() {
                         </p>
                       </div>
                     </div>
-                    <Toggle checked={settings.maintenanceMode} onChange={() => setShowMaintenanceConfirm(true)} danger />
+                    <Toggle
+                      checked={settings.maintenanceMode}
+                      onChange={() => setShowMaintenanceConfirm(true)}
+                      danger
+                    />
                   </div>
                 </Card>
               </>
@@ -353,35 +343,42 @@ export default function PlatformSettings() {
         </div>
       </div>
 
+      {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-xs text-slate-400">
-            {saved ? (
+            {error ? (
+              <span className="text-red-600">{error}</span>
+            ) : saved ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
                 <Check size={14} /> Changes saved
               </span>
-            ) : (
+            ) : hasUnsavedChanges ? (
               "Unsaved changes are not applied until you save."
+            ) : (
+              "All changes saved."
             )}
           </p>
           <div className="flex gap-3">
             <button
-              onClick={() => window.location.reload()}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              onClick={handleDiscard}
+              disabled={!hasUnsavedChanges || saving}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               Discard
             </button>
             <button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={saving || !hasUnsavedChanges}
               className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-50"
             >
-              {isSaving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
       </div>
 
+      {/* Confirm modal for maintenance mode */}
       {showMaintenanceConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
@@ -396,15 +393,18 @@ export default function PlatformSettings() {
                 ? "Users and businesses will regain access immediately."
                 : "This will block all access to the platform for every user and business until turned off."}
             </p>
+            <p className="mb-5 text-xs text-slate-400">
+              This applies immediately along with your other pending changes when you click confirm — it does not wait for "Save Changes".
+            </p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowMaintenanceConfirm(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              <button
+                onClick={() => setShowMaintenanceConfirm(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  update("maintenanceMode", !settings.maintenanceMode);
-                  setShowMaintenanceConfirm(false);
-                }}
+                onClick={confirmMaintenanceToggle}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 Yes, {settings.maintenanceMode ? "disable" : "enable"} it
@@ -414,6 +414,7 @@ export default function PlatformSettings() {
         </div>
       )}
 
+      {/* Shared input styling */}
       <style jsx global>{`
         .input {
           width: 100%;
@@ -434,6 +435,9 @@ export default function PlatformSettings() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 function Card({
   title,
   description,
@@ -448,7 +452,11 @@ function Card({
   icon?: React.ElementType;
 }) {
   return (
-    <div className={`rounded-xl border bg-white p-5 shadow-sm sm:p-6 ${tone === "danger" ? "border-red-200" : "border-slate-200"}`}>
+    <div
+      className={`rounded-xl border bg-white p-5 shadow-sm sm:p-6 ${
+        tone === "danger" ? "border-red-200" : "border-slate-200"
+      }`}
+    >
       <div className="flex items-center gap-2">
         {Icon && <Icon className="h-4 w-4 text-orange-500" />}
         <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
@@ -459,7 +467,15 @@ function Card({
   );
 }
 
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+function SettingRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
       <div className="pr-4">
@@ -471,7 +487,15 @@ function SettingRow({ label, description, children }: { label: string; descripti
   );
 }
 
-function Field({ label, children, full = false }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Field({
+  label,
+  children,
+  full = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
   return (
     <div className={full ? "sm:col-span-2" : ""}>
       <label className="mb-1.5 block text-xs font-medium text-slate-600">{label}</label>
@@ -480,14 +504,28 @@ function Field({ label, children, full = false }: { label: string; children: Rea
   );
 }
 
-function Toggle({ checked, onChange, danger = false }: { checked: boolean; onChange: () => void; danger?: boolean }) {
+function Toggle({
+  checked,
+  onChange,
+  danger = false,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  danger?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? (danger ? "bg-red-600" : "bg-orange-600") : "bg-slate-300"}`}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+        checked ? (danger ? "bg-red-600" : "bg-orange-600") : "bg-slate-300"
+      }`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`} />
+      <span
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
     </button>
   );
 }

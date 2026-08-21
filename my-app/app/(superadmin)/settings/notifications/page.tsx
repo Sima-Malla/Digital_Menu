@@ -1,67 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Mail, BellRing, Check, Loader2 } from "lucide-react";
 import {
-  Mail,
-  MessageSquare,
-  Smartphone,
-  BellRing,
-  Timer,
-  Pencil,
-  Check,
-} from "lucide-react";
-
-interface EmailTemplate {
-  id: string;
-  name: string;
-  description: string;
-  enabled: boolean;
-}
+  getNotificationTemplates,
+  toggleTemplateAction,
+  getNotificationSettings,
+  updateNotificationSettingsAction,
+  EmailTemplate,
+  NotificationSettingsData,
+} from "@/app/actions/superadmin/notifications";
 
 export default function NotificationsSettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  // Email templates
-  const [templates, setTemplates] = useState<EmailTemplate[]>([
-    { id: "welcome", name: "Welcome Email", description: "Sent when a new business or user signs up.", enabled: true },
-    { id: "order", name: "Order Confirmation", description: "Sent to the customer after an order is placed.", enabled: true },
-    { id: "reset", name: "Password Reset", description: "Sent when a user requests a password reset.", enabled: true },
-    { id: "suspend", name: "Account Suspended", description: "Sent to a business when their account is suspended.", enabled: true },
-  ]);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [settings, setSettings] = useState<NotificationSettingsData | null>(null);
+  const [savedSettings, setSavedSettings] = useState<NotificationSettingsData | null>(null);
 
-  // SMS gateway
-  const [smsEnabled, setSmsEnabled] = useState(true);
-  const [smsProvider, setSmsProvider] = useState("Sparrow SMS");
-  const [senderId, setSenderId] = useState("BISTROCTRL");
-  const [smsApiKey, setSmsApiKey] = useState("••••••••••••4F1A");
+  useEffect(() => {
+    (async () => {
+      const [tpls, settingsData] = await Promise.all([
+        getNotificationTemplates(),
+        getNotificationSettings(),
+      ]);
+      setTemplates(tpls);
+      setSettings(settingsData);
+      setSavedSettings(settingsData);
+      setLoading(false);
+    })();
+  }, []);
 
-  // Push notifications
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [pushIos, setPushIos] = useState(true);
-  const [pushAndroid, setPushAndroid] = useState(true);
-  const [pushWeb, setPushWeb] = useState(false);
+  const hasUnsavedChanges =
+    settings && savedSettings && JSON.stringify(settings) !== JSON.stringify(savedSettings);
 
-  // Admin alert thresholds
-  const [errorSpikeThreshold, setErrorSpikeThreshold] = useState(50);
-  const [refundRateThreshold, setRefundRateThreshold] = useState(10);
-  const [failedPaymentThreshold, setFailedPaymentThreshold] = useState(15);
-  const [alertViaEmail, setAlertViaEmail] = useState(true);
-  const [alertViaSms, setAlertViaSms] = useState(false);
-  const [alertViaPush, setAlertViaPush] = useState(true);
-
-  // Frequency & quiet hours
-  const [digestFrequency, setDigestFrequency] = useState("Immediate");
-  const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
-  const [quietStart, setQuietStart] = useState("22:00");
-  const [quietEnd, setQuietEnd] = useState("07:00");
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  function update<K extends keyof NotificationSettingsData>(key: K, value: NotificationSettingsData[K]) {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
-  function toggleTemplate(id: string) {
-    setTemplates((ts) => ts.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t)));
+  async function toggleTemplate(templateKey: string) {
+    const current = templates.find((t) => t.templateKey === templateKey);
+    if (!current) return;
+    const nextEnabled = !current.enabled;
+    setTemplates((ts) => ts.map((t) => (t.templateKey === templateKey ? { ...t, enabled: nextEnabled } : t)));
+    const res = await toggleTemplateAction(templateKey, nextEnabled);
+    if (!res.success) {
+      // revert on failure
+      setTemplates((ts) => ts.map((t) => (t.templateKey === templateKey ? { ...t, enabled: !nextEnabled } : t)));
+      setError(res.message ?? "Could not update template.");
+    }
+  }
+
+  async function handleSave() {
+    if (!settings) return;
+    setSaving(true);
+    setError("");
+    const res = await updateNotificationSettingsAction(settings);
+    setSaving(false);
+
+    if (res.success) {
+      setSavedSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setError(res.message ?? "Could not save settings.");
+    }
+  }
+
+  function handleDiscard() {
+    if (savedSettings) setSettings(savedSettings);
+  }
+
+  if (loading || !settings) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+          <span className="text-sm text-slate-500">Loading notification settings...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -73,7 +94,7 @@ export default function NotificationsSettingsPage() {
             Notifications
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Email templates, SMS/push channels, admin alert thresholds, and delivery frequency.
+            Email templates and admin alert thresholds.
           </p>
         </div>
 
@@ -82,185 +103,50 @@ export default function NotificationsSettingsPage() {
           <Card title="Email Templates" icon={Mail} description="Automated emails sent to users and businesses.">
             <div className="divide-y divide-slate-100">
               {templates.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
-                  <div className="pr-4">
-                    <p className="text-sm font-medium text-slate-700">{t.name}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{t.description}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                      <Pencil size={12} />
-                      Edit
-                    </button>
-                    <Toggle checked={t.enabled} onChange={() => toggleTemplate(t.id)} />
-                  </div>
-                </div>
+                <SettingRow key={t.id} label={t.name} description={t.description}>
+                  <Toggle checked={t.enabled} onChange={() => toggleTemplate(t.templateKey)} />
+                </SettingRow>
               ))}
             </div>
           </Card>
 
-          {/* SMS Gateway */}
-          <Card title="SMS Gateway" icon={MessageSquare} description="Provider used to send SMS alerts and OTPs.">
-            <div className="space-y-4">
-              <SettingRow label="Enable SMS Notifications">
-                <Toggle checked={smsEnabled} onChange={() => setSmsEnabled((v) => !v)} />
-              </SettingRow>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Provider">
-                  <select
-                    value={smsProvider}
-                    onChange={(e) => setSmsProvider(e.target.value)}
-                    disabled={!smsEnabled}
-                    className="input disabled:opacity-50"
-                  >
-                    <option>Sparrow SMS</option>
-                    <option>Twilio</option>
-                    <option>NTC SMS Gateway</option>
-                  </select>
-                </Field>
-                <Field label="Sender ID">
-                  <input
-                    type="text"
-                    value={senderId}
-                    onChange={(e) => setSenderId(e.target.value)}
-                    disabled={!smsEnabled}
-                    className="input disabled:opacity-50"
-                  />
-                </Field>
-                <Field label="API Key">
-                  <input
-                    type="password"
-                    value={smsApiKey}
-                    onChange={(e) => setSmsApiKey(e.target.value)}
-                    disabled={!smsEnabled}
-                    className="input disabled:opacity-50"
-                  />
-                </Field>
-              </div>
-            </div>
-          </Card>
-
-          {/* Push Notifications */}
-          <Card title="Push Notifications" icon={Smartphone} description="In-app and mobile push alerts.">
-            <div className="divide-y divide-slate-100">
-              <SettingRow label="Enable Push Notifications">
-                <Toggle checked={pushEnabled} onChange={() => setPushEnabled((v) => !v)} />
-              </SettingRow>
-              <SettingRow label="iOS">
-                <Toggle
-                  checked={pushIos}
-                  onChange={() => setPushIos((v) => !v)}
-                  disabled={!pushEnabled}
-                />
-              </SettingRow>
-              <SettingRow label="Android">
-                <Toggle
-                  checked={pushAndroid}
-                  onChange={() => setPushAndroid((v) => !v)}
-                  disabled={!pushEnabled}
-                />
-              </SettingRow>
-              <SettingRow label="Web">
-                <Toggle
-                  checked={pushWeb}
-                  onChange={() => setPushWeb((v) => !v)}
-                  disabled={!pushEnabled}
-                />
-              </SettingRow>
-            </div>
-          </Card>
-
-          {/* Admin Alert Thresholds */}
+          {/* Admin Alerts */}
           <Card
-            title="Admin Alert Thresholds"
+            title="Admin Alerts"
             icon={BellRing}
             description="Get notified automatically when platform metrics cross these limits."
           >
             <div className="space-y-5">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Field label="Error Spike (errors/hr)">
+                <Field label="Failed Payments (%)">
                   <input
                     type="number"
-                    value={errorSpikeThreshold}
-                    onChange={(e) => setErrorSpikeThreshold(Number(e.target.value))}
+                    value={settings.failedPaymentThreshold}
+                    onChange={(e) => update("failedPaymentThreshold", Number(e.target.value))}
                     className="input"
                   />
                 </Field>
                 <Field label="High Refund Rate (%)">
                   <input
                     type="number"
-                    value={refundRateThreshold}
-                    onChange={(e) => setRefundRateThreshold(Number(e.target.value))}
+                    value={settings.refundRateThreshold}
+                    onChange={(e) => update("refundRateThreshold", Number(e.target.value))}
                     className="input"
                   />
                 </Field>
-                <Field label="Failed Payments (%)">
+                <Field label="System Errors (errors/hr)">
                   <input
                     type="number"
-                    value={failedPaymentThreshold}
-                    onChange={(e) => setFailedPaymentThreshold(Number(e.target.value))}
+                    value={settings.errorSpikeThreshold}
+                    onChange={(e) => update("errorSpikeThreshold", Number(e.target.value))}
                     className="input"
                   />
                 </Field>
               </div>
 
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-600">Notify Admins Via</p>
-                <div className="flex flex-wrap gap-2">
-                  <ChannelChip label="Email" active={alertViaEmail} onClick={() => setAlertViaEmail((v) => !v)} />
-                  <ChannelChip label="SMS" active={alertViaSms} onClick={() => setAlertViaSms((v) => !v)} />
-                  <ChannelChip label="Push" active={alertViaPush} onClick={() => setAlertViaPush((v) => !v)} />
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Frequency & Quiet Hours */}
-          <Card
-            title="Delivery Frequency"
-            icon={Timer}
-            description="Control how often notifications are batched and sent."
-          >
-            <div className="space-y-4">
-              <Field label="Digest Frequency">
-                <select
-                  value={digestFrequency}
-                  onChange={(e) => setDigestFrequency(e.target.value)}
-                  className="input max-w-xs"
-                >
-                  <option>Immediate</option>
-                  <option>Hourly Digest</option>
-                  <option>Daily Digest</option>
-                </select>
-              </Field>
-
-              <SettingRow
-                label="Enable Quiet Hours"
-                description="Non-urgent notifications are held until quiet hours end."
-              >
-                <Toggle checked={quietHoursEnabled} onChange={() => setQuietHoursEnabled((v) => !v)} />
+              <SettingRow label="Notify via Email">
+                <Toggle checked={settings.alertViaEmail} onChange={() => update("alertViaEmail", !settings.alertViaEmail)} />
               </SettingRow>
-
-              {quietHoursEnabled && (
-                <div className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 sm:max-w-xs">
-                  <Field label="From">
-                    <input
-                      type="time"
-                      value={quietStart}
-                      onChange={(e) => setQuietStart(e.target.value)}
-                      className="input"
-                    />
-                  </Field>
-                  <Field label="To">
-                    <input
-                      type="time"
-                      value={quietEnd}
-                      onChange={(e) => setQuietEnd(e.target.value)}
-                      className="input"
-                    />
-                  </Field>
-                </div>
-              )}
             </div>
           </Card>
         </div>
@@ -268,25 +154,36 @@ export default function NotificationsSettingsPage() {
 
       {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <p className="text-xs text-slate-400">
-            {saved ? (
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6 lg:px-8">
+          <p className="min-w-0 truncate text-xs text-slate-400">
+            {error ? (
+              <span className="text-red-600">{error}</span>
+            ) : saved ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
                 <Check size={14} /> Changes saved
               </span>
-            ) : (
+            ) : hasUnsavedChanges ? (
               "Unsaved changes are not applied until you save."
+            ) : (
+              "All changes saved."
             )}
           </p>
-          <div className="flex gap-3">
-            <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <div className="flex shrink-0 gap-3">
+            <button
+              type="button"
+              onClick={handleDiscard}
+              disabled={!hasUnsavedChanges || saving}
+              className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 sm:flex-none"
+            >
               Discard
             </button>
             <button
+              type="button"
               onClick={handleSave}
-              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700"
+              disabled={saving || !hasUnsavedChanges}
+              className="flex-1 rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-50 sm:flex-none"
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
@@ -339,6 +236,9 @@ function Card({
   );
 }
 
+// Overflow fix: text side gets min-w-0 so a long name/description can wrap
+// or truncate instead of pushing the toggle off the row on small screens;
+// the toggle keeps shrink-0 so it never gets squeezed.
 function SettingRow({
   label,
   description,
@@ -350,11 +250,11 @@ function SettingRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
-      <div className="pr-4">
-        <p className="text-sm font-medium text-slate-700">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-slate-400">{description}</p>}
+      <div className="min-w-0 flex-1 pr-4">
+        <p className="break-words text-sm font-medium text-slate-700">{label}</p>
+        {description && <p className="mt-0.5 break-words text-xs text-slate-400">{description}</p>}
       </div>
-      {children}
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
@@ -374,30 +274,6 @@ function Field({
   );
 }
 
-function ChannelChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? "bg-orange-500 text-white"
-          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 function Toggle({
   checked,
   onChange,
@@ -412,14 +288,19 @@ function Toggle({
       type="button"
       onClick={onChange}
       disabled={disabled}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+      style={{ position: "relative", overflow: "hidden" }}
+      className={`h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
         checked ? "bg-orange-600" : "bg-slate-300"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
-        }`}
+        style={{
+          position: "absolute",
+          top: "2px",
+          left: "2px",
+          transform: checked ? "translateX(20px)" : "translateX(0)",
+        }}
+        className="h-5 w-5 rounded-full bg-white shadow transition-transform"
       />
     </button>
   );

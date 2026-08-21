@@ -1,145 +1,133 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+// Adjust this import to wherever your Prisma client singleton lives.
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
-const PATH = "/settings/platform";
-
-export type Settings = {
+export type PlatformSettingsData = {
   platformName: string;
   brandColor: string;
+
   defaultCurrency: string;
   timezone: string;
+
   termsUrl: string;
   privacyUrl: string;
+
   defaultCommissionPct: number;
   minOrderValue: number;
+
   onlineOrdering: boolean;
   guestOrders: boolean;
   customerReviews: boolean;
   maintenanceMode: boolean;
+
+  regions: string[]; // active region names
 };
 
-export type Region = { id: string; name: string; active: boolean };
-
-// ---- mappers: raw Prisma rows (bigint/Decimal) -> plain client types ----
-
-type RawSettings = Awaited<ReturnType<typeof prisma.platformSettings.upsert>>;
-type RawRegion = Awaited<ReturnType<typeof prisma.platformRegion.create>>;
-
-function mapSettings(s: RawSettings): Settings {
-  return {
-    platformName: s.platformName,
-    brandColor: s.brandColor,
-    defaultCurrency: s.defaultCurrency,
-    timezone: s.timezone,
-    termsUrl: s.termsUrl ?? "",
-    privacyUrl: s.privacyUrl ?? "",
-    defaultCommissionPct: Number(s.defaultCommissionPct),
-    minOrderValue: Number(s.minOrderValue),
-    onlineOrdering: s.onlineOrdering,
-    guestOrders: s.guestOrders,
-    customerReviews: s.customerReviews,
-    maintenanceMode: s.maintenanceMode,
-  };
+async function getOrCreateSettingsRow() {
+  const existing = await prisma.platformSettings.findUnique({ where: { id: 1 } });
+  if (existing) return existing;
+  return prisma.platformSettings.create({ data: { id: 1 } });
 }
 
-function mapRegion(r: RawRegion): Region {
-  return {
-    id: r.id.toString(),
-    name: r.name,
-    active: r.active,
-  };
-}
-
-// ---- settings ------------------------------------------------------------
-
-export async function getSettingsAndRegions() {
-  const settings = await prisma.platformSettings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-    include: { regions: { orderBy: { name: "asc" } } },
-  });
-
-  return {
-    ...mapSettings(settings),
-    regions: settings.regions.map(mapRegion),
-  };
-}
-
-export async function updateSettings(data: Partial<Settings>) {
-  const allowedFields: (keyof Settings)[] = [
-    "platformName",
-    "brandColor",
-    "defaultCurrency",
-    "timezone",
-    "termsUrl",
-    "privacyUrl",
-    "defaultCommissionPct",
-    "minOrderValue",
-    "onlineOrdering",
-    "guestOrders",
-    "customerReviews",
-    "maintenanceMode",
-  ];
-
-  const payload: Record<string, unknown> = {};
-  for (const field of allowedFields) {
-    if (field in data) payload[field] = data[field];
-  }
-
-  const settings = await prisma.platformSettings.upsert({
-    where: { id: 1 },
-    update: payload,
-    create: { id: 1, ...payload },
-  });
-
-  revalidatePath(PATH);
-  return mapSettings(settings);
-}
-
-// ---- regions: search + filter --------------------------------------------
-
-export async function searchRegions(query: string, filter: "all" | "active" | "inactive") {
-  const q = query.trim();
-
+export async function getPlatformSettings(): Promise<PlatformSettingsData> {
+  const row = await getOrCreateSettingsRow();
   const regions = await prisma.platformRegion.findMany({
-    where: {
-      settingsId: 1,
-      ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-      ...(filter !== "all" ? { active: filter === "active" } : {}),
-    },
+    where: { settingsId: 1, active: true },
     orderBy: { name: "asc" },
   });
 
-  return regions.map(mapRegion);
+  return {
+    platformName: row.platformName,
+    brandColor: row.brandColor,
+
+    defaultCurrency: row.defaultCurrency,
+    timezone: row.timezone,
+
+    termsUrl: row.termsUrl ?? "",
+    privacyUrl: row.privacyUrl ?? "",
+
+    defaultCommissionPct: Number(row.defaultCommissionPct),
+    minOrderValue: Number(row.minOrderValue),
+
+    onlineOrdering: row.onlineOrdering,
+    guestOrders: row.guestOrders,
+    customerReviews: row.customerReviews,
+    maintenanceMode: row.maintenanceMode,
+
+    regions: regions.map((r) => r.name),
+  };
 }
 
-export async function addRegion(name: string) {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("Region name is required");
+export async function updatePlatformSettingsAction(input: PlatformSettingsData) {
+  try {
+    await getOrCreateSettingsRow();
 
-  await prisma.platformSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+    await prisma.$transaction(async (tx) => {
+      await tx.platformSettings.update({
+        where: { id: 1 },
+        data: {
+          platformName: input.platformName.trim() || "Bistro Central",
+          brandColor: input.brandColor,
 
-  const region = await prisma.platformRegion.create({
-    data: { settingsId: 1, name: trimmed },
-  });
+          defaultCurrency: input.defaultCurrency,
+          timezone: input.timezone,
 
-  revalidatePath(PATH);
-  return mapRegion(region);
+          termsUrl: input.termsUrl.trim() || null,
+          privacyUrl: input.privacyUrl.trim() || null,
+
+          defaultCommissionPct: input.defaultCommissionPct,
+          minOrderValue: input.minOrderValue,
+
+          onlineOrdering: input.onlineOrdering,
+          guestOrders: input.guestOrders,
+          customerReviews: input.customerReviews,
+          maintenanceMode: input.maintenanceMode,
+        },
+      });
+
+      // Sync regions: add new, reactivate existing, deactivate removed.
+      const existingRegions = await tx.platformRegion.findMany({ where: { settingsId: 1 } });
+      const existingByName = new Map(existingRegions.map((r) => [r.name, r]));
+      const wantedNames = new Set(input.regions.map((r) => r.trim()).filter(Boolean));
+
+      for (const name of wantedNames) {
+        const existing = existingByName.get(name);
+        if (!existing) {
+          await tx.platformRegion.create({ data: { settingsId: 1, name, active: true } });
+        } else if (!existing.active) {
+          await tx.platformRegion.update({ where: { id: existing.id }, data: { active: true } });
+        }
+      }
+
+      for (const region of existingRegions) {
+        if (!wantedNames.has(region.name) && region.active) {
+          await tx.platformRegion.update({ where: { id: region.id }, data: { active: false } });
+        }
+      }
+    });
+
+    revalidatePath("/settings");
+    return { success: true, message: "Settings saved." };
+  } catch (err) {
+    console.error("updatePlatformSettingsAction error:", err);
+    return { success: false, message: "Failed to save settings." };
+  }
 }
 
-export async function removeRegion(id: string) {
-  await prisma.platformRegion.delete({ where: { id: BigInt(id) } });
-  revalidatePath(PATH);
-}
-
-export async function toggleRegionActive(id: string, active: boolean) {
-  const region = await prisma.platformRegion.update({
-    where: { id: BigInt(id) },
-    data: { active },
-  });
-  revalidatePath(PATH);
-  return mapRegion(region);
+// Dedicated action for the maintenance-mode confirm modal.
+export async function toggleMaintenanceModeAction(enabled: boolean) {
+  try {
+    await getOrCreateSettingsRow();
+    await prisma.platformSettings.update({
+      where: { id: 1 },
+      data: { maintenanceMode: enabled },
+    });
+    revalidatePath("/settings");
+    return { success: true, message: enabled ? "Maintenance mode enabled." : "Maintenance mode disabled." };
+  } catch (err) {
+    console.error("toggleMaintenanceModeAction error:", err);
+    return { success: false, message: "Failed to update maintenance mode." };
+  }
 }

@@ -8,43 +8,43 @@ datasource db {
 }
 
 model Business {
-  id                BigInt     @id @default(autoincrement())
+  id                BigInt   @id @default(autoincrement())
   businessName      String
   businessType      String?
   businessAddress   String?
   businessPhone     String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  allowReviews      Boolean    @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  allowReviews      Boolean  @default(true)
   bannerUrl         String?
-  currency          String     @default("USD ($)")
-  email             String?    @unique
+  currency          String   @default("USD ($)")
+  email             String?  @unique
   facebook          String?
   instagram         String?
-  language          String     @default("English (US)")
-  listInMarketplace Boolean    @default(true)
+  language          String   @default("English (US)")
+  listInMarketplace Boolean  @default(true)
   logoUrl           String?
-  showOnMap         Boolean    @default(true)
+  showOnMap         Boolean  @default(true)
   taxId             String?
   taxRegistration   String?
-  timezone          String     @default("EST (UTC-5)")
+  timezone          String   @default("EST (UTC-5)")
   twitter           String?
   website           String?
-  ownerName         String?               
-  plan              String     @default("Basic")    
-  status            String     @default("Pending")  
+  ownerName         String?
+  plan              String   @default("Basic")
+  status            String   @default("Pending")
 
   lastPaymentFailedAt DateTime?
   lastPaymentAt       DateTime?
-  Area              Area[]
-  locations         Location[]
-  menuItems         MenuItem[]
-  orders            Order[]
-  specials          Special[]
-  staff             Staff[]
-  paymentGateways  PaymentGateway[]
-   paymentMethods   PaymentMethod[]
-  paymentSettings  PaymentSettings?
+  Area                Area[]
+  locations           Location[]
+  menuItems           MenuItem[]
+  orders              Order[]
+  specials            Special[]
+  staff               Staff[]
+  paymentGateways     PaymentGateway[]
+  paymentMethods      PaymentMethod[]
+  paymentSettings     PaymentSettings?
 }
 
 model Staff {
@@ -184,6 +184,9 @@ model PlatformUser {
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   activities   PlatformUserActivity[]
+
+  roleId       BigInt?
+  assignedRole Role?                  @relation(fields: [roleId], references: [id])
 }
 
 model PlatformUserActivity {
@@ -288,6 +291,7 @@ model SubUnit {
 
   @@index([areaId])
 }
+
 model PlatformSettings {
   id Int @id @default(1) // singleton row, always id = 1
 
@@ -329,17 +333,18 @@ model PlatformRegion {
   @@unique([settingsId, name])
   @@index([settingsId])
 }
+
 model PaymentGateway {
-  id           BigInt    @id @default(autoincrement())
+  id           BigInt   @id @default(autoincrement())
   businessId   BigInt
-  gatewayKey   String    // "esewa" | "khalti" | "stripe"
+  gatewayKey   String // "esewa" | "khalti" | "stripe"
   name         String
-  enabled      Boolean   @default(false)
+  enabled      Boolean  @default(false)
   apiKeyEnc    String?
   secretKeyEnc String?
   lastTestOk   Boolean?
-  updatedAt    DateTime  @updatedAt
-  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  updatedAt    DateTime @updatedAt
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, gatewayKey])
 }
@@ -347,7 +352,7 @@ model PaymentGateway {
 model PaymentMethod {
   id         BigInt   @id @default(autoincrement())
   businessId BigInt
-  methodKey  String   // "cod" | "wallet" | "card" | "bank"
+  methodKey  String // "cod" | "wallet" | "card" | "bank"
   name       String
   enabled    Boolean  @default(false)
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -365,6 +370,7 @@ model PaymentSettings {
   updatedAt        DateTime @updatedAt
   business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
+
 model SubscriptionPlan {
   id        BigInt   @id @default(autoincrement())
   name      String
@@ -388,4 +394,84 @@ model SubscriptionSettings {
   sendReminders       Boolean  @default(true)
   autoSuspend         Boolean  @default(true)
   updatedAt           DateTime @updatedAt
+}
+
+model SecuritySettings {
+  id Int @id @default(1) // singleton row, always id = 1
+
+  // Password Policy
+  minLength          Int     @default(8)
+  requireUppercase   Boolean @default(true)
+  requireNumber      Boolean @default(true)
+  requireSpecialChar Boolean @default(false)
+
+  // Two-Factor Authentication
+  enforce2FA  Boolean @default(true)
+  twoFAMethod String  @default("Authenticator App")
+
+  // Session & Login Limits
+  sessionTimeoutMinutes Int @default(30)
+  maxLoginAttempts      Int @default(5)
+  autoBlockMinutes      Int @default(15)
+
+  // Audit Log Retention
+  auditRetentionPeriod String @default("180 days")
+
+  updatedAt DateTime @updatedAt
+}
+model Role {
+  id          BigInt         @id @default(autoincrement())
+  name        String         @unique
+  description String?
+  permissions Json           // { "Businesses": {"View":true,"Create":true,...}, ... }
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  admins      PlatformUser[]
+}
+
+model NotificationTemplate {
+  id          BigInt   @id @default(autoincrement())
+  templateKey String   @unique // "welcome" | "order" | "reset" | "suspend"
+  name        String
+  description String
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+model NotificationSettings {
+  id Int @id @default(1) // singleton row, always id = 1
+
+  smsEnabled     Boolean @default(true)
+  smsProvider    String  @default("Sparrow SMS")
+  smsSenderId    String  @default("BISTROCTRL")
+  smsApiKeyEnc   String?
+
+  pushEnabled Boolean @default(true)
+
+  errorSpikeThreshold    Int     @default(50)
+  refundRateThreshold    Int     @default(10)
+  failedPaymentThreshold Int     @default(15)
+  alertViaEmail          Boolean @default(true)
+  alertViaSms            Boolean @default(false)
+  alertViaPush           Boolean @default(true)
+
+  digestFrequency String @default("Immediate") // "Immediate" | "Hourly Digest" | "Daily Digest"
+
+  updatedAt DateTime @updatedAt
+}
+
+
+
+
+model SentNotification {
+  id          BigInt   @id @default(autoincrement())
+  templateKey String // "welcome" | "order" | "reset" | "suspend"
+  recipient   String // email address or phone number
+  subject     String
+  status      String   @default("Sent") // "Sent" | "Skipped" | "Failed"
+  reason      String? // why it was skipped/failed, if applicable
+  createdAt   DateTime @default(now())
+
+  @@index([templateKey])
+  @@index([createdAt])
 }
