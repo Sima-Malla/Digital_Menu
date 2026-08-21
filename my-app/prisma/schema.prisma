@@ -459,3 +459,19 @@ model NotificationSettings {
 
   updatedAt DateTime @updatedAt
 }
+
+
+
+
+model SentNotification {
+  id          BigInt   @id @default(autoincrement())
+  templateKey String // "welcome" | "order" | "reset" | "suspend"
+  recipient   String // email address or phone number
+  subject     String
+  status      String   @default("Sent") // "Sent" | "Skipped" | "Failed"
+  reason      String? // why it was skipped/failed, if applicable
+  createdAt   DateTime @default(now())
+
+  @@index([templateKey])
+  @@index([createdAt])
+}
