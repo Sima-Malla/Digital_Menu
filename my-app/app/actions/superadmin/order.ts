@@ -25,10 +25,7 @@ export type Stats = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount);
+  return `Rs. ${amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatTime(date: Date) {
@@ -116,24 +113,34 @@ export async function getBusinesses(): Promise<Business[]> {
 }
 
 export async function getStats(): Promise<Stats> {
-  const [totalOrders, revenueAgg, activeBusinesses, pendingIssues] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: { paymentStatus: "paid" },
-    }),
-    prisma.business.count({ where: { status: "Active" } }),
-    prisma.order.count({
-      where: { OR: [{ status: "delayed" }, { escalated: true }] },
-    }),
-  ]);
+  try {
+    const [totalOrders, revenueAgg, activeBusinesses, pendingIssues] = await Promise.all([
+      prisma.order.count(),
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: { status: { notIn: ["cancelled", "Cancelled", "rejected", "Rejected"] } },
+      }),
+      prisma.business.count({ where: { status: "Active" } }),
+      prisma.order.count({
+        where: { OR: [{ status: "delayed" }, { escalated: true }] },
+      }),
+    ]);
 
-  return {
-    totalOrders,
-    grossRevenue: Number(revenueAgg._sum.totalAmount ?? 0),
-    activeBusinesses,
-    pendingIssues,
-  };
+    return {
+      totalOrders,
+      grossRevenue: Number(revenueAgg._sum.totalAmount ?? 0),
+      activeBusinesses,
+      pendingIssues,
+    };
+  } catch (error) {
+    console.error("Failed to load order stats:", error);
+    return {
+      totalOrders: 0,
+      grossRevenue: 0,
+      activeBusinesses: 0,
+      pendingIssues: 0,
+    };
+  }
 }
 
 export async function getOrderDetail(id: string) {

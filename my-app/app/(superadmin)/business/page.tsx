@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Search, LayoutGrid, List, Eye, Pencil, Trash2,
-  Mail, Phone, DollarSign, X,
+  Mail, Phone, Banknote, X, Upload,
   Plus, Building2, CheckCircle2, Clock3, Ban, Loader2,
 } from "lucide-react";
 import {
@@ -14,10 +14,9 @@ import {
   SuperadminBusiness,
 } from "@/app/actions/superadmin/superadmin-businesses";
 
-// A logo can be an emoji/short string OR an image URL (e.g. Uploadcare/CDN link).
-// Render accordingly instead of dumping raw text into a fixed-size box.
+// A logo can be an emoji/short string OR an image URL (e.g. data:image/ base64 or HTTP link).
 function isImageUrl(value: string) {
-  return /^https?:\/\//i.test(value.trim());
+  return /^https?:\/\//i.test(value.trim()) || /^data:image\//i.test(value.trim());
 }
 
 function BusinessLogo({ logo, name, sizeClass }: { logo: string; name: string; sizeClass: string }) {
@@ -40,6 +39,77 @@ function BusinessLogo({ logo, name, sizeClass }: { logo: string; name: string; s
   return (
     <div className={`flex shrink-0 items-center justify-center rounded-xl bg-[#F6F4F2] ${sizeClass}`}>
       <span className="leading-none">{logo?.trim() ? logo : "🍽️"}</span>
+    </div>
+  );
+}
+
+function LogoUploadInput({
+  value,
+  name,
+  onChange,
+}: {
+  value: string;
+  name: string;
+  onChange: (val: string) => void;
+}) {
+  const isImage = isImageUrl(value);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = evt.target?.result as string;
+      if (result) {
+        onChange(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-gray-700">Business Logo / Photo</label>
+      <div className="flex items-center gap-4 rounded-xl border border-[#E8C7B4] bg-[#F6F4F2]/50 p-3">
+        <BusinessLogo logo={value} name={name} sizeClass="h-16 w-16 text-3xl shadow-sm" />
+
+        <div className="flex flex-1 flex-col gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#F97316] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#e06610] transition">
+              <Upload size={15} /> {isImage ? "Change Photo" : "Upload Photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+            {value && value !== "🍽️" && (
+              <button
+                type="button"
+                onClick={() => onChange("🍽️")}
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+              >
+                <Trash2 size={14} /> Remove Photo
+              </button>
+            )}
+          </div>
+
+          {isImage ? (
+            <p className="text-xs text-green-700 font-medium flex items-center gap-1">
+              ✓ Photo uploaded successfully
+            </p>
+          ) : (
+            <input
+              type="text"
+              value={value === "🍽️" ? "" : value}
+              onChange={(e) => onChange(e.target.value || "🍽️")}
+              className="h-8 w-full max-w-xs rounded-lg border border-[#E8C7B4] bg-white px-3 text-xs outline-none focus:border-[#B54A00]"
+              placeholder="Or enter emoji (e.g. 🍔)"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -298,7 +368,7 @@ export default function BusinessesPage() {
                   <div className="mt-5 space-y-3 text-sm">
                     <div className="flex items-center gap-2 text-gray-600"><Mail size={16} className="shrink-0" /><span className="truncate">{b.email}</span></div>
                     <div className="flex items-center gap-2 text-gray-600"><Phone size={16} className="shrink-0" />{b.phone}</div>
-                    <div className="flex items-center gap-2 font-medium"><DollarSign size={16} className="shrink-0" />{b.revenue}</div>
+                    <div className="flex items-center gap-2 font-medium"><Banknote size={16} className="shrink-0" />{b.revenue}</div>
                   </div>
                   <div className="mt-5 flex items-center justify-between">
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">{b.plan}</span>
@@ -361,18 +431,11 @@ export default function BusinessesPage() {
               <button onClick={() => setEditForm(null)}><X size={22} /></button>
             </div>
             <div className="space-y-4 p-5 sm:p-6">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Logo (emoji or image URL)</label>
-                <div className="flex items-center gap-3">
-                  <BusinessLogo logo={editForm.logo} name={editForm.name} sizeClass="h-10 w-10 text-lg" />
-                  <input
-                    value={editForm.logo}
-                    onChange={(e) => setEditForm({ ...editForm, logo: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]"
-                    placeholder="e.g. 🍔 or https://..."
-                  />
-                </div>
-              </div>
+              <LogoUploadInput
+                value={editForm.logo}
+                name={editForm.name}
+                onChange={(logo) => setEditForm({ ...editForm, logo })}
+              />
               {(["name", "owner", "email", "phone"] as const).map((field) => (
                 <div key={field}>
                   <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
@@ -419,10 +482,11 @@ export default function BusinessesPage() {
               <button onClick={() => setAddOpen(false)}><X size={22} /></button>
             </div>
             <div className="space-y-4 p-5 sm:p-6">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Logo Emoji</label>
-                <input value={addForm.logo} onChange={(e) => setAddForm({ ...addForm, logo: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" placeholder="e.g. 🍔" />
-              </div>
+              <LogoUploadInput
+                value={addForm.logo}
+                name={addForm.name}
+                onChange={(logo) => setAddForm({ ...addForm, logo })}
+              />
               {(["name", "owner", "email", "phone"] as const).map((field) => (
                 <div key={field}>
                   <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>

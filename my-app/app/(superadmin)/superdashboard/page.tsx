@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Bell, Search, DollarSign, Building2, Clock3, ShieldCheck,
-  Eye, Check, X as XIcon, Filter, Calendar, ArrowUpRight, ArrowDownRight, Loader2,
+  Bell, Search, Banknote, Building2, Clock3,
+  Eye, X as XIcon, ArrowUpRight, ArrowDownRight, Loader2,
 } from "lucide-react";
 import {
   getDashboardStats,
@@ -12,11 +12,9 @@ import {
   getQueueTypeOptions,
   approveBusinessAction,
   rejectBusinessAction,
-  getBusinessTypeBreakdown,
   getBusinessPerformance,
   type DashboardStats,
   type QueueBusiness,
-  type TypeBreakdown,
   type BusinessPerformance,
 } from "@/app/actions/superadmin/superadmin-dashboard";
 
@@ -24,7 +22,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [queue, setQueue] = useState<QueueBusiness[]>([]);
   const [queueTypes, setQueueTypes] = useState<string[]>([]);
-  const [typeBreakdown, setTypeBreakdown] = useState<TypeBreakdown[]>([]);
   const [performance, setPerformance] = useState<BusinessPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -36,17 +33,15 @@ export default function Dashboard() {
 
   async function loadAll() {
     setLoading(true);
-    const [statsData, queueData, typeOptions, typeData, perfData] = await Promise.all([
+    const [statsData, queueData, typeOptions, perfData] = await Promise.all([
       getDashboardStats(),
       getRegistrationQueue(),
       getQueueTypeOptions(),
-      getBusinessTypeBreakdown(),
       getBusinessPerformance(),
     ]);
     setStats(statsData);
     setQueue(queueData);
     setQueueTypes(typeOptions);
-    setTypeBreakdown(typeData);
     setPerformance(perfData);
     setLoading(false);
   }
@@ -146,139 +141,85 @@ export default function Dashboard() {
       </header>
 
       {/* ── Stat Cards ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard title="TOTAL PLATFORM REV" value={stats.totalRevenue} footer={stats.totalRevenueChange} icon={DollarSign} />
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+        <StatsCard title="TOTAL PLATFORM REV" value={stats.totalRevenue} footer={stats.totalRevenueChange} icon={Banknote} />
         <StatsCard title="ACTIVE BUSINESSES" value={stats.activeBusinesses.toString()} subtitle={stats.activeBusinessesSubtitle} icon={Building2} />
         <StatsCard title="PENDING APPROVALS" value={stats.pendingApprovals.toString()} footer="Review Queue" icon={Clock3} highlight />
-        <StatsCard title="SYSTEM HEALTH" value={stats.systemHealth} subtitle="Uptime (Last 30d)" icon={ShieldCheck} />
       </div>
 
-      {/* ── Queue + Type Breakdown ───────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-9">
-          <div className="overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white">
-            <div className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <h2 className="text-lg font-semibold sm:text-2xl">Business Registration Queue</h2>
+      {/* ── Registration Queue (now full width — Business Types removed) ── */}
+      <div className="overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white">
+        <div className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <h2 className="text-lg font-semibold sm:text-2xl">Business Registration Queue</h2>
+          <div className="flex items-center gap-3">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8C7B4] px-2 text-xs outline-none focus:border-[#B54A00] sm:text-sm"
+            >
+              <option value="">All Types</option>
+              {queueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <span className="text-xs font-semibold tracking-[0.2em] text-gray-400">{queue.length} PENDING</span>
+          </div>
+        </div>
+
+        <div className="hidden bg-[#F6F4F2] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 sm:grid sm:grid-cols-5">
+          <p>Business Name</p>
+          <p>Type</p>
+          <p>Location</p>
+          <p>Status</p>
+          <p className="text-center">Actions</p>
+        </div>
+
+        {queue.length === 0 ? (
+          <p className="px-6 py-10 text-center text-sm text-gray-400">No businesses pending approval.</p>
+        ) : (
+          queue.map((item) => (
+            <div
+              key={item.id}
+              className="grid grid-cols-1 gap-3 border-t border-[#F2DDD2] px-4 py-4 sm:grid-cols-5 sm:items-center sm:gap-0 sm:px-6 sm:py-5"
+            >
               <div className="flex items-center gap-3">
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="h-9 rounded-lg border border-[#E8C7B4] px-2 text-xs outline-none focus:border-[#B54A00] sm:text-sm"
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-semibold">
+                  {item.initials}
+                </div>
+                <p className="font-medium">{item.name}</p>
+              </div>
+
+              <p className="text-sm text-gray-600 sm:text-inherit">
+                <span className="font-medium sm:hidden">Type: </span>{item.type}
+              </p>
+              <p className="text-sm text-gray-600 sm:text-inherit">
+                <span className="font-medium sm:hidden">Location: </span>{item.location}
+              </p>
+
+              <div>
+                <span className="rounded-full bg-orange-100 px-4 py-2 text-xs font-semibold text-orange-700">
+                  {item.status}
+                </span>
+              </div>
+
+              <div className="flex sm:justify-center">
+                <button
+                  onClick={() => setViewItem(item)}
+                  className="flex h-10 items-center gap-2 rounded-lg border border-[#E8C7B4] px-4 transition hover:bg-gray-100"
                 >
-                  <option value="">All Types</option>
-                  {queueTypes.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-                <span className="text-xs font-semibold tracking-[0.2em] text-gray-400">{queue.length} PENDING</span>
+                  <Eye size={18} /> View
+                </button>
               </div>
             </div>
-
-            <div className="hidden bg-[#F6F4F2] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 sm:grid sm:grid-cols-5">
-              <p>Business Name</p>
-              <p>Type</p>
-              <p>Location</p>
-              <p>Status</p>
-              <p className="text-center">Actions</p>
-            </div>
-
-            {queue.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-gray-400">No businesses pending approval.</p>
-            ) : (
-              queue.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-1 gap-3 border-t border-[#F2DDD2] px-4 py-4 sm:grid-cols-5 sm:items-center sm:gap-0 sm:px-6 sm:py-5"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-semibold">
-                      {item.initials}
-                    </div>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-gray-500">ID: {item.regId}</p>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-gray-600 sm:text-inherit">
-                    <span className="font-medium sm:hidden">Type: </span>{item.type}
-                  </p>
-                  <p className="text-sm text-gray-600 sm:text-inherit">
-                    <span className="font-medium sm:hidden">Location: </span>{item.location}
-                  </p>
-
-                  <div>
-                    <span className="rounded-full bg-orange-100 px-4 py-2 text-xs font-semibold text-orange-700">
-                      {item.status}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2 sm:justify-center">
-                    <button
-                      onClick={() => setViewItem(item)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E8C7B4] transition hover:bg-gray-100"
-                      title="View details"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleApprove(item.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316] text-white transition hover:bg-[#e06610]"
-                      title="Approve"
-                    >
-                      <Check size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleReject(item.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
-                      title="Reject"
-                    >
-                      <XIcon size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="xl:col-span-3">
-          <div className="h-full rounded-2xl border border-[#E8C7B4] bg-white p-5 sm:p-6">
-            <h2 className="mb-5 text-xl font-semibold sm:text-2xl">Business Types</h2>
-            <div className="space-y-4">
-              {typeBreakdown.length === 0 ? (
-                <p className="text-sm text-gray-400">No businesses yet.</p>
-              ) : (
-                typeBreakdown.map((t, i) => (
-                  <div key={t.type} className="flex justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-3 w-3 rounded-full ${["bg-[#B54A00]", "bg-[#0A5C8D]", "bg-gray-500", "bg-emerald-500", "bg-purple-500"][i % 5]}`} />
-                      <span className="text-sm sm:text-base">{t.type}</span>
-                    </div>
-                    <span className="font-mono text-sm">{t.count} biz</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+          ))
+        )}
       </div>
 
       {/* ── Business Performance ── */}
       <div className="overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-orange-200 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Business Performance</h2>
-            <p className="mt-1 text-sm text-gray-500">Revenue and order metrics by business, this month.</p>
-          </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 rounded-lg border border-orange-200 px-4 py-2 text-sm hover:bg-orange-50 transition">
-              <Filter size={16} /> Filter
-            </button>
-            <button className="flex items-center gap-2 rounded-lg border border-orange-200 px-4 py-2 text-sm hover:bg-orange-50 transition">
-              <Calendar size={16} /> This Month
-            </button>
-          </div>
+        <div className="border-b border-orange-200 px-4 py-5 sm:px-6">
+          <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Business Performance</h2>
+          <p className="mt-1 text-sm text-gray-500">Revenue and order metrics by business, this month.</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -290,12 +231,11 @@ export default function Dashboard() {
                 <th className="py-4 text-left">Revenue (MTD)</th>
                 <th className="py-4 text-left">Active Orders</th>
                 <th className="py-4 text-left">Growth</th>
-                <th className="py-4 text-left">System State</th>
               </tr>
             </thead>
             <tbody>
               {performance.length === 0 ? (
-                <tr><td colSpan={6} className="py-10 text-center text-gray-400">No businesses yet.</td></tr>
+                <tr><td colSpan={5} className="py-10 text-center text-gray-400">No businesses yet.</td></tr>
               ) : performance.map((item) => (
                 <tr key={item.id} className="border-t border-orange-100 transition hover:bg-orange-50">
                   <td className="px-6 py-5 font-medium text-gray-800">{item.name}</td>
@@ -308,13 +248,6 @@ export default function Dashboard() {
                       {item.growth}
                     </div>
                   </td>
-                  <td>
-                    {item.status === "STABLE" ? (
-                      <span className="rounded-md border border-green-500 px-3 py-1 text-xs font-semibold text-green-600">STABLE</span>
-                    ) : (
-                      <span className="rounded-md border border-orange-500 px-3 py-1 text-xs font-semibold text-orange-600">ACTION REQ</span>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -322,7 +255,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* View Modal */}
+      {/* View Modal — Approve/Reject live here now, not on the row */}
       {viewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
@@ -336,7 +269,7 @@ export default function Dashboard() {
                   {viewItem.initials}
                 </div>
                 <div>
-                  <p className="font-semibold">{viewItem.regId}</p>
+                  <p className="font-semibold">{viewItem.name}</p>
                   <p className="text-sm text-gray-500">Registered {viewItem.registeredAt}</p>
                 </div>
               </div>

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  Search, Bell, Download, Archive, RefreshCw, Shield, AlertTriangle,
+  Search, Download, RefreshCw, Shield, AlertTriangle,
   XCircle, FileText, ChevronLeft, ChevronRight, ChevronDown, Loader2, X,
 } from "lucide-react";
 import {
   getSystemLogs, getLogDetail, getLogModules, getLogStats,
-  getWeeklyActivity, getRecentSecurityEvents, archiveLogsAction, getSystemHealth,
+  getWeeklyActivity, getRecentSecurityEvents,
   LogRow, LogDetail,
 } from "@/app/actions/superadmin/system-logs";
 
@@ -96,7 +96,6 @@ export default function SystemLogsPage() {
   const [stats, setStats] = useState({ total: 0, warnings: 0, critical: 0, securityEvents: 0, levelBreakdown: { info: 0, warning: 0, critical: 0 } });
   const [weeklyActivity, setWeeklyActivity] = useState<{ day: string; count: number; h: number }[]>([]);
   const [securityEvents, setSecurityEvents] = useState<{ id: string; title: string; detail: string; level: string }[]>([]);
-  const [health, setHealth] = useState<{ database: "Optimal" | "Degraded" | "Down"; latencyMs: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
@@ -126,14 +125,13 @@ export default function SystemLogsPage() {
   }
 
   async function loadSidebarData() {
-    const [statsData, activity, events, mods, healthData] = await Promise.all([
-      getLogStats(), getWeeklyActivity(), getRecentSecurityEvents(), getLogModules(), getSystemHealth(),
+    const [statsData, activity, events, mods] = await Promise.all([
+      getLogStats(), getWeeklyActivity(), getRecentSecurityEvents(), getLogModules(),
     ]);
     setStats(statsData);
     setWeeklyActivity(activity);
     setSecurityEvents(events);
     setModules(["All Modules", ...mods]);
-    setHealth(healthData);
   }
 
   useEffect(() => {
@@ -166,18 +164,6 @@ export default function SystemLogsPage() {
     await Promise.all([loadLogs(), loadSidebarData()]);
   }
 
-  async function handleArchiveVisible() {
-    if (logs.length === 0) return;
-    if (!confirm(`Archive ${logs.length} log(s) currently shown on this page?`)) return;
-    const res = await archiveLogsAction(logs.map((l) => l.id));
-    if (res.success) {
-      loadLogs();
-      loadSidebarData();
-    } else {
-      alert(res.message);
-    }
-  }
-
   function exportToCSV() {
     const headers = ["Timestamp", "Event", "Module", "User", "Business", "Status", "Level"];
     const csvRows = logs.map((l) =>
@@ -208,9 +194,20 @@ export default function SystemLogsPage() {
               Monitor platform activities, audit trails, security events and system operations.
             </p>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <button type="button" aria-label="Notifications" className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
-              <Bell className="h-5 w-5" />
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+            >
+              <RefreshCw className="h-4 w-4 text-slate-500" /> Refresh
+            </button>
+            <button
+              type="button"
+              onClick={exportToCSV}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-700"
+            >
+              <Download className="h-4 w-4" /> Export Logs
             </button>
           </div>
         </header>
@@ -222,33 +219,6 @@ export default function SystemLogsPage() {
           <StatCard icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" label="Errors" value={stats.critical.toLocaleString()} valueClass="text-red-600" />
           <StatCard icon={<Shield className="h-5 w-5 text-blue-500" />} iconBg="bg-blue-50" label="Security Events" value={stats.securityEvents.toLocaleString()} />
         </section>
-
-        {/* Action bar */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={exportToCSV}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-orange-700 sm:flex-none"
-            >
-              <Download className="h-4 w-4" /> Export Logs
-            </button>
-            <button
-              type="button"
-              onClick={handleArchiveVisible}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-900 sm:flex-none"
-            >
-              <Archive className="h-4 w-4" /> Archive Logs
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 self-start text-sm font-medium text-orange-600 hover:text-orange-700 sm:self-auto"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh Data
-          </button>
-        </div>
 
         {/* Main grid */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -395,15 +365,20 @@ export default function SystemLogsPage() {
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-800">Activity Timeline</h3>
-                  <span className="flex items-center gap-1 text-xs text-slate-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> Events (7d)
+                  <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> Events (Sun - Sat)
                   </span>
                 </div>
-                <div className="flex h-28 items-end justify-between gap-2">
+                <div className="flex h-32 items-end justify-between gap-2">
                   {weeklyActivity.map((d) => (
-                    <div key={d.day} className="flex flex-1 flex-col items-center gap-1.5">
-                      <div className="w-full max-w-[22px] rounded-t-md bg-orange-500/80" style={{ height: `${Math.max(d.h, 3)}%` }} />
-                      <span className="text-[10px] text-slate-400">{d.day}</span>
+                    <div key={d.day} className="group flex flex-1 flex-col items-center justify-end h-full">
+                      <span className="mb-1 text-[11px] font-semibold text-slate-700">{d.count}</span>
+                      <div
+                        title={`${d.count} event(s) on ${d.day}`}
+                        className="w-full max-w-[22px] rounded-t-md bg-orange-500/80 transition-colors group-hover:bg-orange-600"
+                        style={{ height: `${Math.max(d.h, 4)}%` }}
+                      />
+                      <span className="mt-1 text-[10px] font-medium text-slate-400">{d.day}</span>
                     </div>
                   ))}
                 </div>
@@ -425,36 +400,6 @@ export default function SystemLogsPage() {
                   <p className="text-xs text-slate-400">No recent security events.</p>
                 )}
               </ul>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold text-slate-800">System Health</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Database Connectivity</span>
-                  {health ? (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        health.database === "Optimal"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : health.database === "Degraded"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-red-50 text-red-700"
-                      }`}
-                    >
-                      {health.database.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400">Checking...</span>
-                  )}
-                </div>
-                {health && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Query Latency</span>
-                    <span className="text-xs font-medium text-slate-600">{health.latencyMs}ms</span>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

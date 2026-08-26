@@ -25,65 +25,66 @@ type GetBusinessesParams = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return `Rs. ${amount.toLocaleString("en-IN")}`;
 }
 
 export async function getSuperadminBusinesses(
   params: GetBusinessesParams = {}
 ): Promise<SuperadminBusiness[]> {
-  const { search, status, plan } = params;
+  try {
+    const { search, status, plan } = params;
 
-  const where: Record<string, unknown> = {};
-  if (status) where.status = status;
-  if (plan) where.plan = plan;
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (plan) where.plan = plan;
 
-  if (search) {
-    where.OR = [
-      { businessName: { contains: search, mode: "insensitive" } },
-      { ownerName: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
-    ];
+    if (search) {
+      where.OR = [
+        { businessName: { contains: search, mode: "insensitive" } },
+        { ownerName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const businesses = await prisma.business.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (businesses.length === 0) return [];
+
+    const businessIds = businesses.map((b) => b.id);
+
+    // One aggregate query for all businesses instead of N+1.
+    const revenueRows = await prisma.order.groupBy({
+      by: ["businessId"],
+      where: {
+        businessId: { in: businessIds },
+        status: { notIn: ["cancelled", "Cancelled", "rejected", "Rejected"] },
+      },
+      _sum: { totalAmount: true },
+    });
+
+    const revenueMap = new Map<string, number>();
+    for (const row of revenueRows) {
+      revenueMap.set(row.businessId.toString(), Number(row._sum.totalAmount ?? 0));
+    }
+
+    return businesses.map((b) => ({
+      id: Number(b.id),
+      logo: b.logoUrl || "🍽️",
+      name: b.businessName,
+      owner: b.ownerName || "—",
+      email: b.email || "",
+      phone: b.businessPhone || "",
+      plan: b.plan,
+      status: b.status,
+      revenue: formatCurrency(revenueMap.get(b.id.toString()) ?? 0),
+    }));
+  } catch (error) {
+    console.error("Failed to load superadmin businesses:", error);
+    return [];
   }
-
-  const businesses = await prisma.business.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (businesses.length === 0) return [];
-
-  const businessIds = businesses.map((b) => b.id);
-
-  // One aggregate query for all businesses instead of N+1.
-  const revenueRows = await prisma.order.groupBy({
-    by: ["businessId"],
-    where: {
-      businessId: { in: businessIds },
-      paymentStatus: "paid",
-    },
-    _sum: { totalAmount: true },
-  });
-
-  const revenueMap = new Map<string, number>();
-  for (const row of revenueRows) {
-    revenueMap.set(row.businessId.toString(), Number(row._sum.totalAmount ?? 0));
-  }
-
-  return businesses.map((b) => ({
-    id: Number(b.id),
-    logo: b.logoUrl || "🍽️",
-    name: b.businessName,
-    owner: b.ownerName || "—",
-    email: b.email || "",
-    phone: b.businessPhone || "",
-    plan: b.plan,
-    status: b.status,
-    revenue: formatCurrency(revenueMap.get(b.id.toString()) ?? 0),
-  }));
 }
 
 type CreateBusinessInput = {
