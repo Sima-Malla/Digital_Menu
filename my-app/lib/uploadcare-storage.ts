@@ -28,7 +28,7 @@ function getCdnBase() {
  * returns its public CDN URL. Throws on failure so callers can surface an
  * error to the form instead of silently saving a broken image reference.
  */
-export async function uploadMenuImage(file: File, folder: "dishes" | "specials"): Promise<string> {
+export async function uploadMenuImage(file: File, folder: "dishes" | "specials" | "branding"): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("File must be an image.");
   }

@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import SettingsSidebar from "@/components/HotelAdmin/settingSidebar";
 import {
   CreditCard,
@@ -173,9 +172,6 @@ export default function PaymentSettingsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
-      <Sidebar />
-     
-
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[720px] px-8 py-8">
           {/* Page Header */}

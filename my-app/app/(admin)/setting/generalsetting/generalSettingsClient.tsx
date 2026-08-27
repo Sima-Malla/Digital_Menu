@@ -120,13 +120,14 @@ function SocialInput({
 /* ─── Page ────────────────────────────────────────────────── */
 
 export default function GeneralSettingsClient({ initialSettings }: { initialSettings: GeneralSettings }) {
+  const [savedSettings, setSavedSettings] = useState<GeneralSettings>(initialSettings);
   const [settings, setSettings] = useState<GeneralSettings>(initialSettings);
   const [isPending, startTransition] = useTransition();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const fireToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 3000);
+  const fireToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
   };
 
   const update = <K extends keyof GeneralSettings>(key: K, value: GeneralSettings[K]) => {
@@ -134,30 +135,36 @@ export default function GeneralSettingsClient({ initialSettings }: { initialSett
   };
 
   const handleDiscard = () => {
-    setSettings(initialSettings);
-    fireToast("Changes discarded.");
+    setSettings(savedSettings);
+    fireToast("Changes discarded.", "success");
   };
 
   const handleSave = () => {
     startTransition(async () => {
       const res = await saveGeneralSettingsAction(settings);
       if (res.success) {
-        fireToast("Settings saved.");
+        setSavedSettings(settings);
+        fireToast("Settings saved successfully.", "success");
       } else {
-        fireToast(res.error ?? "Couldn't save settings — please try again.");
+        fireToast(res.error ?? "Couldn't save settings — please try again.", "error");
       }
     });
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
-    
-
+    <div className="w-full min-h-screen bg-[#F7F8FA]">
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[720px] px-8 py-8">
           {toast && (
-            <div role="status" className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5">
-              <span className="text-[13px] font-medium text-green-700">{toast}</span>
+            <div
+              role="status"
+              className={`mb-6 flex items-center gap-2 rounded-lg border px-4 py-2.5 ${
+                toast.type === "error"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-green-200 bg-green-50 text-green-700"
+              }`}
+            >
+              <span className="text-[13px] font-medium">{toast.message}</span>
             </div>
           )}
 

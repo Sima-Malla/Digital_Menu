@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import { useMemo, useState } from "react";
 import {
   Search,
@@ -252,8 +251,6 @@ export default function SupportCenterPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
-      <Sidebar />
-
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1180px] px-8 py-8">
           {/* ── Toast ─────────────────────────────────── */}
