@@ -177,41 +177,47 @@ export async function getLogStats() {
 }
 
 // ---------------------------------------------------------------------
-// getWeeklyActivity — event counts for the last 7 days
+// ---------------------------------------------------------------------
+// getWeeklyActivity — event counts for Sunday to Saturday
 // ---------------------------------------------------------------------
 
 export async function getWeeklyActivity(): Promise<{ day: string; count: number; h: number }[]> {
-  const since = new Date();
-  since.setDate(since.getDate() - 6);
-  since.setHours(0, 0, 0, 0);
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const now = new Date();
+  const currentDayOfWeek = now.getDay();
+
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - currentDayOfWeek);
+  sunday.setHours(0, 0, 0, 0);
+
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  saturday.setHours(23, 59, 59, 999);
 
   const rows = await prisma.systemLog.findMany({
-    where: { archived: false, createdAt: { gte: since } },
+    where: { archived: false, createdAt: { gte: sunday, lte: saturday } },
     select: { createdAt: true },
   });
 
-  const buckets: Record<string, number> = {};
-  const labels: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString("en-US", { weekday: "short" });
-    buckets[key] = 0;
-    labels.push(key);
-  }
+  const buckets: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
   for (const row of rows) {
-    const key = row.createdAt.toISOString().slice(0, 10);
-    if (key in buckets) buckets[key]++;
+    const dayIdx = row.createdAt.getDay();
+    if (dayIdx in buckets) {
+      buckets[dayIdx]++;
+    }
   }
 
   const max = Math.max(1, ...Object.values(buckets));
 
-  return labels.map((key) => {
-    const count = buckets[key];
-    const day = new Date(key).toLocaleDateString("en-US", { weekday: "short" });
-    return { day, count, h: Math.round((count / max) * 100) };
+  return daysOfWeek.map((dayLabel, idx) => {
+    const count = buckets[idx];
+    return {
+      day: dayLabel,
+      count,
+      h: Math.round((count / max) * 100),
+    };
   });
 }
 

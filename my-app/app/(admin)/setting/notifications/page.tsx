@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/HotelAdmin/Sidebar";
 import {
   Bell,
   Mail,
@@ -230,8 +229,6 @@ export default function NotificationSettingsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
-      <Sidebar />
-
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1080px] px-8 py-8">
           {/* ── Breadcrumb ───────────────────────────────── */}

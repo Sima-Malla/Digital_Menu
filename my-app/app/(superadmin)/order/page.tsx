@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bell, CircleHelp, Download, Search, Eye, Pencil, Trash2,
-  ShoppingBag, DollarSign, Store, AlertTriangle, ChevronLeft, ChevronRight,
+  Bell, CircleHelp, Download, Search, Eye,
+  ShoppingBag, Store, AlertTriangle, ChevronLeft, ChevronRight,
   X, Loader2,
 } from "lucide-react";
 import {
-  getOrders, getBusinesses, getStats, getOrderDetail,
-  updateOrderAction, deleteOrder, SuperadminOrder,
+  getOrders, getBusinesses, getStats, getOrderDetail, exportOrdersAction, SuperadminOrder,
 } from "@/app/actions/superadmin/order";
 
 const statusColor: Record<string, string> = {
@@ -47,6 +46,7 @@ export default function OrdersPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [stats, setStats] = useState<Stats>({ totalOrders: 0, grossRevenue: 0, activeBusinesses: 0, pendingIssues: 0 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -56,9 +56,6 @@ export default function OrdersPage() {
 
   const [viewItem, setViewItem] = useState<OrderDetail | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [editItem, setEditItem] = useState<OrderDetail | null>(null);
-  const [editForm, setEditForm] = useState({ status: "", paymentStatus: "", delayReason: "" });
-  const [submitting, setSubmitting] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -104,44 +101,65 @@ export default function OrdersPage() {
     if (detail) setViewItem(detail);
   }
 
-  async function handleEditOpen(id: string) {
-    const detail = await getOrderDetail(id);
-    if (!detail) return;
-    setEditItem(detail);
-    setEditForm({ status: detail.status, paymentStatus: detail.paymentStatus, delayReason: detail.delayReason });
-  }
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const data = await exportOrdersAction({ search, status, businessId });
+      if (!data || data.length === 0) {
+        alert("No orders found to export.");
+        return;
+      }
 
-  async function handleEditSave() {
-    if (!editItem) return;
-    setSubmitting(true);
-    const res = await updateOrderAction(editItem.id, editForm);
-    setSubmitting(false);
-    if (res.success) {
-      setEditItem(null);
-      loadOrders();
-      loadStats();
-    } else {
-      alert(res.message);
-    }
-  }
+      const headers = [
+        "Order ID",
+        "Business",
+        "Customer Name",
+        "Customer Phone",
+        "Location",
+        "Order Type",
+        "Amount (NPR)",
+        "Status",
+        "Payment Status",
+        "Date & Time",
+      ];
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this order?")) return;
-    const previous = orders;
-    setOrders((prev) => prev.filter((o) => o.id !== id)); // optimistic
-    const res = await deleteOrder(id);
-    if (!res.success) {
-      setOrders(previous);
-      alert(res.message);
-    } else {
-      setTotal((t) => t - 1);
-      loadStats();
+      const csvRows = [
+        headers.join(","),
+        ...data.map((row) =>
+          [
+            `"#${row.id}"`,
+            `"${row.business.replace(/"/g, '""')}"`,
+            `"${row.customer.replace(/"/g, '""')}"`,
+            `"${row.customerPhone.replace(/"/g, '""')}"`,
+            `"${row.location.replace(/"/g, '""')}"`,
+            `"${row.orderType.replace(/"/g, '""')}"`,
+            row.amount,
+            `"${row.status.replace(/"/g, '""')}"`,
+            `"${row.paymentStatus.replace(/"/g, '""')}"`,
+            `"${new Date(row.orderedAt).toLocaleString("en-US")}"`,
+          ].join(",")
+        ),
+      ];
+
+      const csvBlob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(csvBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Failed to export orders.");
+    } finally {
+      setExporting(false);
     }
   }
 
   const statCards = [
     { title: "Total Orders", value: stats.totalOrders.toLocaleString(), icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
-    { title: "Gross Revenue", value: `$${stats.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, icon: DollarSign, color: "bg-green-100 text-green-600" },
     { title: "Active Businesses", value: stats.activeBusinesses.toLocaleString(), icon: Store, color: "bg-orange-100 text-orange-600" },
     { title: "Pending Issues", value: stats.pendingIssues.toLocaleString(), icon: AlertTriangle, color: "bg-red-100 text-red-600" },
   ];
@@ -156,8 +174,20 @@ export default function OrdersPage() {
             <p className="mt-1 text-sm text-gray-500">Monitor and manage all customer orders.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
-              <Download size={18} /> Export
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition disabled:opacity-50"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Exporting...
+                </>
+              ) : (
+                <>
+                  <Download size={18} /> Export
+                </>
+              )}
             </button>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><Bell size={18} /></button>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><CircleHelp size={18} /></button>
@@ -167,7 +197,7 @@ export default function OrdersPage() {
 
       <div className="p-4 space-y-6 sm:p-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-3">
           {statCards.map((item) => {
             const Icon = item.icon;
             return (
@@ -258,15 +288,9 @@ export default function OrdersPage() {
                       <td className="px-6 py-4"><StatusBadge status={order.status} /></td>
                       <td className="px-6 py-4">{order.time}</td>
                       <td className="px-6 py-4">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => handleView(order.id)} className="rounded-lg border p-2 hover:bg-gray-100">
-                            <Eye size={16} />
-                          </button>
-                          <button onClick={() => handleEditOpen(order.id)} className="rounded-lg border p-2 hover:bg-blue-100">
-                            <Pencil size={16} className="text-blue-600" />
-                          </button>
-                          <button onClick={() => handleDelete(order.id)} className="rounded-lg border p-2 hover:bg-red-100">
-                            <Trash2 size={16} className="text-red-600" />
+                        <div className="flex justify-center">
+                          <button onClick={() => handleView(order.id)} className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-gray-100 transition">
+                            <Eye size={16} /> View
                           </button>
                         </div>
                       </td>
@@ -371,61 +395,6 @@ export default function OrdersPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b p-5 sm:p-6">
-              <h2 className="text-xl font-bold">Edit Order #{editItem.id}</h2>
-              <button onClick={() => setEditItem(null)}><X size={22} /></button>
-            </div>
-            <div className="space-y-4 p-5 sm:p-6">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
-                >
-                  <option value="new">New</option>
-                  <option value="preparing">Preparing</option>
-                  <option value="ready">Ready</option>
-                  <option value="completed">Completed</option>
-                  <option value="delayed">Delayed</option>
-                </select>
-              </div>
-              {editForm.status === "delayed" && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Delay Reason</label>
-                  <input
-                    value={editForm.delayReason}
-                    onChange={(e) => setEditForm({ ...editForm, delayReason: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
-                  />
-                </div>
-              )}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Payment Status</label>
-                <select
-                  value={editForm.paymentStatus}
-                  onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#F97316]"
-                >
-                  <option value="unpaid">Unpaid</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex flex-col-reverse gap-3 border-t p-5 sm:flex-row sm:justify-end sm:p-6">
-              <button onClick={() => setEditItem(null)} className="rounded-xl border px-5 py-2 text-sm hover:bg-gray-100 transition">Cancel</button>
-              <button onClick={handleEditSave} disabled={submitting} className="rounded-xl bg-[#F97316] px-5 py-2 text-sm text-white hover:bg-[#e06610] transition disabled:opacity-50">
-                {submitting ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
           </div>
         </div>
       )}

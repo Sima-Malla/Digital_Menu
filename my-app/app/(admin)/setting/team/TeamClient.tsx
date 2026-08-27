@@ -116,7 +116,11 @@ export default function TeamClient({ initialStaff }: { initialStaff: StaffMember
   const changePosition = (id: string, position: string) => {
     setBusyId(id);
     startTransition(async () => {
-      await updateStaffPositionAction(id, position);
+      try {
+        await updateStaffPositionAction(id, position);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Something went wrong.");
+      }
       setBusyId(null);
       router.refresh();
     });

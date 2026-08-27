@@ -3,15 +3,19 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: new PrismaPg({ connectionString: connectionString ?? "" }),
+function getPrisma(): PrismaClient {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is missing.");
+  }
+  const client = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
   });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;
+  return client;
+}
 
 export type GeneralSettings = {
   restaurantName: string;
@@ -34,7 +38,7 @@ export type GeneralSettings = {
 };
 
 export async function getGeneralSettings(businessId: bigint): Promise<GeneralSettings | null> {
-  const business = await prisma.business.findUnique({
+  const business = await getPrisma().business.findUnique({
     where: { id: businessId },
     select: {
       businessName: true,
@@ -63,9 +67,9 @@ export async function getGeneralSettings(businessId: bigint): Promise<GeneralSet
     restaurantName: business.businessName,
     logoUrl: business.logoUrl,
     bannerUrl: business.bannerUrl,
-    language: business.language,
-    currency: business.currency,
-    timezone: business.timezone,
+    language: business.language || "English (US)",
+    currency: business.currency || "USD ($)",
+    timezone: business.timezone || "EST (UTC-5)",
     taxId: business.taxId ?? "",
     taxRegistration: business.taxRegistration ?? "",
     listInMarketplace: business.listInMarketplace,
@@ -84,7 +88,7 @@ export async function updateGeneralSettings(
   businessId: bigint,
   data: GeneralSettings
 ): Promise<void> {
-  await prisma.business.update({
+  await getPrisma().business.update({
     where: { id: businessId },
     data: {
       businessName: data.restaurantName,

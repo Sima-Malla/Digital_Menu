@@ -6,7 +6,7 @@ const performanceData = [
   {
     chain: "The Steakhouse Group",
     locations: 45,
-    revenue: "$420,500",
+    revenue: "Rs. 420,500",
     rating: 4.8,
     orders: "1,240",
     growth: "+8.2%",
@@ -16,7 +16,7 @@ const performanceData = [
   {
     chain: "Sushi Zen Networks",
     locations: 28,
-    revenue: "$310,200",
+    revenue: "Rs. 310,200",
     rating: 4.6,
     orders: "890",
     growth: "+5.1%",
@@ -26,7 +26,7 @@ const performanceData = [
   {
     chain: "Rustic Pizzas Inc",
     locations: 52,
-    revenue: "$295,000",
+    revenue: "Rs. 295,000",
     rating: 4.2,
     orders: "2,105",
     growth: "-2.4%",

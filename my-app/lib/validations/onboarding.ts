@@ -2,18 +2,21 @@ import { z } from "zod";
 
 export const onboardingSchema = z
   .object({
-    email: z.email("Enter a valid email address").trim().toLowerCase(),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Enter a valid email address."),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(72, "Password is too long")
-      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Must contain at least one number")
-      .regex(/[^A-Za-z0-9]/, "Must contain at least one special character"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
+      .min(8, "Password must be at least 8 characters.")
+      .max(72, "Password is too long.")
+      .regex(/[A-Za-z]/, "Password must include at least one letter.")
+      .regex(/[0-9]/, "Password must include at least one number."),
+    confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Passwords don't match.",
     path: ["confirmPassword"],
   });
 
