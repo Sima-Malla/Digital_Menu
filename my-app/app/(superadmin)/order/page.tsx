@@ -7,7 +7,7 @@ import {
   X, Loader2,
 } from "lucide-react";
 import {
-  getOrders, getBusinesses, getStats, getOrderDetail, SuperadminOrder,
+  getOrders, getBusinesses, getStats, getOrderDetail, exportOrdersAction, SuperadminOrder,
 } from "@/app/actions/superadmin/order";
 
 const statusColor: Record<string, string> = {
@@ -46,6 +46,7 @@ export default function OrdersPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [stats, setStats] = useState<Stats>({ totalOrders: 0, grossRevenue: 0, activeBusinesses: 0, pendingIssues: 0 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -100,6 +101,63 @@ export default function OrdersPage() {
     if (detail) setViewItem(detail);
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const data = await exportOrdersAction({ search, status, businessId });
+      if (!data || data.length === 0) {
+        alert("No orders found to export.");
+        return;
+      }
+
+      const headers = [
+        "Order ID",
+        "Business",
+        "Customer Name",
+        "Customer Phone",
+        "Location",
+        "Order Type",
+        "Amount (NPR)",
+        "Status",
+        "Payment Status",
+        "Date & Time",
+      ];
+
+      const csvRows = [
+        headers.join(","),
+        ...data.map((row) =>
+          [
+            `"#${row.id}"`,
+            `"${row.business.replace(/"/g, '""')}"`,
+            `"${row.customer.replace(/"/g, '""')}"`,
+            `"${row.customerPhone.replace(/"/g, '""')}"`,
+            `"${row.location.replace(/"/g, '""')}"`,
+            `"${row.orderType.replace(/"/g, '""')}"`,
+            row.amount,
+            `"${row.status.replace(/"/g, '""')}"`,
+            `"${row.paymentStatus.replace(/"/g, '""')}"`,
+            `"${new Date(row.orderedAt).toLocaleString("en-US")}"`,
+          ].join(",")
+        ),
+      ];
+
+      const csvBlob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(csvBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Failed to export orders.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const statCards = [
     { title: "Total Orders", value: stats.totalOrders.toLocaleString(), icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
     { title: "Active Businesses", value: stats.activeBusinesses.toLocaleString(), icon: Store, color: "bg-orange-100 text-orange-600" },
@@ -116,8 +174,20 @@ export default function OrdersPage() {
             <p className="mt-1 text-sm text-gray-500">Monitor and manage all customer orders.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
-              <Download size={18} /> Export
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition disabled:opacity-50"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Exporting...
+                </>
+              ) : (
+                <>
+                  <Download size={18} /> Export
+                </>
+              )}
             </button>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><Bell size={18} /></button>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><CircleHelp size={18} /></button>

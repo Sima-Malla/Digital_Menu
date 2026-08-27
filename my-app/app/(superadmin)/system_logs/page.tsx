@@ -165,9 +165,9 @@ export default function SystemLogsPage() {
   }
 
   function exportToCSV() {
-    const headers = ["Timestamp", "Event", "Module", "User", "Business", "Status", "Level"];
+    const headers = ["Timestamp", "Event", "Module", "User", "Status", "Level"];
     const csvRows = logs.map((l) =>
-      [l.displayTime, l.event, l.module, l.user, l.business, l.status, l.level]
+      [l.displayTime, l.event, l.module, l.user, l.status, l.level]
         .map((field) => `"${String(field).replace(/"/g, '""')}"`)
         .join(",")
     );
@@ -261,7 +261,6 @@ export default function SystemLogsPage() {
                         <th className="whitespace-nowrap px-4 py-3">Event</th>
                         <th className="hidden whitespace-nowrap px-4 py-3 sm:table-cell">Module</th>
                         <th className="whitespace-nowrap px-4 py-3">User</th>
-                        <th className="hidden whitespace-nowrap px-4 py-3 md:table-cell">Business</th>
                         <th className="whitespace-nowrap px-4 py-3">Status</th>
                         <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
                       </tr>
@@ -280,7 +279,6 @@ export default function SystemLogsPage() {
                               <span className="text-slate-700">{log.user}</span>
                             </div>
                           </td>
-                          <td className="hidden whitespace-nowrap px-4 py-3 text-slate-500 md:table-cell">{log.business}</td>
                           <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={log.status} /></td>
                           <td className="whitespace-nowrap px-4 py-3 text-right">
                             <button type="button" onClick={() => handleView(log.id)} className="text-sm font-medium text-orange-600 hover:text-orange-700">
@@ -291,7 +289,7 @@ export default function SystemLogsPage() {
                       ))}
                       {logs.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                          <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                             No logs match your filters. Try adjusting search, level, module or date range.
                           </td>
                         </tr>
@@ -423,7 +421,6 @@ export default function SystemLogsPage() {
                 <p><span className="font-medium">Time:</span> {viewLog.displayTime}</p>
                 <p><span className="font-medium">Module:</span> {viewLog.module}</p>
                 <p><span className="font-medium">User:</span> {viewLog.user}</p>
-                <p><span className="font-medium">Business:</span> {viewLog.business}</p>
                 <p className="flex items-center gap-2"><span className="font-medium">Status:</span> <StatusBadge status={viewLog.status} /></p>
                 <div className="rounded-lg bg-slate-50 p-3 text-slate-600">{viewLog.details}</div>
               </div>

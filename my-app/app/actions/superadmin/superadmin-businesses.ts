@@ -13,6 +13,7 @@ export type SuperadminBusiness = {
   owner: string;
   email: string;
   phone: string;
+  location: string;
   plan: string;
   status: string;
   revenue: string;
@@ -43,6 +44,7 @@ export async function getSuperadminBusinesses(
         { businessName: { contains: search, mode: "insensitive" } },
         { ownerName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { businessAddress: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -77,6 +79,7 @@ export async function getSuperadminBusinesses(
       owner: b.ownerName || "—",
       email: b.email || "",
       phone: b.businessPhone || "",
+      location: b.businessAddress || "",
       plan: b.plan,
       status: b.status,
       revenue: formatCurrency(revenueMap.get(b.id.toString()) ?? 0),
@@ -93,6 +96,7 @@ type CreateBusinessInput = {
   owner: string;
   email: string;
   phone: string;
+  location?: string;
   plan: string;
   status: string;
 };
@@ -149,9 +153,21 @@ export async function createBusinessAction(input: CreateBusinessInput) {
         ownerName: input.owner.trim(),
         email: input.email.trim(),
         businessPhone: input.phone?.trim() || null,
+        businessAddress: input.location?.trim() || null,
         logoUrl: input.logo || "🍽️",
         plan: input.plan || "Basic",
         status: resolvedStatus,
+        ...(input.location?.trim()
+          ? {
+              locations: {
+                create: {
+                  label: input.location.trim(),
+                  type: "dine-in",
+                  status: "active",
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -160,7 +176,7 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       module: "Businesses",
       status: "Success",
       business: created.businessName,
-      details: `Owner: ${created.ownerName ?? "—"} · Plan: ${created.plan} · Status: ${resolvedStatus} (${reason})`,
+      details: `Owner: ${created.ownerName ?? "—"} · Location: ${created.businessAddress ?? "—"} · Plan: ${created.plan} · Status: ${resolvedStatus} (${reason})`,
     });
 
     revalidatePath("/superadmin/businesses");
@@ -177,6 +193,7 @@ type UpdateBusinessInput = Partial<{
   owner: string;
   email: string;
   phone: string;
+  location: string;
   plan: string;
   status: string;
 }>;
@@ -204,6 +221,7 @@ export async function updateBusinessAction(id: number, input: UpdateBusinessInpu
         ...(input.owner !== undefined && { ownerName: input.owner.trim() }),
         ...(input.email !== undefined && { email: input.email.trim() }),
         ...(input.phone !== undefined && { businessPhone: input.phone.trim() }),
+        ...(input.location !== undefined && { businessAddress: input.location.trim() }),
         ...(input.logo !== undefined && { logoUrl: input.logo }),
         ...(input.plan !== undefined && { plan: input.plan }),
         ...(input.status !== undefined && { status: input.status }),

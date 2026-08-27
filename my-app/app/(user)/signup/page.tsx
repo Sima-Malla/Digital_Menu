@@ -6,20 +6,6 @@ import Link from "next/link";
 import { Building2, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
 import { signupAction, type SignupState } from "@/app/actions/signup";
 
-/* ─── ER-driven role config ──────────────────────────────────────────
-   Staff  -> Staff_Name, Email, Password, Business_Id (via Invite_Code), Role(enum)
-   Admin  -> Business_Admin.Name/Email/Password + new Business record
-             (Business_Name, Business_Type, Address, Phone) pending
-             Super Admin approval ("Approves" relationship)
-   User   -> Customer.Name, Phone, Email, Password — the diner-facing
-             role from the ER diagram, not tied to any single business
-
-   Super Admin is intentionally NOT offered here: it's a platform-operator
-   role, not a self-serve one. The first Super Admin should come from a
-   DB seed/CLI script, and any additional ones should be invited from an
-   internal Super Admin panel — never from this public signup page.
---------------------------------------------------------------------- */
-
 type Role = "admin" | "user";
 
 const roleTabs: { id: Role; label: string; icon: React.ElementType }[] = [
@@ -43,16 +29,139 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Admin-only (creates the Business record)
+  // Admin-only fields
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState(businessTypes[0]);
   const [businessAddress, setBusinessAddress] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
 
-  // User-only (maps to the Customer entity)
+  // User-only field
   const [userPhone, setUserPhone] = useState("");
 
-  const errors = state.fieldErrors ?? {};
+  // Client-side validation state
+  const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  function validateSingleField(name: string, val: string, currentRole: Role): string | null {
+    const v = val.trim();
+    if (name === "fullName") {
+      if (!v) return "Full name is required.";
+      if (v.length < 2) return "Full name must be at least 2 characters.";
+      if (v.length > 80) return "Full name is too long.";
+    }
+
+    if (name === "email") {
+      if (!v) return "Email address is required.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Enter a valid email address.";
+    }
+
+    if (name === "password") {
+      if (!val) return "Password is required.";
+      if (val.length < 8) return "Password must be at least 8 characters.";
+      if (!/[A-Z]/.test(val)) return "Password must include at least one uppercase letter.";
+      if (!/[0-9]/.test(val)) return "Password must include at least one number.";
+      if (!/[^A-Za-z0-9]/.test(val)) return "Password must include at least one special character (e.g. !@#$%).";
+    }
+
+    if (currentRole === "admin") {
+      if (name === "businessName") {
+        if (!v) return "Business name is required.";
+        if (v.length < 2) return "Business name must be at least 2 characters.";
+      }
+      if (name === "businessAddress") {
+        if (!v) return "Business address is required.";
+        if (v.length < 5) return "Enter a full address (at least 5 characters).";
+      }
+      if (name === "businessPhone") {
+        if (!v) return "Business phone number is required.";
+        if (!/^\+?[0-9()\-.\s]{7,20}$/.test(v)) return "Enter a valid phone number.";
+      }
+    }
+
+    if (currentRole === "user") {
+      if (name === "phone") {
+        if (!v) return "Phone number is required.";
+        if (!/^\+?[0-9()\-.\s]{7,20}$/.test(v)) return "Enter a valid phone number.";
+      }
+    }
+
+    return null;
+  }
+
+  function handleBlur(fieldName: string, value: string) {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+    const err = validateSingleField(fieldName, value, role);
+    setClientErrors((prev) => {
+      const next = { ...prev };
+      if (err) next[fieldName] = err;
+      else delete next[fieldName];
+      return next;
+    });
+  }
+
+  function handleChange(fieldName: string, value: string) {
+    if (touched[fieldName]) {
+      const err = validateSingleField(fieldName, value, role);
+      setClientErrors((prev) => {
+        const next = { ...prev };
+        if (err) next[fieldName] = err;
+        else delete next[fieldName];
+        return next;
+      });
+    }
+  }
+
+  function validateAllFields(): boolean {
+    const newErrors: Record<string, string> = {};
+
+    const fnErr = validateSingleField("fullName", fullName, role);
+    if (fnErr) newErrors.fullName = fnErr;
+
+    const emErr = validateSingleField("email", email, role);
+    if (emErr) newErrors.email = emErr;
+
+    const pwErr = validateSingleField("password", password, role);
+    if (pwErr) newErrors.password = pwErr;
+
+    if (role === "admin") {
+      const bnErr = validateSingleField("businessName", businessName, role);
+      if (bnErr) newErrors.businessName = bnErr;
+
+      const baErr = validateSingleField("businessAddress", businessAddress, role);
+      if (baErr) newErrors.businessAddress = baErr;
+
+      const bpErr = validateSingleField("businessPhone", businessPhone, role);
+      if (bpErr) newErrors.businessPhone = bpErr;
+    }
+
+    if (role === "user") {
+      const phErr = validateSingleField("phone", userPhone, role);
+      if (phErr) newErrors.phone = phErr;
+    }
+
+    setClientErrors(newErrors);
+    setTouched({
+      fullName: true,
+      email: true,
+      password: true,
+      businessName: true,
+      businessAddress: true,
+      businessPhone: true,
+      phone: true,
+    });
+
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function handleRoleChange(newRole: Role) {
+    setRole(newRole);
+    setClientErrors({});
+    setTouched({});
+  }
+
+  // Combine server & client error messages
+  const serverFieldErrors = state.fieldErrors ?? {};
+  const getFieldError = (name: string) => clientErrors[name] || serverFieldErrors[name];
 
   return (
     <div className="flex min-h-screen">
@@ -121,7 +230,7 @@ export default function SignupPage() {
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => setRole(r.id)}
+                  onClick={() => handleRoleChange(r.id)}
                   className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-3 py-4 transition ${
                     active
                       ? "border-orange-500 bg-orange-50"
@@ -147,61 +256,88 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form action={formAction} className="mt-7 space-y-5">
+          <form
+            action={(formData) => {
+              if (validateAllFields()) {
+                formAction(formData);
+              }
+            }}
+            className="mt-7 space-y-5"
+          >
             {/* Shared fields */}
             <input type="hidden" name="role" value={role} />
 
-            <Field label="Full Name" error={errors.fullName}>
+            <Field label="Full Name" error={getFieldError("fullName")}>
               <input
                 name="fullName"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  handleChange("fullName", e.target.value);
+                }}
+                onBlur={(e) => handleBlur("fullName", e.target.value)}
                 placeholder="John Doe"
-                className={inputCls(errors.fullName)}
+                className={inputCls(getFieldError("fullName"))}
               />
             </Field>
 
-            <Field label="Email Address" error={errors.email}>
+            <Field label="Email Address" error={getFieldError("email")}>
               <input
                 type="email"
                 name="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  handleChange("email", e.target.value);
+                }}
+                onBlur={(e) => handleBlur("email", e.target.value)}
                 placeholder="john@example.com"
-                className={inputCls(errors.email)}
+                className={inputCls(getFieldError("email"))}
               />
             </Field>
 
-            <Field label="Password" error={errors.password} hint={!errors.password ? "At least 8 characters, with a letter and a number." : undefined}>
+            <Field
+              label="Password"
+              error={getFieldError("password")}
+              hint={!getFieldError("password") ? "At least 8 characters, with 1 uppercase letter, 1 number & 1 special character." : undefined}
+            >
               <input
                 type="password"
                 name="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  handleChange("password", e.target.value);
+                }}
+                onBlur={(e) => handleBlur("password", e.target.value)}
                 placeholder="••••••••"
-                className={inputCls(errors.password)}
+                className={inputCls(getFieldError("password"))}
               />
             </Field>
 
-            {/* Admin-only fields — these create the Business record */}
+            {/* Admin-only fields */}
             {role === "admin" && (
               <>
-                <Field label="Business Name" error={errors.businessName}>
+                <Field label="Business Name" error={getFieldError("businessName")}>
                   <input
                     name="businessName"
                     value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
+                    onChange={(e) => {
+                      setBusinessName(e.target.value);
+                      handleChange("businessName", e.target.value);
+                    }}
+                    onBlur={(e) => handleBlur("businessName", e.target.value)}
                     placeholder="The Golden Spoon"
-                    className={inputCls(errors.businessName)}
+                    className={inputCls(getFieldError("businessName"))}
                   />
                 </Field>
 
-                <Field label="Business Type" error={errors.businessType}>
+                <Field label="Business Type" error={getFieldError("businessType")}>
                   <select
                     name="businessType"
                     value={businessType}
                     onChange={(e) => setBusinessType(e.target.value)}
-                    className={inputCls(errors.businessType)}
+                    className={inputCls(getFieldError("businessType"))}
                   >
                     {businessTypes.map((t) => (
                       <option key={t}>{t}</option>
@@ -209,24 +345,32 @@ export default function SignupPage() {
                   </select>
                 </Field>
 
-                <Field label="Business Address" error={errors.businessAddress}>
+                <Field label="Business Address" error={getFieldError("businessAddress")}>
                   <input
                     name="businessAddress"
                     value={businessAddress}
-                    onChange={(e) => setBusinessAddress(e.target.value)}
+                    onChange={(e) => {
+                      setBusinessAddress(e.target.value);
+                      handleChange("businessAddress", e.target.value);
+                    }}
+                    onBlur={(e) => handleBlur("businessAddress", e.target.value)}
                     placeholder="123 Culinary Ave, Suite 4"
-                    className={inputCls(errors.businessAddress)}
+                    className={inputCls(getFieldError("businessAddress"))}
                   />
                 </Field>
 
-                <Field label="Business Phone" error={errors.businessPhone}>
+                <Field label="Business Phone" error={getFieldError("businessPhone")}>
                   <input
                     type="tel"
                     name="businessPhone"
                     value={businessPhone}
-                    onChange={(e) => setBusinessPhone(e.target.value)}
+                    onChange={(e) => {
+                      setBusinessPhone(e.target.value);
+                      handleChange("businessPhone", e.target.value);
+                    }}
+                    onBlur={(e) => handleBlur("businessPhone", e.target.value)}
                     placeholder="+1 (555) 000-0000"
-                    className={inputCls(errors.businessPhone)}
+                    className={inputCls(getFieldError("businessPhone"))}
                   />
                 </Field>
 
@@ -236,20 +380,24 @@ export default function SignupPage() {
               </>
             )}
 
-            {/* User-only field — maps to the Customer entity */}
+            {/* User-only field */}
             {role === "user" && (
               <Field
                 label="Phone Number"
-                error={errors.phone}
-                hint={!errors.phone ? "Used for order updates and to look up your past orders." : undefined}
+                error={getFieldError("phone")}
+                hint={!getFieldError("phone") ? "Used for order updates and to look up your past orders." : undefined}
               >
                 <input
                   type="tel"
                   name="phone"
                   value={userPhone}
-                  onChange={(e) => setUserPhone(e.target.value)}
+                  onChange={(e) => {
+                    setUserPhone(e.target.value);
+                    handleChange("phone", e.target.value);
+                  }}
+                  onBlur={(e) => handleBlur("phone", e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className={inputCls(errors.phone)}
+                  className={inputCls(getFieldError("phone"))}
                 />
               </Field>
             )}

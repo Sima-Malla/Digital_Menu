@@ -266,3 +266,58 @@ export async function deleteOrder(id: string) {
     return { success: false, message: "Failed to delete order." };
   }
 }
+
+export async function exportOrdersAction(params: {
+  search?: string;
+  status?: string;
+  businessId?: string;
+}) {
+  try {
+    const { search, status, businessId } = params;
+    const where: Record<string, unknown> = {};
+
+    if (businessId) {
+      try {
+        where.businessId = BigInt(businessId);
+      } catch {
+        // ignore
+      }
+    }
+    if (status) where.status = status;
+
+    if (search?.trim()) {
+      const trimmed = search.trim();
+      const idCandidate = trimmed.replace(/^#/, "");
+      const isNumeric = /^\d+$/.test(idCandidate);
+
+      where.OR = [
+        { customer: { name: { contains: trimmed, mode: "insensitive" } } },
+        { customer: { phone: { contains: trimmed, mode: "insensitive" } } },
+        ...(isNumeric ? [{ id: BigInt(idCandidate) }] : []),
+      ];
+    }
+
+    const rows = await prisma.order.findMany({
+      where,
+      include: { business: true, customer: true, location: true },
+      orderBy: { orderedAt: "desc" },
+      take: 5000,
+    });
+
+    return rows.map((o) => ({
+      id: o.id.toString(),
+      business: o.business.businessName,
+      customer: o.customer.name,
+      customerPhone: o.customer.phone,
+      location: o.location?.label ?? "—",
+      orderType: o.orderType,
+      amount: Number(o.totalAmount),
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      orderedAt: o.orderedAt.toISOString(),
+    }));
+  } catch (err) {
+    console.error("exportOrdersAction error:", err);
+    return [];
+  }
+}

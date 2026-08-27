@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Search, LayoutGrid, List, Eye, Pencil, Trash2,
-  Mail, Phone, Banknote, X, Upload,
+  Mail, Phone, Banknote, X, Upload, MapPin,
   Plus, Building2, CheckCircle2, Clock3, Ban, Loader2,
 } from "lucide-react";
 import {
@@ -124,7 +124,7 @@ export default function BusinessesPage() {
   const [viewItem, setViewItem] = useState<SuperadminBusiness | null>(null);
   const [editForm, setEditForm] = useState<SuperadminBusiness | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active" });
+  const [addForm, setAddForm] = useState({ logo: "🍽️", name: "", owner: "", email: "", phone: "", location: "", plan: "Basic", status: "Active" });
   const [submitting, setSubmitting] = useState(false);
 
   // Server-side fetch — search/status/plan are sent to the DB query, not filtered in the browser.
@@ -166,7 +166,7 @@ export default function BusinessesPage() {
     setSubmitting(false);
 
     if (res.success) {
-      setAddForm({ logo: "🍽️", name: "", owner: "", email: "", phone: "", plan: "Basic", status: "Active" });
+      setAddForm({ logo: "🍽️", name: "", owner: "", email: "", phone: "", location: "", plan: "Basic", status: "Active" });
       setAddOpen(false);
       loadData(search, status, plan);
     } else {
@@ -256,7 +256,7 @@ export default function BusinessesPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search business, owner or email..."
+                placeholder="Search business, location, owner or email..."
                 className="h-11 w-full rounded-xl border border-[#E8C7B4] pl-10 pr-4 text-sm outline-none focus:border-[#B54A00]"
               />
             </div>
@@ -297,11 +297,12 @@ export default function BusinessesPage() {
           {view === "list" && (
             <div className="overflow-hidden rounded-2xl border border-[#E8C7B4] bg-white shadow-sm">
               <div className="overflow-x-auto">
-                <table className="min-w-[720px] w-full text-sm">
+                <table className="min-w-[800px] w-full text-sm">
                   <thead className="bg-[#F6F4F2] text-left text-gray-600">
                     <tr>
                       <th className="px-4 py-4 sm:px-6">Business Info</th>
                       <th className="px-4 py-4 sm:px-6">Owner</th>
+                      <th className="px-4 py-4 sm:px-6">Location</th>
                       <th className="px-4 py-4 sm:px-6">Contact</th>
                       <th className="px-4 py-4 sm:px-6">Plan</th>
                       <th className="px-4 py-4 sm:px-6">Status</th>
@@ -326,6 +327,12 @@ export default function BusinessesPage() {
                           <p className="text-xs text-gray-500">Business Owner</p>
                         </td>
                         <td className="px-4 py-4 sm:px-6">
+                          <p className="flex items-center gap-1 max-w-[160px] truncate text-gray-700 font-medium" title={b.location || "N/A"}>
+                            <MapPin size={14} className="shrink-0 text-gray-400" />
+                            <span>{b.location || "—"}</span>
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 sm:px-6">
                           <p className="max-w-[180px] truncate" title={b.email}>{b.email}</p>
                           <p className="text-xs text-gray-500">{b.phone}</p>
                         </td>
@@ -345,7 +352,7 @@ export default function BusinessesPage() {
                         </td>
                       </tr>
                     )) : (
-                      <tr><td colSpan={7} className="py-16 text-center text-gray-500">No businesses found.</td></tr>
+                      <tr><td colSpan={8} className="py-16 text-center text-gray-500">No businesses found.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -366,6 +373,7 @@ export default function BusinessesPage() {
                     </div>
                   </div>
                   <div className="mt-5 space-y-3 text-sm">
+                    <div className="flex items-center gap-2 text-gray-600"><MapPin size={16} className="shrink-0 text-gray-400" /><span className="truncate">{b.location || "N/A"}</span></div>
                     <div className="flex items-center gap-2 text-gray-600"><Mail size={16} className="shrink-0" /><span className="truncate">{b.email}</span></div>
                     <div className="flex items-center gap-2 text-gray-600"><Phone size={16} className="shrink-0" />{b.phone}</div>
                     <div className="flex items-center gap-2 font-medium"><Banknote size={16} className="shrink-0" />{b.revenue}</div>
@@ -405,6 +413,7 @@ export default function BusinessesPage() {
                 </div>
               </div>
               <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <p className="truncate"><span className="font-medium">Location:</span> {viewItem.location || "N/A"}</p>
                 <p className="truncate"><span className="font-medium">Email:</span> {viewItem.email}</p>
                 <p className="truncate"><span className="font-medium">Phone:</span> {viewItem.phone}</p>
                 <p><span className="font-medium">Plan:</span> {viewItem.plan}</p>
@@ -436,12 +445,15 @@ export default function BusinessesPage() {
                 name={editForm.name}
                 onChange={(logo) => setEditForm({ ...editForm, logo })}
               />
-              {(["name", "owner", "email", "phone"] as const).map((field) => (
+              {(["name", "owner", "location", "email", "phone"] as const).map((field) => (
                 <div key={field}>
-                  <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
+                  <label className="mb-1 block text-sm font-medium capitalize text-gray-700">
+                    {field === "location" ? "Location / Address" : field}
+                  </label>
                   <input
-                    value={editForm[field]}
+                    value={editForm[field] || ""}
                     onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
+                    placeholder={field === "location" ? "e.g. Kathmandu, Nepal" : ""}
                     className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#B54A00]"
                   />
                 </div>
@@ -487,10 +499,17 @@ export default function BusinessesPage() {
                 name={addForm.name}
                 onChange={(logo) => setAddForm({ ...addForm, logo })}
               />
-              {(["name", "owner", "email", "phone"] as const).map((field) => (
+              {(["name", "owner", "location", "email", "phone"] as const).map((field) => (
                 <div key={field}>
-                  <label className="mb-1 block text-sm font-medium capitalize text-gray-700">{field}</label>
-                  <input value={addForm[field]} onChange={(e) => setAddForm({ ...addForm, [field]: e.target.value })} className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]" />
+                  <label className="mb-1 block text-sm font-medium capitalize text-gray-700">
+                    {field === "location" ? "Location / Address" : field}
+                  </label>
+                  <input
+                    value={addForm[field]}
+                    onChange={(e) => setAddForm({ ...addForm, [field]: e.target.value })}
+                    placeholder={field === "location" ? "e.g. Kathmandu, Nepal" : ""}
+                    className="h-10 w-full rounded-lg border border-[#E8C7B4] px-3 text-sm outline-none focus:border-[#F97316]"
+                  />
                 </div>
               ))}
               <div>

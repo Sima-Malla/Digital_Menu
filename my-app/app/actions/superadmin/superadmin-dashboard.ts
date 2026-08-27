@@ -62,6 +62,7 @@ export type TypeBreakdown = {
 export type BusinessPerformance = {
   id: number;
   name: string;
+  location: string;
   locationCount: number;
   revenueMTD: string;
   activeOrders: number;
@@ -288,6 +289,7 @@ export async function getBusinessPerformance(): Promise<BusinessPerformance[]> {
         return {
           id: Number(b.id),
           name: b.businessName,
+          location: b.businessAddress ?? "—",
           locationCount: b.locations.length,
           revenueMTD: `Rs. ${thisMonth.toLocaleString()}`,
           activeOrders: activeOrdersMap.get(key) ?? 0,

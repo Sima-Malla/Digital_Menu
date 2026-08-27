@@ -26,17 +26,12 @@ export async function completeOnboardingAction(
   _prevState: OnboardingState,
   formData: FormData
 ): Promise<OnboardingState> {
-  // Must already be logged in (with temporary credentials) to onboard —
-  // this action updates "your own" row, identified from the session, never
-  // from a userId passed in the form itself (which could be tampered with).
   const session = await getSession();
 
   if (!session) {
     return { success: false, message: "Your session has expired. Please log in again." };
   }
 
-  // Only Staff accounts (owner/manager/staff) go through onboarding.
-  // SuperAdmin has no businessId and never needs this flow.
   if (!["owner", "manager", "staff"].includes(session.role)) {
     return { success: false, message: "Onboarding isn't available for this account type." };
   }
@@ -62,7 +57,6 @@ export async function completeOnboardingAction(
 
   const { email, password } = parsed.data;
 
-  // If they're changing to a new email, make sure no OTHER Staff row owns it.
   const existing = await prisma.staff.findUnique({
     where: { email },
     select: { id: true },
@@ -76,7 +70,6 @@ export async function completeOnboardingAction(
     };
   }
 
-  // Enforce the platform's live password policy (Super Admin → Security Settings)
   const policyCheck = await validatePasswordAgainstPolicy(password);
   if (!policyCheck.valid) {
     return {
@@ -88,24 +81,15 @@ export async function completeOnboardingAction(
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  // Update this staff member's own login credentials.
   await prisma.staff.update({
     where: { id: BigInt(session.userId) },
     data: {
       email,
       password: hashedPassword,
+      needsOnboarding: false,
     },
   });
 
-  // needsOnboarding lives on Staff in this schema. Clear it for the current
-  // staff member so the account can continue into the normal dashboard.
-  await prisma.staff.update({
-    where: { id: BigInt(session.userId) },
-    data: { needsOnboarding: false },
-  });
-
-  // Force re-authentication with the new credentials — the temporary
-  // login/password combo should never work again after this point.
   await destroySession();
 
   return { success: true, message: "Credentials updated." };

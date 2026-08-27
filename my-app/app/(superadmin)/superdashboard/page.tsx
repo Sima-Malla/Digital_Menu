@@ -227,7 +227,7 @@ export default function Dashboard() {
             <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="px-6 py-4 text-left">Business Name</th>
-                <th className="py-4 text-left">Locations</th>
+                <th className="py-4 text-left">Location</th>
                 <th className="py-4 text-left">Revenue (MTD)</th>
                 <th className="py-4 text-left">Active Orders</th>
                 <th className="py-4 text-left">Growth</th>
@@ -239,7 +239,7 @@ export default function Dashboard() {
               ) : performance.map((item) => (
                 <tr key={item.id} className="border-t border-orange-100 transition hover:bg-orange-50">
                   <td className="px-6 py-5 font-medium text-gray-800">{item.name}</td>
-                  <td>{item.locationCount}</td>
+                  <td>{item.location} {item.locationCount}</td>
                   <td>{item.revenueMTD}</td>
                   <td>{item.activeOrders}</td>
                   <td>
