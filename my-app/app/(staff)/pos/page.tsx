@@ -21,7 +21,7 @@ export default async function PosPage() {
 
   const businessId = BigInt(session.businessId);
 
-  const [menuItems, locations] = await Promise.all([
+  const [menuItems, locations, diningSubUnits] = await Promise.all([
     prisma.menuItem.findMany({
       where: { businessId, isActive: true },
       orderBy: { category: "asc" },
@@ -30,7 +30,29 @@ export default async function PosPage() {
       where: { businessId, status: "active" },
       orderBy: { label: "asc" },
     }),
+    prisma.subUnit.findMany({
+      where: { Area: { businessId, type: "dining" } },
+      select: { label: true },
+      orderBy: { id: "asc" },
+    }),
   ]);
+
+  const existingLabels = new Set(locations.map((location) => location.label));
+  const missingTables = diningSubUnits.filter((unit) => !existingLabels.has(unit.label));
+  if (missingTables.length > 0) {
+    await prisma.$transaction(
+      missingTables.map((table) =>
+        prisma.location.create({
+          data: { businessId, label: table.label, type: "dine-in", status: "active" },
+        })
+      )
+    );
+  }
+
+  const refreshedLocations = await prisma.location.findMany({
+    where: { businessId, status: "active" },
+    orderBy: { label: "asc" },
+  });
 
   const serializedItems = menuItems.map((item) => ({
     id: item.id.toString(),
@@ -40,7 +62,7 @@ export default async function PosPage() {
     imageUrl: item.imageUrl,
   }));
 
-  const serializedLocations = locations.map((loc) => ({
+  const serializedLocations = refreshedLocations.map((loc) => ({
     id: loc.id.toString(),
     label: loc.label,
     type: loc.type,
@@ -50,7 +72,6 @@ export default async function PosPage() {
 
   return (
     <PosClient
-      businessId={businessId.toString()}
       menuItems={serializedItems}
       locations={serializedLocations}
       categories={categories}

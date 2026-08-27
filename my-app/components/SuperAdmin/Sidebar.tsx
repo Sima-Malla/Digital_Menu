@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { logoutAction } from "@/app/actions/logout";
 import {
   BarChart3,
   Building2,
@@ -98,7 +99,14 @@ function hasGroups(item: MenuItem): item is Extract<MenuItem, { groups: ChildGro
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
+  const [isLoggingOut, startLogoutTransition] = useTransition();
   const pathname = usePathname();
+
+  const handleLogout = () => {
+    startLogoutTransition(async () => {
+      await logoutAction();
+    });
+  };
 
   // Auto-expand "Global Settings" if the user is currently on one of its child routes.
   const settingsItem = menus.find(hasGroups);
@@ -326,9 +334,16 @@ export default function Sidebar() {
               )}
             </div>
 
-            <button className="flex items-center gap-3 text-red-500 hover:text-red-600">
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex items-center gap-3 text-red-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               <LogOut size={17} />
-              <span className="text-xs uppercase tracking-[0.18em]">Logout</span>
+              <span className="text-xs uppercase tracking-[0.18em]">
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </span>
             </button>
           </div>
         </div>

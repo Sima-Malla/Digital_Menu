@@ -2,7 +2,9 @@ const UPLOADCARE_UPLOAD_URL = "https://upload.uploadcare.com/base/";
 const UPLOADCARE_API_URL = "https://api.uploadcare.com";
 
 function getKeys() {
-  const publicKey = process.env.UPLOADCARE_PUBLIC_KEY;
+  const publicKey =
+    process.env.UPLOADCARE_PUBLIC_KEY ||
+    process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY;
   const secretKey = process.env.UPLOADCARE_SECRET_KEY;
 
   if (!publicKey || !secretKey) {

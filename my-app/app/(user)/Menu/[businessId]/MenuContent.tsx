@@ -3,10 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Search, SlidersHorizontal, Share2, Heart, ShoppingBag, MapPin, Clock, Utensils, Plus } from "lucide-react";
-import Nav from "@/components/Nav";
 import { OrderProvider, useOrder, type CartItem } from "@/components/OrderContext";
 import CheckoutModal from "@/components/CheckoutModal";
-import type { SessionPayload } from "@/lib/session";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type MenuItem = {
@@ -133,14 +131,12 @@ function MenuInner({
   businessAddress,
   categories,
   items,
-  session,
 }: {
   businessName: string;
   businessType: string;
   businessAddress: string;
   categories: string[];
   items: MenuItem[];
-  session: SessionPayload | null;
 }) {
   const [activeCategory, setActiveCategory] = useState(categories[0] ?? "");
   const [search, setSearch] = useState("");
@@ -159,8 +155,6 @@ function MenuInner({
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <Nav session={session} />
-
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-gray-200">
           <Image
@@ -287,7 +281,6 @@ export default function MenuContent(props: {
   businessAddress: string;
   categories: string[];
   items: MenuItem[];
-  session: SessionPayload | null;
 }) {
   return (
     <OrderProvider businessId={props.businessId}>

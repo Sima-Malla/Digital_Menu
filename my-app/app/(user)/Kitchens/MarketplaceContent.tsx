@@ -2,9 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import type { SessionPayload } from "@/lib/session";
 import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
 
 // Color the business-type badge consistently per type so cards feel
@@ -50,13 +48,10 @@ function sortBusinesses(list: BusinessListing[], key: SortKey): BusinessListing[
 export default function MarketplaceContent({
   businesses,
   businessTypes,
-  session,
 }: {
   businesses: BusinessListing[];
   businessTypes: string[];
-  session: SessionPayload | null;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recommended");
@@ -99,12 +94,6 @@ export default function MarketplaceContent({
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] text-[#231C16]">
-      <Nav
-        session={session}
-        menuOpen={sidebarOpen}
-        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
-
       {/* Hero */}
       <div className="px-6 pb-5 pt-9 md:px-10">
         <h1 className="text-3xl font-extrabold md:text-4xl">Discover Culinary Excellence</h1>

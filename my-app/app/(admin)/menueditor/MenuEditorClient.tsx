@@ -49,18 +49,17 @@ type Special = {
   badgeLabel: string;
   scheduleType: "recurring" | "one-time";
   weekday: number | null;
-  date: string | null; // "YYYY-MM-DD"
+  date: string | null; 
   imageUrl: string | null;
 };
 
-const categories = ["Main Course", "Appetizer", "Seafood", "Dessert", "Beverage"];
+const categories = ["Main Course", "Appetizer", "Seafood", "Dessert", "Beverage", "Drink"];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const FALLBACK_IMG = "/vegmomo.jpg";
 
 const menuItemInitial: MenuItemState = { success: false, message: "" };
 const specialInitial: SpecialState = { success: false, message: "" };
 
-/* ─── Toggle switch ──────────────────────────────────────── */
 function StatusToggle({ active, onChange, disabled }: { active: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button

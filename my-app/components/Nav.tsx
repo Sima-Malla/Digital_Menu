@@ -1,14 +1,16 @@
 "use client";
 
+import { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ShoppingCart, User, Menu, X, LayoutDashboard } from "lucide-react";
+import { Search,  ShoppingCart, User, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import type { SessionPayload } from "@/lib/session";
+import { logoutAction } from "@/app/actions/logout";
 
 const NAV_LINKS = [
   { label: "Explore", href: "/Home", active: true },
-  { label: "Business", href: "/Business" },
-  { label: "Rewards", href: "/rewards" },
+  { label: "Business", href: "/Kitchens" },
+  // { label: "Rewards", href: "/rewards" },
 ];
 
 export default function Nav({
@@ -22,6 +24,13 @@ export default function Nav({
 }) {
   const isLoggedIn = !!session;
   const isAdmin = session?.role === "admin"; // adjust this to match your SessionPayload shape
+  const [isLoggingOut, startLogoutTransition] = useTransition();
+
+  const handleLogout = () => {
+    startLogoutTransition(async () => {
+      await logoutAction();
+    });
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#B87333]/15 bg-[#F3EAD9]/95 backdrop-blur">
@@ -73,9 +82,7 @@ export default function Nav({
         </nav>
 
         <div className="hidden items-center gap-4 md:flex">
-          <button aria-label="Set location" className="text-[#5C4A3D] transition hover:text-[#7A2E22]">
-            <MapPin className="h-[18px] w-[18px]" strokeWidth={1.8} />
-          </button>
+         
           <button aria-label="Cart" className="relative text-[#5C4A3D] transition hover:text-[#7A2E22]">
             <ShoppingCart className="h-[18px] w-[18px]" strokeWidth={1.8} />
             <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#E3A73B] text-[8px] font-bold text-[#2A211D]">
@@ -84,13 +91,33 @@ export default function Nav({
           </button>
 
           {isLoggedIn ? (
-            <Link
-              href="/account"
-              aria-label="Account"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#B87333]/30 text-[#5C4A3D] transition hover:border-[#7A2E22] hover:text-[#7A2E22]"
-            >
-              <User className="h-4 w-4" strokeWidth={1.8} />
-            </Link>
+            <div className="group relative">
+              <Link
+                href="/account"
+                aria-label="Account"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#B87333]/30 text-[#5C4A3D] transition hover:border-[#7A2E22] hover:text-[#7A2E22]"
+              >
+                <User className="h-4 w-4" strokeWidth={1.8} />
+              </Link>
+
+              <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-[#B87333]/15 bg-white p-1 opacity-0 shadow-lg transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+                <Link
+                  href="/account"
+                  className="block rounded-lg px-3 py-2 text-left text-xs font-medium text-[#5C4A3D] transition hover:bg-[#F3EAD9]"
+                >
+                  My Account
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-[#7A2E22] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
+              </div>
+            </div>
           ) : (
             <Link
               href="/login"

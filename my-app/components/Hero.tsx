@@ -61,7 +61,7 @@ export default function Hero() {
               href="/Kitchens"
               className="rounded-full bg-[#D4AF37] px-9 py-4 text-sm font-semibold uppercase tracking-widest text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-[#c19d2e] hover:shadow-xl"
             >
-              Explore Kitchens
+              Explore Businesses
             </Link>
 
             <button className="rounded-full border border-white/70 px-9 py-4 text-sm font-medium uppercase tracking-widest text-white transition hover:-translate-y-0.5 hover:border-[#D4AF37] hover:text-[#D4AF37]">

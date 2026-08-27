@@ -36,7 +36,5 @@ export default async function MarketplacePage() {
     new Set(serialized.map((b) => b.type).filter(Boolean))
   );
 
-  const session = await getSession();
-
-  return <MarketplaceContent businesses={serialized} businessTypes={businessTypes} session={session} />;
+  return <MarketplaceContent businesses={serialized} businessTypes={businessTypes} />;
 }

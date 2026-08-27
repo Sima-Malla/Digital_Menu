@@ -17,6 +17,13 @@ export type CheckoutState = {
   fieldErrors?: Record<string, string>;
 };
 
+// Same pattern as walkInPhoneFor() in app/actions/pos.ts — one reusable
+// placeholder Customer row per business, since Customer.phone is unique
+// and required.
+function walkInPhoneFor(businessId: bigint) {
+  return `WALKIN-${businessId}`;
+}
+
 export const checkoutAction = async (input: CheckoutInput): Promise<CheckoutState> => {
   const parsed = checkoutSchema.safeParse(input);
 
@@ -32,8 +39,6 @@ export const checkoutAction = async (input: CheckoutInput): Promise<CheckoutStat
   const data = parsed.data;
   const businessId = BigInt(data.businessId);
 
-  // Re-fetch every dish from the DB — NEVER trust price/name the client sent.
-  // A tampered request could otherwise submit fake (lower) prices.
   const menuItemIds = data.items.map((i) => BigInt(i.menuItemId));
   const dbItems = await prisma.menuItem.findMany({
     where: { id: { in: menuItemIds }, businessId, isActive: true },
@@ -59,21 +64,15 @@ export const checkoutAction = async (input: CheckoutInput): Promise<CheckoutStat
     };
   });
 
-  // Find-or-create the customer by phone — repeat guests reuse the same row.
+  const phone = data.isWalkIn ? walkInPhoneFor(businessId) : data.customerPhone;
+  const name = data.isWalkIn ? "Walk-in Customer" : data.customerName;
+
   const customer = await prisma.customer.upsert({
-    where: { phone: data.customerPhone },
-    update: {
-      name: data.customerName,
-      email: data.customerEmail || undefined,
-    },
-    create: {
-      name: data.customerName,
-      phone: data.customerPhone,
-      email: data.customerEmail || null,
-    },
+    where: { phone },
+    update: data.isWalkIn ? {} : { name, email: data.customerEmail || undefined },
+    create: { name, phone, email: data.isWalkIn ? null : data.customerEmail || null },
   });
 
-  // Find-or-create the table/location if one was given (dine-in orders).
   let locationId: bigint | null = null;
   if (data.locationLabel) {
     const location = await prisma.location.upsert({
@@ -96,4 +95,4 @@ export const checkoutAction = async (input: CheckoutInput): Promise<CheckoutStat
   });
 
   return { success: true, message: "Order placed!", orderId: order.id.toString() };
-}
+};

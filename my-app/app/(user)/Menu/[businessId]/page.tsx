@@ -43,8 +43,6 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
 
   const categories = Array.from(new Set(serializedItems.map((i) => i.category)));
 
-  const session = await getSession();
-
   return (
     <MenuContent
       businessId={business.id.toString()}
@@ -53,7 +51,6 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
       businessAddress={business.businessAddress ?? ""}
       categories={categories}
       items={serializedItems}
-      session={session}
     />
   );
 }

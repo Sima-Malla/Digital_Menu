@@ -2,7 +2,6 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { Star, Utensils, Wifi, Sparkles, Camera, X } from "lucide-react";
-import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
 /* ─── Star picker ─────────────────────────────────────── */
@@ -93,8 +92,6 @@ export default function ReviewPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <Nav />
-
       <div className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-4">
         {submitted ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
