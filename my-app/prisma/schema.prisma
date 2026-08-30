@@ -45,6 +45,7 @@ model Business {
   paymentGateways     PaymentGateway[]
   paymentMethods      PaymentMethod[]
   paymentSettings     PaymentSettings?
+  reviews             BusinessReview[]
 
 
   businessHours BusinessHours[]
@@ -175,6 +176,7 @@ model Order {
   status        String      @default("new")
   delayReason   String?
   paymentStatus String      @default("unpaid")
+  paymentRef    String?     // gateway transaction reference (eSewa transaction_uuid / FonePay PRN)
   totalAmount   Decimal     @db.Decimal(10, 2)
   orderedAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -187,8 +189,8 @@ model Order {
 
   @@index([businessId])
   @@index([status])
+  @@index([paymentRef])
 }
-
 model OrderItem {
   id         BigInt   @id @default(autoincrement())
   orderId    BigInt
@@ -495,6 +497,30 @@ model NotificationSettings {
 
 
 
+
+model SupportMessage {
+  id         BigInt   @id @default(autoincrement())
+  name       String
+  email      String
+  message    String
+  status     String   @default("unread") // "unread" | "read" | "resolved"
+  createdAt  DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BusinessReview {
+  id         BigInt   @id @default(autoincrement())
+  businessId BigInt
+  name       String
+  rating     Int      // 1–5
+  comment    String?
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
 
 model SentNotification {
   id          BigInt   @id @default(autoincrement())

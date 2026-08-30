@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
+
+const FAVORITES_STORAGE_KEY = "kitchens-favorites-v1";
 
 // Color the business-type badge consistently per type so cards feel
 // as colorful as the old mock UI, without inventing per-business data.
@@ -56,6 +58,34 @@ export default function MarketplaceContent({
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recommended");
   const [page, setPage] = useState(1);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setFavoriteIds(parsed.filter((id) => typeof id === "string"));
+      }
+    } catch {
+      // Ignore storage errors and continue with an empty favorites list.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favoriteIds));
+    } catch {
+      // Ignore storage write errors; the UI still works without persistence.
+    }
+  }, [favoriteIds]);
+
+  const toggleFavorite = (id: string) => {
+    setFavoriteIds((prev) =>
+      prev.includes(id) ? prev.filter((favoriteId) => favoriteId !== id) : [...prev, id]
+    );
+  };
 
   const toggleType = (val: string) => {
     setSelectedTypes((prev) =>
@@ -67,11 +97,15 @@ export default function MarketplaceContent({
   const clearFilters = () => {
     setSelectedTypes([]);
     setSearch("");
+    setShowSavedOnly(false);
     setPage(1);
   };
 
   const filtered = useMemo(() => {
     let list = businesses;
+    if (showSavedOnly) {
+      list = list.filter((b) => favoriteIds.includes(b.id));
+    }
     if (selectedTypes.length > 0) {
       list = list.filter((b) => selectedTypes.includes(b.type));
     }
@@ -85,12 +119,13 @@ export default function MarketplaceContent({
       );
     }
     return list;
-  }, [businesses, selectedTypes, search]);
+  }, [businesses, favoriteIds, selectedTypes, search, showSavedOnly]);
 
   const sorted = useMemo(() => sortBusinesses(filtered, sortKey), [filtered, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const savedCount = businesses.filter((b) => favoriteIds.includes(b.id)).length;
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] text-[#231C16]">
@@ -106,6 +141,21 @@ export default function MarketplaceContent({
       <div className="flex flex-col gap-8 px-6 pb-16 md:flex-row md:px-10">
         {/* Sidebar */}
         <aside className="w-full shrink-0 md:w-56">
+          <FilterGroup title="Saved Businesses">
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[#231C16]">
+              <input
+                type="checkbox"
+                checked={showSavedOnly}
+                onChange={() => {
+                  setShowSavedOnly((prev) => !prev);
+                  setPage(1);
+                }}
+                className="h-4 w-4 cursor-pointer accent-orange-700"
+              />
+              Show only saved ({savedCount})
+            </label>
+          </FilterGroup>
+
           <FilterGroup title="Business Type">
             {businessTypes.length === 0 ? (
               <p className="text-xs text-gray-400">No businesses listed yet</p>
@@ -133,7 +183,14 @@ export default function MarketplaceContent({
         <main className="min-w-0 flex-1">
           {/* Results bar + sort */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-gray-500">{sorted.length} businesses found</p>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <p>{sorted.length} businesses found</p>
+              {showSavedOnly && (
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 font-semibold text-orange-700">
+                  Saved view
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <label htmlFor="sort" className="text-xs text-gray-500">
                 Sort by
@@ -157,12 +214,19 @@ export default function MarketplaceContent({
           {/* Grid */}
           {paged.length === 0 ? (
             <p className="py-16 text-center text-sm text-gray-400">
-              No businesses match your filters.
+              {showSavedOnly
+                ? "You haven’t saved any businesses yet. Click the heart on a restaurant card to save it."
+                : "No businesses match your filters."}
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {paged.map((b) => (
-                <BusinessCard key={b.id} b={b} />
+                <BusinessCard
+                  key={b.id}
+                  b={b}
+                  isFavorite={favoriteIds.includes(b.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
               ))}
             </div>
           )}
@@ -223,7 +287,15 @@ function Checkbox({
   );
 }
 
-function BusinessCard({ b }: { b: BusinessListing }) {
+function BusinessCard({
+  b,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  b: BusinessListing;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
+}) {
   const badgeColor = TYPE_BADGE_COLORS[b.type] ?? DEFAULT_BADGE_COLOR;
 
   return (
@@ -241,9 +313,26 @@ function BusinessCard({ b }: { b: BusinessListing }) {
             {b.type}
           </span>
         )}
-        <div className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90">
-          <Heart className="h-3.5 w-3.5 text-orange-700" />
-        </div>
+        <button
+          type="button"
+          aria-label={isFavorite ? `Remove ${b.name} from saved favorites` : `Save ${b.name} to favorites`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite(b.id);
+          }}
+          className={`absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border transition ${
+            isFavorite
+              ? "border-red-500 bg-red-500 text-white shadow-sm"
+              : "border-white/60 bg-white/90 text-orange-700 hover:bg-white"
+          }`}
+        >
+          <Heart
+            className="h-3.5 w-3.5"
+            fill={isFavorite ? "currentColor" : "none"}
+            strokeWidth={isFavorite ? 2.5 : 2}
+          />
+        </button>
         <p className="absolute bottom-2.5 left-3 text-base font-bold text-white drop-shadow">
           {b.name}
         </p>

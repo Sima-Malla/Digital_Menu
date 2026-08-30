@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
-import { getSession } from "@/lib/session";
 import MenuContent from "./MenuContent";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -22,15 +21,21 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
 
   const business = await prisma.business.findUnique({
     where: { id: businessIdBig! },
-    select: { id: true, businessName: true, businessType: true, businessAddress: true },
+    select: { id: true, businessName: true, businessType: true, businessAddress: true, businessPhone: true },
   });
 
   if (!business) notFound();
 
-  const items = await prisma.menuItem.findMany({
-    where: { businessId: businessIdBig!, isActive: true },
-    orderBy: { name: "asc" },
-  });
+  const [items, reviews] = await Promise.all([
+    prisma.menuItem.findMany({
+      where: { businessId: businessIdBig!, isActive: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.businessReview.findMany({
+      where: { businessId: businessIdBig! },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const serializedItems = items.map((item) => ({
     id: item.id.toString(),
@@ -41,6 +46,18 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
     imageUrl: item.imageUrl,
   }));
 
+  const serializedReviews = reviews.map((r) => ({
+    id: r.id.toString(),
+    name: r.name,
+    rating: r.rating,
+    comment: r.comment,
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  const avgRating = reviews.length
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    : 0;
+
   const categories = Array.from(new Set(serializedItems.map((i) => i.category)));
 
   return (
@@ -49,8 +66,11 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
       businessName={business.businessName ?? "Restaurant"}
       businessType={business.businessType ?? ""}
       businessAddress={business.businessAddress ?? ""}
+      businessPhone={business.businessPhone ?? ""}
       categories={categories}
       items={serializedItems}
+      reviews={serializedReviews}
+      avgRating={avgRating}
     />
   );
 }

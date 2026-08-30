@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Search, SlidersHorizontal, Share2, Heart, ShoppingBag, MapPin, Clock, Utensils, Plus } from "lucide-react";
+import { Search, SlidersHorizontal, ShoppingBag, MapPin, Utensils, Plus, Menu as MenuIcon, Star } from "lucide-react";
 import { OrderProvider, useOrder, type CartItem } from "@/components/OrderContext";
 import CheckoutModal from "@/components/CheckoutModal";
+import Sidebar from "@/components/SideBar";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type MenuItem = {
@@ -14,6 +15,14 @@ type MenuItem = {
   category: string;
   price: number;
   imageUrl: string | null;
+};
+
+type Review = {
+  id: string;
+  name: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
 };
 
 const FALLBACK_IMG = "/vegmomo.jpg";
@@ -124,23 +133,103 @@ function OrderPanel({ onCheckout }: { onCheckout: () => void }) {
   );
 }
 
+/* ─── Reviews section ───────────────────────────────────────── */
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star key={s} className="h-3.5 w-3.5" strokeWidth={1.5}
+          fill={rating >= s ? "#FBBF24" : "none"}
+          color={rating >= s ? "#FBBF24" : "#D1D5DB"} />
+      ))}
+    </div>
+  );
+}
+
+function ReviewsSection({ reviews, avgRating }: { reviews: Review[]; avgRating: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? reviews : reviews.slice(0, 4);
+  return (
+    <section className="mt-10 border-t border-gray-100 pt-8">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Guest Reviews</h2>
+          {reviews.length > 0 && (
+            <div className="mt-1 flex items-center gap-2">
+              <StarRow rating={Math.round(avgRating)} />
+              <span className="text-sm font-semibold text-gray-700">{avgRating.toFixed(1)}</span>
+              <span className="text-xs text-gray-400">({reviews.length} review{reviews.length !== 1 ? "s" : ""})</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {reviews.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-10 text-center">
+          <Star className="mx-auto h-8 w-8 text-gray-200" />
+          <p className="mt-3 text-sm font-medium text-gray-400">No reviews yet</p>
+          <p className="mt-1 text-xs text-gray-300">Be the first to share your experience!</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {visible.map((r) => (
+              <div key={r.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+                      {r.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{r.name}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                  <StarRow rating={r.rating} />
+                </div>
+                {r.comment && <p className="mt-3 text-sm leading-relaxed text-gray-600">{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+          {reviews.length > 4 && (
+            <button onClick={() => setShowAll((v) => !v)}
+              className="mt-4 w-full rounded-full border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">
+              {showAll ? "Show less" : `Show all ${reviews.length} reviews`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 /* ─── Page content ────────────────────────────────────────── */
 function MenuInner({
+  businessId,
   businessName,
   businessType,
   businessAddress,
+  businessPhone,
   categories,
   items,
+  reviews,
+  avgRating,
 }: {
+  businessId: string;
   businessName: string;
   businessType: string;
   businessAddress: string;
+  businessPhone: string;
   categories: string[];
   items: MenuItem[];
+  reviews: Review[];
+  avgRating: number;
 }) {
   const [activeCategory, setActiveCategory] = useState(categories[0] ?? "");
   const [search, setSearch] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filtered = (list: MenuItem[]) =>
     search.trim()
@@ -155,6 +244,13 @@ function MenuInner({
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        businessId={businessId}
+        businessName={businessName}
+        businessPhone={businessPhone}
+      />
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-gray-200">
           <Image
@@ -184,11 +280,11 @@ function MenuInner({
             </div>
           </div>
           <div className="absolute bottom-4 right-4 flex gap-2">
-            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-              <Share2 className="h-3.5 w-3.5" /> Share
-            </button>
-            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-              <Heart className="h-3.5 w-3.5" /> Save
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-lg hover:bg-orange-600 active:scale-95 transition-transform"
+            >
+              <MenuIcon className="h-3.5 w-3.5" /> More Options
             </button>
           </div>
         </div>
@@ -242,6 +338,7 @@ function MenuInner({
                 </div>
               )}
             </div>
+            <ReviewsSection reviews={reviews} avgRating={avgRating} />
           </main>
 
           <div className="hidden w-60 shrink-0 lg:block">
@@ -279,8 +376,11 @@ export default function MenuContent(props: {
   businessName: string;
   businessType: string;
   businessAddress: string;
+  businessPhone: string;
   categories: string[];
   items: MenuItem[];
+  reviews: Review[];
+  avgRating: number;
 }) {
   return (
     <OrderProvider businessId={props.businessId}>

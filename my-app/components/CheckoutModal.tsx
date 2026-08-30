@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Loader2, CheckCircle2, CreditCard, Wallet, Banknote, Landmark } from "lucide-react";
 import { useOrder } from "@/components/OrderContext";
-import { getAvailablePaymentMethods, markOrderPaidAction, type PaymentMethodOption } from "@/app/actions/payment";
+import { getAvailablePaymentMethods, initiatePaymentAction, type PaymentMethodOption } from "@/app/actions/payment";
 
 const orderTypes = [
   { id: "dine-in", label: "Dine-In" },
@@ -19,9 +19,8 @@ const METHOD_ICONS: Record<string, React.ElementType> = {
   card: CreditCard,
   wallet: Wallet,
   esewa: Wallet,
-  khalti: Wallet,
+  fonepay: Wallet,
 };
-
 export default function CheckoutModal({ onClose }: { onClose: () => void }) {
   const { checkout, totalPrice, totalItems, businessId } = useOrder();
 
@@ -45,6 +44,7 @@ export default function CheckoutModal({ onClose }: { onClose: () => void }) {
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(false);
+  const [isCodConfirmed, setIsCodConfirmed] = useState(false);
 
   // Fetch this business's enabled payment methods once an order exists.
   useEffect(() => {
@@ -98,23 +98,64 @@ export default function CheckoutModal({ onClose }: { onClose: () => void }) {
     setPaymentError(null);
     setIsPaying(true);
 
-    const result = await markOrderPaidAction(placedOrderId, methodKey);
-
-    setIsPaying(false);
+    const result = await initiatePaymentAction(placedOrderId, methodKey);
 
     if (!result.success) {
-      setPaymentError(result.message ?? "Couldn't confirm payment — please try again.");
+      setIsPaying(false);
+      setPaymentError(result.message);
       return;
     }
 
-    setIsPaid(true);
+    if (result.type === "cod") {
+      setIsPaying(false);
+      setIsCodConfirmed(true);
+      return;
+    }
+
+    if (result.type === "redirect_form") {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = result.gatewayUrl;
+      for (const [key, value] of Object.entries(result.fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      return;
+    }
+
+    if (result.type === "redirect_url") {
+      window.location.href = result.url;
+      return;
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
       <div className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
         {placedOrderId ? (
-          isPaid ? (
+          isCodConfirmed ? (
+            /* ── COD confirmation ───────────────────────── */
+            <div className="py-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">Order confirmed!</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Order #{placedOrderId} — pay Rs. {placedTotal} at the counter.
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-6 w-full rounded-full bg-gray-900 py-2.5 text-sm font-bold text-white hover:bg-gray-700"
+              >
+                Done
+              </button>
+            </div>
+          ) : isPaid ? (
             /* ── Final confirmation ─────────────────────── */
             <div className="py-6 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
