@@ -17,7 +17,7 @@ model Business {
   updatedAt         DateTime @updatedAt
   allowReviews      Boolean  @default(true)
   bannerUrl         String?
-  currency          String   @default("USD ($)")
+  currency          String   @default("NPR (Rs.)")
   email             String?  @unique
   facebook          String?
   instagram         String?
@@ -96,6 +96,7 @@ model Staff {
   isActive        Boolean  @default(true)
   position        String   @default("Waiter")
   needsOnboarding Boolean  @default(true)
+  notificationPrefs Json?
   business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])

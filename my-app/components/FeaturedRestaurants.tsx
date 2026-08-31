@@ -9,7 +9,7 @@ type Restaurant = {
   cuisine: string;
   time: string;
   distance: string;
-  price: "$" | "$$" | "$$$";
+  price: "Rs." | "Rs.Rs." | "Rs.Rs.Rs.";
   tags: string[];
   image: string;
 };
@@ -21,7 +21,7 @@ const restaurants: Restaurant[] = [
     cuisine: "French Fusion",
     time: "20-35 min",
     distance: "2.4 miles",
-    price: "$$$",
+    price: "Rs.Rs.Rs.",
     tags: ["Michelin Guide", "Free Delivery"],
     image:
       "/Overlay.png",
@@ -32,7 +32,7 @@ const restaurants: Restaurant[] = [
     cuisine: "Mediterranean",
     time: "15-25 min",
     distance: "1.1 miles",
-    price: "$$",
+    price: "Rs.Rs.",
     tags: ["Popular Nearby", "Healthy Choice"],
      image:
       "/Overlay.png",
@@ -43,7 +43,7 @@ const restaurants: Restaurant[] = [
     cuisine: "Craft Burgers",
     time: "25-40 min",
     distance: "3.6 miles",
-    price: "$$",
+    price: "Rs.Rs.",
     tags: ["Award Winning", "Flame Grilled"],
     image:
       "/Overlay.png",

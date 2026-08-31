@@ -68,7 +68,7 @@ export async function getGeneralSettings(businessId: bigint): Promise<GeneralSet
     logoUrl: business.logoUrl,
     bannerUrl: business.bannerUrl,
     language: business.language || "English (US)",
-    currency: business.currency || "USD ($)",
+    currency: business.currency || "NPR (Rs.)",
     timezone: business.timezone || "EST (UTC-5)",
     taxId: business.taxId ?? "",
     taxRegistration: business.taxRegistration ?? "",

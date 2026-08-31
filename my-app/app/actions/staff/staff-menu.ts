@@ -47,7 +47,7 @@ export async function getStaffMenuItems(): Promise<MenuItemData[]> {
     img: item.imageUrl || "/placeholder-dish.png",
     meta: item.description || "",
     category: item.category,
-    price: `$${Number(item.price).toFixed(2)}`,
+    price: `Rs. ${Number(item.price).toFixed(2)}`,
     status: normalizeStatus(item.isActive),
   }));
 }

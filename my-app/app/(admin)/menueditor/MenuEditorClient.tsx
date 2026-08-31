@@ -195,7 +195,7 @@ function ItemDetailsForm({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-gray-400">
-              Price ($)
+              Price (Rs.)
             </label>
             <input
               type="text"

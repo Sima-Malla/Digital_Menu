@@ -137,3 +137,59 @@ export async function changeStaffPassword(payload: {
     return { success: false, message: "Failed to change password." };
   }
 }
+
+export type NotificationPrefsState = {
+  soundOn: boolean;
+  notifPrefs: Record<string, boolean>;
+};
+
+/**
+ * 4. Staff को Notification preferences ल्याउने
+ */
+export async function getStaffNotificationPrefs(): Promise<NotificationPrefsState | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  try {
+    const staff = await prisma.staff.findUnique({
+      where: { id: BigInt(session.userId) },
+      select: { notificationPrefs: true },
+    });
+
+    if (!staff || !staff.notificationPrefs) return null;
+
+    const parsed = typeof staff.notificationPrefs === "string"
+      ? JSON.parse(staff.notificationPrefs)
+      : staff.notificationPrefs;
+
+    return {
+      soundOn: typeof parsed.soundOn === "boolean" ? parsed.soundOn : true,
+      notifPrefs: typeof parsed.notifPrefs === "object" && parsed.notifPrefs ? (parsed.notifPrefs as Record<string, boolean>) : {},
+    };
+  } catch (error) {
+    console.error("Error fetching staff notification prefs:", error);
+    return null;
+  }
+}
+
+/**
+ * 5. Staff को Notification preferences update/save गर्ने
+ */
+export async function updateStaffNotificationPrefs(payload: NotificationPrefsState): Promise<ApiResult> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, message: "Not authorized." };
+  }
+
+  try {
+    await prisma.staff.update({
+      where: { id: BigInt(session.userId) },
+      data: { notificationPrefs: JSON.parse(JSON.stringify(payload)) },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update staff notification prefs:", error);
+    return { success: false, message: "Failed to save notification preferences." };
+  }
+}

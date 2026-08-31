@@ -240,7 +240,7 @@ export default function GeneralSettingsClient({ initialSettings }: { initialSett
                   label="Currency"
                   value={settings.currency}
                   onChange={(v) => update("currency", v)}
-                  placeholder="e.g. USD ($)"
+                  placeholder="e.g. NPR (Rs.)"
                 />
                 <InputField
                   label="Timezone"

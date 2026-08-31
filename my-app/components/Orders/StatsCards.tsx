@@ -15,7 +15,7 @@ const stats = [
   },
   {
     title: "Gross Revenue",
-    value: "$184,520",
+    value: "Rs. 184,520",
     change: "+8.2%",
     icon: DollarSign,
     color: "bg-green-100 text-green-600",
