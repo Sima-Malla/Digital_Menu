@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Flame } from "lucide-react";
-
 import type { TrendingBusiness } from "@/lib/queries/trending";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 const FALLBACK_IMG = "/Container.png";
 
@@ -54,16 +54,26 @@ function TrendingCard({
       ? "Trending"
       : null;
 
+  const imageSrc = toValidImageSrc(business.imageUrl);
+
   return (
     <div className="group overflow-hidden rounded-xl bg-neutral-50 transition-all hover:shadow-lg hover:ring-1 hover:ring-orange-500/20">
-      <div className="relative h-32 w-full overflow-hidden">
-        <Image
-          src={business.imageUrl || FALLBACK_IMG}
-          alt={business.name}
-          fill
-          sizes="(max-width: 640px) 100vw, 200px"
-          className="object-cover transition-transform duration-300 group-hover:scale-110"
-        />
+      <div className="relative h-32 w-full overflow-hidden bg-neutral-800">
+        {imageSrc ? (
+          <Image
+            src={imageSrc}
+            alt={business.name}
+            fill
+            sizes="(max-width: 640px) 100vw, 200px"
+            className="object-cover transition-transform duration-300 group-hover:scale-110"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-700 via-orange-600 to-stone-900 p-3 text-center">
+            <span className="text-xs font-black uppercase tracking-wider text-white/90 drop-shadow">
+              {business.name}
+            </span>
+          </div>
+        )}
         {tag && (
           <div className="absolute left-3 top-3 rounded-full bg-orange-500 px-2.5 py-1 text-xs font-semibold text-white">
             {tag}

@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -15,22 +16,6 @@ export type PublicBusinessListing = {
   phone: string;
   imageUrl?: string | null;
 };
-
-function toImageSrc(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("data:image/") ||
-    /^https?:\/\//i.test(trimmed)
-  ) {
-    return trimmed;
-  }
-  if (trimmed.startsWith("//")) {
-    return `https:${trimmed}`;
-  }
-  return null;
-}
 
 export async function getPublicBusinesses(): Promise<PublicBusinessListing[]> {
   try {
@@ -54,7 +39,7 @@ export async function getPublicBusinesses(): Promise<PublicBusinessListing[]> {
       type: b.businessType ?? "Restaurant",
       address: b.businessAddress ?? "",
       phone: b.businessPhone ?? "",
-      imageUrl: toImageSrc(b.bannerUrl) ?? toImageSrc(b.logoUrl),
+      imageUrl: toValidImageSrc(b.bannerUrl) ?? toValidImageSrc(b.logoUrl),
     }));
   } catch (error) {
     console.error("Failed to fetch public businesses:", error);

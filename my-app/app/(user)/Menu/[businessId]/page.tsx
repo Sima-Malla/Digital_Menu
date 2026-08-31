@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import MenuContent from "./MenuContent";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -21,7 +22,15 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
 
   const business = await prisma.business.findUnique({
     where: { id: businessIdBig! },
-    select: { id: true, businessName: true, businessType: true, businessAddress: true, businessPhone: true },
+    select: {
+      id: true,
+      businessName: true,
+      businessType: true,
+      businessAddress: true,
+      businessPhone: true,
+      bannerUrl: true,
+      logoUrl: true,
+    },
   });
 
   if (!business) notFound();
@@ -43,7 +52,7 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
     description: item.description ?? "",
     category: item.category,
     price: Number(item.price),
-    imageUrl: item.imageUrl,
+    imageUrl: toValidImageSrc(item.imageUrl),
   }));
 
   const serializedReviews = reviews.map((r) => ({
@@ -67,6 +76,8 @@ export default async function MenuPage({ params }: { params: Promise<{ businessI
       businessType={business.businessType ?? ""}
       businessAddress={business.businessAddress ?? ""}
       businessPhone={business.businessPhone ?? ""}
+      bannerUrl={toValidImageSrc(business.bannerUrl)}
+      logoUrl={toValidImageSrc(business.logoUrl)}
       categories={categories}
       items={serializedItems}
       reviews={serializedReviews}

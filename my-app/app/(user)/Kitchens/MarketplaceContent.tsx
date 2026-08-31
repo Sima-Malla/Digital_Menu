@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Footer from "@/components/Footer";
 import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
 import { useSaved } from "@/components/SavedContext";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 const FAVORITES_STORAGE_KEY = "kitchens-favorites-v1";
 
@@ -18,16 +20,15 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 const DEFAULT_BADGE_COLOR = "bg-orange-700";
 
 /* ─── Types ──────────────────────────────────────────────── */
-// Matches exactly what the Business table provides today.
-// rating / chips / tag / price tier / image are NOT in the schema yet —
-// add columns to `Business` (e.g. rating, imageUrl, priceTier, cuisine)
-// if you want those back in the UI.
 type BusinessListing = {
   id: string;
   name: string;
   type: string;
   address: string;
   phone: string;
+  imageUrl?: string | null;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
 };
 
 type SortKey = "recommended" | "name-asc" | "name-desc";
@@ -246,14 +247,27 @@ function BusinessCard({
   onToggleFavorite: (id: string) => void;
 }) {
   const badgeColor = TYPE_BADGE_COLORS[b.type] ?? DEFAULT_BADGE_COLOR;
+  const imageSrc = toValidImageSrc(b.imageUrl) ?? toValidImageSrc(b.bannerUrl) ?? toValidImageSrc(b.logoUrl);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Banner — swap the src for a per-business <Image> once Business has an imageUrl column */}
-      <div
-        className="relative h-40 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hotel.png')" }}
-      >
+      {/* Banner */}
+      <div className="relative h-40 overflow-hidden bg-neutral-800">
+        {imageSrc ? (
+          <Image
+            src={imageSrc}
+            alt={b.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-700 via-orange-600 to-stone-900 p-4 text-center">
+            <span className="text-xl font-black uppercase tracking-wider text-white/90 drop-shadow">
+              {b.name}
+            </span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         {b.type && (
           <span
