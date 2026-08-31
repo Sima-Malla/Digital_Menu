@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getStaffDashboardData } from "@/lib/staff/dashboard";
-import NotificationBell from "@/components/NotificationBell";
+
 
 function minutesAgoLabel(iso: string) {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -34,7 +34,7 @@ export default async function StaffDashboardPage() {
             <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Dashboard</h1>
             <p className="mt-1 text-sm text-slate-500">Today's overview for {data.businessName}.</p>
           </div>
-          <NotificationBell />
+         
         </div>
 
         {/* Summary cards */}

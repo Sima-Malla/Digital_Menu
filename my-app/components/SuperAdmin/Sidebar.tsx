@@ -105,12 +105,9 @@ export default function Sidebar() {
       {/* Mobile top bar */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b bg-white px-5 lg:hidden">
          <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
+          <img
             src="/logo.png"
             alt="MenuTap"
-            width={120}
-            height={30}
-            priority
             className="h-9 w-auto object-contain"
           />
         </Link>
@@ -146,12 +143,9 @@ export default function Sidebar() {
 
           <div className="mt-2 lg:mt-5">
              <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
+          <img
             src="/logo.png"
             alt="MenuTap"
-            width={120}
-            height={30}
-            priority
             className="h-9 w-auto object-contain"
           />
         </Link>

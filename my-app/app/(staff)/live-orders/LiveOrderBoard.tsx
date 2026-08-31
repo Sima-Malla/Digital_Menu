@@ -18,32 +18,6 @@ const tagStyle: Record<string, string> = {
   KITCHEN: "bg-gray-100 text-gray-600",
 };
 
-function TopBar() {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white px-6 py-4 lg:px-8">
-      <h1 className="text-lg font-extrabold text-orange-600">Live Orders</h1>
-      <div className="flex items-center gap-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search order ID..."
-            className="w-56 rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-600 outline-none focus:border-orange-300"
-          />
-        </div>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-full bg-orange-600 text-white hover:bg-orange-700">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-            3
-          </span>
-        </button>
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100">
-          <Bell className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function ColumnHeader({ dot, label, count }: { dot: string; label: string; count: number }) {
   return (
@@ -290,7 +264,7 @@ export default function LiveOrdersBoard({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <TopBar />
+     
 
       <main className="flex-1 overflow-x-auto px-6 py-6 lg:px-8">
         <div className="grid min-w-[900px] grid-cols-4 gap-5">

@@ -177,12 +177,9 @@ export default function SignupPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-black/85" />
 
         <Link href="/" className="absolute left-8 top-8 z-10 inline-flex items-center rounded-lg bg-white shadow">
-          <Image
+          <img
             src="/logo.png"
             alt="MenuTap"
-            width={120}
-            height={30}
-            priority
             className="h-9 w-auto object-contain"
           />
         </Link>

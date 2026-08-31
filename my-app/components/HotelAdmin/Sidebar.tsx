@@ -101,12 +101,9 @@ export default function Sidebar() {
           </div>
           <div>
             <Link href="/" className="inline-flex shrink-0 items-center">
-              <Image
+              <img
                 src="/logo.png"
                 alt="MenuTap"
-                width={120}
-                height={30}
-                priority
                 className="h-9 w-auto object-contain"
               />
             </Link>

@@ -44,7 +44,7 @@ export default function Nav({
         </button>
 
         <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image src="/logo.png" alt="MenuTap" width={120} height={30} priority className="h-9 w-auto object-contain" />
+          <img src="/logo.png" alt="MenuTap" className="h-9 w-auto object-contain" />
         </Link>
 
         <div className="hidden max-w-md flex-1 items-center gap-2 rounded-full border border-[#B87333]/25 bg-white/70 px-4 py-2 lg:flex">
