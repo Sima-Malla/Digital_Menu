@@ -4,6 +4,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logEvent } from "@/lib/log-event";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
+import { createBusinessNotification } from "@/lib/notifications";
 
 export type SuperadminOrder = {
   id: string;
@@ -226,6 +228,20 @@ export async function updateOrderAction(id: string, input: UpdateOrderInput) {
       details: `Payment: ${input.paymentStatus}${input.delayReason ? ` · Delay reason: ${input.delayReason}` : ""}`,
     });
 
+    await createSuperAdminNotification({
+      title: `Order #${id} Status Updated`,
+      message: `Order #${id} at ${updated.business.businessName} set to '${input.status}' (Payment: ${input.paymentStatus}).`,
+      type: "system_alert",
+    });
+
+    await createBusinessNotification({
+      businessId: updated.businessId,
+      title: `Order #${id} Updated`,
+      message: `Order #${id} status changed to ${input.status}.`,
+      type: "order_update",
+      orderId: updated.id,
+    });
+
     revalidatePath("/orders");
     return { success: true, message: "Order updated." };
   } catch (err) {
@@ -258,6 +274,21 @@ export async function deleteOrder(id: string) {
       status: "Completed",
       business: existing?.business.businessName,
     });
+
+    await createSuperAdminNotification({
+      title: `Order #${id} Deleted`,
+      message: `Order #${id} from ${existing?.business.businessName || "business"} was removed.`,
+      type: "system_alert",
+    });
+
+    if (existing?.businessId) {
+      await createBusinessNotification({
+        businessId: existing.businessId,
+        title: `Order #${id} Removed`,
+        message: `Order #${id} was deleted by SuperAdmin.`,
+        type: "order_update",
+      });
+    }
 
     revalidatePath("/orders");
     return { success: true, message: "Order deleted." };

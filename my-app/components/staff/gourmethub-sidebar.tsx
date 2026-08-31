@@ -23,6 +23,7 @@ import {
 import {
   type StaffSidebarSummary,
 } from "@/lib/staff/sidebar";
+import NotificationBell from "@/components/NotificationBell";
 
 const menus = [
   { name: "Dashboard", icon: LayoutGrid, href: "/staffdashboard" },
@@ -142,23 +143,24 @@ export default function GourmetHubSidebar() {
           />
         </Link>
 
-        {/* Staff Profile */}
-        <div className="mt-6 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-          <img
-            src={profileImage}
-            alt={staffName}
-            className="h-9 w-9 rounded-full object-cover"
-          />
-
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-semibold text-slate-800">
-              {staffName}
-            </p>
-
-            <p className="truncate text-xs text-slate-400">
-              {businessName}
-            </p>
+        {/* Staff Profile & Notifications */}
+        <div className="mt-6 flex items-center justify-between rounded-xl bg-slate-50 p-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={profileImage}
+              alt={staffName}
+              className="h-9 w-9 rounded-full object-cover shrink-0"
+            />
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-semibold text-slate-800">
+                {staffName}
+              </p>
+              <p className="truncate text-xs text-slate-400">
+                {businessName}
+              </p>
+            </div>
           </div>
+          <NotificationBell />
         </div>
 
         {/* Navigation */}

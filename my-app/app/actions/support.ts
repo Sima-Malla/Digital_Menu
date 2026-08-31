@@ -24,5 +24,15 @@ export async function sendSupportMessageAction(input: {
   if (!message) return { success: false, message: "Please enter a message." };
 
   await prisma.supportMessage.create({ data: { name, email, message } });
+
+  // Notify SuperAdmin of new support inquiry / report
+  import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+    createSuperAdminNotification({
+      title: `New Support Report from ${name}`,
+      message: `User ${name} (${email}) submitted a support message: "${message.length > 80 ? message.slice(0, 80) + "..." : message}"`,
+      type: "support_report",
+    }).catch(console.error);
+  });
+
   return { success: true };
 }

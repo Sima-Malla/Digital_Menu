@@ -10,6 +10,7 @@ import {
   getAdminOrders, getAdminOrderStats, getAdminOrderDetail,
   updateAdminOrderAction, deleteAdminOrder, AdminOrder, AdminOrderDetail,
 } from "@/app/actions/admin/allorders";
+import NotificationBell from "@/components/NotificationBell";
 
 const statusColor: Record<string, string> = {
   New: "bg-blue-100 text-blue-700",
@@ -249,7 +250,7 @@ export default function AdminOrdersPage() {
             <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
               <Download size={18} /> Export
             </button>
-            <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><Bell size={18} /></button>
+            <NotificationBell />
             <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><CircleHelp size={18} /></button>
           </div>
         </div>

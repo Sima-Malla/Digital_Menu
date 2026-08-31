@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bell, CircleHelp, Download, Search, Eye,
+  Download, Search, Eye,
   ShoppingBag, Store, AlertTriangle, ChevronLeft, ChevronRight,
   X, Loader2,
 } from "lucide-react";
 import {
   getOrders, getBusinesses, getStats, getOrderDetail, exportOrdersAction, SuperadminOrder,
 } from "@/app/actions/superadmin/order";
+import SuperAdminNotificationBell from "@/components/SuperAdmin/SuperAdminNotificationBell";
 
 const statusColor: Record<string, string> = {
   New: "bg-blue-100 text-blue-700",
@@ -189,8 +190,7 @@ export default function OrdersPage() {
                 </>
               )}
             </button>
-            <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><Bell size={18} /></button>
-            <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><CircleHelp size={18} /></button>
+            <SuperAdminNotificationBell />
           </div>
         </div>
       </header>

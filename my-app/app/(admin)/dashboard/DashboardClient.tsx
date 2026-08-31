@@ -16,6 +16,8 @@ const statusStyle: Record<string, string> = {
   Delayed:   "bg-red-100 text-red-600",
 };
 
+import NotificationBell from "@/components/NotificationBell";
+
 function Header({ businessName }: { businessName: string }) {
   return (
     <header className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 lg:px-8">
@@ -29,9 +31,7 @@ function Header({ businessName }: { businessName: string }) {
             className="w-64 rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-600 outline-none focus:border-orange-300"
           />
         </div>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
         <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-200">
           <Image src="/hotel.png" alt="Profile" width={36} height={36} className="h-full w-full object-cover" />
         </div>

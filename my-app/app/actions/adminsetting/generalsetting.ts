@@ -33,6 +33,25 @@ export async function saveGeneralSettingsAction(data: GeneralSettings) {
     revalidatePath(SETTINGS_PATH);
     revalidatePath("/dashboard");
 
+    // Log event for System Logs and notify SuperAdmin of business updates
+    import("@/lib/log-event").then(({ logEvent }) => {
+      logEvent({
+        event: "Business Settings Updated",
+        module: "Businesses",
+        status: "Success",
+        business: data.restaurantName.trim(),
+        details: `Updated phone: ${data.phone ?? "—"}, email: ${data.email ?? "—"}`,
+      }).catch(console.error);
+    });
+
+    import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+      createSuperAdminNotification({
+        title: `Business Details Edited: ${data.restaurantName.trim()}`,
+        message: `Business '${data.restaurantName.trim()}' updated their business settings.`,
+        type: "system_alert",
+      }).catch(console.error);
+    });
+
     return { success: true };
   } catch (err) {
     console.error("Failed to save general settings:", err);

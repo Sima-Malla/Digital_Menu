@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { getSession } from "@/lib/session";
 import { RESOURCES, type Resource, type Action, type PermissionMap } from "@/lib/roles-constants";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -179,6 +180,13 @@ export async function createRoleAction(): Promise<ActionResult & { data?: { id: 
         permissions: noAccess(),
       },
     });
+
+    await createSuperAdminNotification({
+      title: "New Role Created",
+      message: "A new permission role 'New Role' was created.",
+      type: "system_alert",
+    });
+
     revalidatePath("/settings/roles");
     return { success: true, data: { id: role.id.toString() } };
   } catch (error) {
@@ -202,6 +210,13 @@ export async function updateRoleFieldAction(
 
   try {
     await prisma.role.update({ where: { id: BigInt(id) }, data });
+
+    await createSuperAdminNotification({
+      title: "Role Details Updated",
+      message: `Role details updated for ${data.name || role.name}.`,
+      type: "system_alert",
+    });
+
     revalidatePath("/settings/roles");
     return { success: true };
   } catch (error) {
@@ -225,6 +240,13 @@ export async function updateRolePermissionsAction(
 
   try {
     await prisma.role.update({ where: { id: BigInt(id) }, data: { permissions } });
+
+    await createSuperAdminNotification({
+      title: "Role Permissions Updated",
+      message: `Permissions policy modified for role '${role.name}'.`,
+      type: "system_alert",
+    });
+
     revalidatePath("/settings/roles");
     return { success: true };
   } catch (error) {
@@ -251,6 +273,13 @@ export async function deleteRoleAction(id: string): Promise<ActionResult> {
 
   try {
     await prisma.role.delete({ where: { id: BigInt(id) } });
+
+    await createSuperAdminNotification({
+      title: "Role Deleted",
+      message: `Role '${role.name}' was permanently deleted.`,
+      type: "system_alert",
+    });
+
     revalidatePath("/settings/roles");
     return { success: true };
   } catch (error) {

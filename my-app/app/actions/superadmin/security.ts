@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 
 const schema = z.object({
   minLength: z.number().int().min(4).max(64).optional(),
@@ -38,6 +39,12 @@ export async function updateSecuritySettings(input: z.infer<typeof schema>) {
     where: { id: 1 },
     update: parsed.data,
     create: { id: 1, ...parsed.data },
+  });
+
+  await createSuperAdminNotification({
+    title: "Security Settings Updated",
+    message: "Platform security policies (2FA, password policy, or session limits) were updated.",
+    type: "system_alert",
   });
 
   revalidatePath("/settings/security");

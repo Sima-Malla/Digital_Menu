@@ -120,3 +120,28 @@ export async function updateNotificationSettingsAction(data: NotificationSetting
     return { success: false, message: "Could not save settings. Please try again." };
   }
 }
+
+// ---------------------------------------------------------------------
+// SuperAdmin In-App Notifications
+// ---------------------------------------------------------------------
+
+import {
+  getSuperAdminNotifications,
+  markSuperAdminNotificationRead,
+  markAllSuperAdminNotificationsRead,
+} from "@/lib/superadmin-notifications";
+
+export async function getSuperAdminLiveNotificationsAction() {
+  return await getSuperAdminNotifications();
+}
+
+export async function markSuperAdminNotificationReadAction(notificationId: string) {
+  const success = await markSuperAdminNotificationRead(BigInt(notificationId));
+  return { success };
+}
+
+export async function clearAllSuperAdminNotificationsAction() {
+  const success = await markAllSuperAdminNotificationsRead();
+  return { success };
+}
+

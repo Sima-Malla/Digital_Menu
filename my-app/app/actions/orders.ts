@@ -94,5 +94,26 @@ export const checkoutAction = async (input: CheckoutInput): Promise<CheckoutStat
     },
   });
 
+  // Notify both Admin and Staff about the new order
+  import("@/lib/notifications").then(({ createBusinessNotification }) => {
+    createBusinessNotification({
+      businessId,
+      type: "new_order",
+      title: `New Order #${order.id.toString()}`,
+      message: `A new ${data.orderType} order worth NPR ${totalAmount.toLocaleString()} was placed by ${name}.`,
+      target: "all",
+      orderId: order.id,
+    }).catch(console.error);
+  });
+
+  // Notify SuperAdmin about new platform order
+  import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+    createSuperAdminNotification({
+      title: `New Platform Order #${order.id.toString()}`,
+      message: `Order #${order.id.toString()} (${data.orderType}) worth NPR ${totalAmount.toLocaleString()} placed by ${name}.`,
+      type: "system_alert",
+    }).catch(console.error);
+  });
+
   return { success: true, message: "Order placed!", orderId: order.id.toString() };
 };

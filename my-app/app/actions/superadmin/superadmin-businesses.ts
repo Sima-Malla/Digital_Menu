@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logEvent } from "@/lib/log-event";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 
 export type SuperadminBusiness = {
   id: number;
@@ -179,6 +180,12 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       details: `Owner: ${created.ownerName ?? "—"} · Location: ${created.businessAddress ?? "—"} · Plan: ${created.plan} · Status: ${resolvedStatus} (${reason})`,
     });
 
+    await createSuperAdminNotification({
+      title: `New Business Added: ${created.businessName}`,
+      message: `Business '${created.businessName}' was registered by ${created.ownerName ?? "Owner"} (${created.email}). Plan: ${created.plan}, Status: ${resolvedStatus}.`,
+      type: "business_added",
+    });
+
     revalidatePath("/superadmin/businesses");
     return { success: true, message: `Business created with status: ${resolvedStatus}.` };
   } catch (err) {
@@ -239,6 +246,12 @@ export async function updateBusinessAction(id: number, input: UpdateBusinessInpu
         business: updated.businessName,
         isSecurityEvent: SENSITIVE_STATUSES.has(input.status!),
       });
+
+      await createSuperAdminNotification({
+        title: `Business ${input.status}: ${updated.businessName}`,
+        message: `Status for business '${updated.businessName}' was changed from ${before!.status} to ${input.status}.`,
+        type: SENSITIVE_STATUSES.has(input.status!) ? "business_suspended" : "system_alert",
+      });
     } else {
       await logEvent({
         event: "Business Updated",
@@ -285,6 +298,12 @@ export async function deleteBusinessAction(id: number) {
       status: "Completed",
       business: existing?.businessName,
       isSecurityEvent: true,
+    });
+
+    await createSuperAdminNotification({
+      title: `Business Deleted: ${existing?.businessName || `ID ${id}`}`,
+      message: `Business '${existing?.businessName || id}' was deleted from the platform.`,
+      type: "business_deleted",
     });
 
     revalidatePath("/superadmin/businesses");

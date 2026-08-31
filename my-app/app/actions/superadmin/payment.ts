@@ -3,6 +3,8 @@
 // Adjust this import to wherever your Prisma client singleton lives.
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
+import { createBusinessNotification } from "@/lib/notifications";
 
 // NOTE: apiKeyEnc / secretKeyEnc are stored as plain text for now. Before
 // production, encrypt on write and decrypt on read instead of writing
@@ -63,6 +65,14 @@ export async function updatePaymentSettings(
         refundWindowDays: input.refundWindowDays,
       },
     });
+
+    await createBusinessNotification({
+      businessId,
+      title: "Refund Settings Updated",
+      message: `Auto-refund set to ${input.autoRefund ? "Enabled" : "Disabled"} with ${input.refundWindowDays}-day window.`,
+      type: "system",
+    });
+
     revalidatePath("/settings/payment");
     return { success: true, message: "Refund settings saved." };
   } catch (err) {
@@ -139,17 +149,26 @@ export async function updatePaymentGateway(
     if (input.apiKey !== undefined && input.apiKey !== "") data.apiKeyEnc = input.apiKey.trim();
     if (input.secretKey !== undefined && input.secretKey !== "") data.secretKeyEnc = input.secretKey.trim();
 
+    const gwName = DEFAULT_GATEWAYS.find((g) => g.gatewayKey === input.gatewayKey)?.name ?? input.gatewayKey;
+
     await prisma.paymentGateway.upsert({
       where: { businessId_gatewayKey: { businessId, gatewayKey: input.gatewayKey } },
       update: data,
       create: {
         businessId,
         gatewayKey: input.gatewayKey,
-        name: DEFAULT_GATEWAYS.find((g) => g.gatewayKey === input.gatewayKey)?.name ?? input.gatewayKey,
+        name: gwName,
         enabled: input.enabled ?? true,
         apiKeyEnc: input.apiKey?.trim(),
         secretKeyEnc: input.secretKey?.trim(),
       },
+    });
+
+    await createBusinessNotification({
+      businessId,
+      title: "Payment Gateway Updated",
+      message: `${gwName} gateway configuration updated.`,
+      type: "system",
     });
 
     revalidatePath("/settings/payment");
@@ -237,16 +256,26 @@ export async function togglePaymentMethod(
   input: { methodKey: string; enabled: boolean }
 ): Promise<{ success: boolean; message: string }> {
   try {
+    const methodName = DEFAULT_METHODS.find((m) => m.methodKey === input.methodKey)?.name ?? input.methodKey;
+
     await prisma.paymentMethod.upsert({
       where: { businessId_methodKey: { businessId, methodKey: input.methodKey } },
       update: { enabled: input.enabled },
       create: {
         businessId,
         methodKey: input.methodKey,
-        name: DEFAULT_METHODS.find((m) => m.methodKey === input.methodKey)?.name ?? input.methodKey,
+        name: methodName,
         enabled: input.enabled,
       },
     });
+
+    await createBusinessNotification({
+      businessId,
+      title: "Payment Method Status Changed",
+      message: `${methodName} is now ${input.enabled ? "enabled" : "disabled"}.`,
+      type: "system",
+    });
+
     revalidatePath("/settings/payment");
     return { success: true, message: "Payment method updated." };
   } catch (err) {

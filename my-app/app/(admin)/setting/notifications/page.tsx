@@ -14,10 +14,15 @@ import {
   ShoppingBag,
   Star,
   Settings2,
-  Volume2,
-  VolumeX,
+  Loader2,
+  Check,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import {
+  getAdminNotificationPreferencesAction,
+  saveAdminNotificationPreferencesAction,
+  resetAdminNotificationPreferencesAction,
+} from "@/app/actions/adminsetting/notifications";
 
 /* ─── Reusable Toggle ─────────────────────────────────────── */
 
@@ -181,6 +186,11 @@ function NotificationTypeRow({
 /* ─── Main Component ──────────────────────────────────────── */
 
 export default function NotificationSettingsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Channel preferences
   const [channels, setChannels] = useState({
     email: true,
@@ -211,21 +221,142 @@ export default function NotificationSettingsPage() {
     phone: "+1 (555) 012-3456",
   });
 
+  // Fetch backend preferences on mount
+  useEffect(() => {
+    let isSubscribed = true;
+    getAdminNotificationPreferencesAction().then((res) => {
+      if (!isSubscribed) return;
+      setIsLoading(false);
+      if (res.success && res.data) {
+        setChannels({
+          email: res.data.emailChannel,
+          sms: res.data.smsChannel,
+          push: res.data.pushChannel,
+        });
+        setNotifications({
+          newOrders: res.data.newOrders,
+          orderUpdates: res.data.orderUpdates,
+          customerReviews: res.data.customerReviews,
+          staffActivity: res.data.staffActivity,
+          promotions: res.data.promotions,
+          systemAlerts: res.data.systemAlerts,
+        });
+        setQuietHours({
+          enabled: res.data.quietHoursEnabled,
+          start: res.data.quietHoursStart,
+          end: res.data.quietHoursEnd,
+        });
+        setContactInfo({
+          email: res.data.contactEmail,
+          phone: res.data.contactPhone,
+        });
+      } else if (res.error) {
+        setErrorMessage(res.error);
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
   const toggleChannel = (channel: keyof typeof channels) => {
+    setSaveSuccess(false);
     setChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
   };
 
   const toggleNotification = (key: keyof typeof notifications) => {
+    setSaveSuccess(false);
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const toggleQuietHours = () => {
+    setSaveSuccess(false);
     setQuietHours((prev) => ({ ...prev, enabled: !prev.enabled }));
+  };
+
+  const handleSave = () => {
+    setSaveSuccess(false);
+    setErrorMessage(null);
+
+    startTransition(async () => {
+      const res = await saveAdminNotificationPreferencesAction({
+        emailChannel: channels.email,
+        smsChannel: channels.sms,
+        pushChannel: channels.push,
+        newOrders: notifications.newOrders,
+        orderUpdates: notifications.orderUpdates,
+        customerReviews: notifications.customerReviews,
+        staffActivity: notifications.staffActivity,
+        promotions: notifications.promotions,
+        systemAlerts: notifications.systemAlerts,
+        quietHoursEnabled: quietHours.enabled,
+        quietHoursStart: quietHours.start,
+        quietHoursEnd: quietHours.end,
+        contactEmail: contactInfo.email,
+        contactPhone: contactInfo.phone,
+      });
+
+      if (res.success && res.data) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setErrorMessage(res.error || "Failed to save notification settings.");
+      }
+    });
+  };
+
+  const handleReset = () => {
+    setSaveSuccess(false);
+    setErrorMessage(null);
+
+    startTransition(async () => {
+      const res = await resetAdminNotificationPreferencesAction();
+      if (res.success && res.data) {
+        setChannels({
+          email: res.data.emailChannel,
+          sms: res.data.smsChannel,
+          push: res.data.pushChannel,
+        });
+        setNotifications({
+          newOrders: res.data.newOrders,
+          orderUpdates: res.data.orderUpdates,
+          customerReviews: res.data.customerReviews,
+          staffActivity: res.data.staffActivity,
+          promotions: res.data.promotions,
+          systemAlerts: res.data.systemAlerts,
+        });
+        setQuietHours({
+          enabled: res.data.quietHoursEnabled,
+          start: res.data.quietHoursStart,
+          end: res.data.quietHoursEnd,
+        });
+        setContactInfo({
+          email: res.data.contactEmail,
+          phone: res.data.contactPhone,
+        });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setErrorMessage(res.error || "Failed to reset notification settings.");
+      }
+    });
   };
 
   // Count active notification types
   const activeCount = Object.values(notifications).filter(Boolean).length;
   const totalCount = Object.values(notifications).length;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F7F8FA]">
+        <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+          <span className="text-sm font-semibold text-gray-700">Loading Notification Preferences...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
@@ -249,7 +380,7 @@ export default function NotificationSettingsPage() {
               <div>
                 <h1 className="text-lg font-bold text-gray-900">Notification Preferences</h1>
                 <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-gray-400">
-                  Choose how and when you receive updates about your restaurant
+                  Choose how and when you and your staff receive order, status, and payment updates
                 </p>
               </div>
             </div>
@@ -263,6 +394,21 @@ export default function NotificationSettingsPage() {
               </span>
             </div>
           </div>
+
+          {/* Alert Banners */}
+          {saveSuccess && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 shadow-sm">
+              <Check className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-semibold">Notification preferences saved successfully!</span>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 shadow-sm">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <span className="text-sm font-semibold">{errorMessage}</span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-6">
             {/* ── Notification Channels ──────────────────── */}
@@ -302,7 +448,7 @@ export default function NotificationSettingsPage() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-[14px] font-bold text-gray-900">Notification Types</h2>
-                  <p className="mt-1 text-[12px] text-gray-400">Select which events trigger notifications</p>
+                  <p className="mt-1 text-[12px] text-gray-400">Select which events trigger notifications for Admin and Staff</p>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400">
                   <span>{activeCount} active</span>
@@ -313,6 +459,7 @@ export default function NotificationSettingsPage() {
                         Object.keys(notifications).map((key) => [key, !allActive])
                       );
                       setNotifications(newState as typeof notifications);
+                      setSaveSuccess(false);
                     }}
                     className="rounded-lg px-3 py-1 text-orange-500 hover:bg-orange-50"
                   >
@@ -325,15 +472,15 @@ export default function NotificationSettingsPage() {
                 <NotificationTypeRow
                   icon={ShoppingBag}
                   label="New Orders"
-                  desc="When a customer places a new order"
+                  desc="When a customer or POS places a new order"
                   bgColor={notifications.newOrders ? "bg-orange-50/50" : "bg-gray-50"}
                   enabled={notifications.newOrders}
                   onToggle={() => toggleNotification("newOrders")}
                 />
                 <NotificationTypeRow
                   icon={Clock}
-                  label="Order Updates"
-                  desc="Status changes for existing orders"
+                  label="Order Updates & Payments"
+                  desc="Order tracking changes and payment completions"
                   bgColor={notifications.orderUpdates ? "bg-orange-50/50" : "bg-gray-50"}
                   enabled={notifications.orderUpdates}
                   onToggle={() => toggleNotification("orderUpdates")}
@@ -400,13 +547,19 @@ export default function NotificationSettingsPage() {
                   <InputField
                     label="Start Time"
                     value={quietHours.start}
-                    onChange={(val) => setQuietHours((prev) => ({ ...prev, start: val }))}
+                    onChange={(val) => {
+                      setSaveSuccess(false);
+                      setQuietHours((prev) => ({ ...prev, start: val }));
+                    }}
                     type="time"
                   />
                   <InputField
                     label="End Time"
                     value={quietHours.end}
-                    onChange={(val) => setQuietHours((prev) => ({ ...prev, end: val }))}
+                    onChange={(val) => {
+                      setSaveSuccess(false);
+                      setQuietHours((prev) => ({ ...prev, end: val }));
+                    }}
                     type="time"
                   />
                 </div>
@@ -420,14 +573,20 @@ export default function NotificationSettingsPage() {
                   <InputField
                     label="Email Address"
                     value={contactInfo.email}
-                    onChange={(val) => setContactInfo((prev) => ({ ...prev, email: val }))}
+                    onChange={(val) => {
+                      setSaveSuccess(false);
+                      setContactInfo((prev) => ({ ...prev, email: val }));
+                    }}
                     placeholder="admin@restaurant.com"
                     type="email"
                   />
                   <InputField
                     label="Phone Number"
                     value={contactInfo.phone}
-                    onChange={(val) => setContactInfo((prev) => ({ ...prev, phone: val }))}
+                    onChange={(val) => {
+                      setSaveSuccess(false);
+                      setContactInfo((prev) => ({ ...prev, phone: val }));
+                    }}
                     placeholder="+1 (555) 000-0000"
                     type="tel"
                   />
@@ -440,21 +599,32 @@ export default function NotificationSettingsPage() {
               <div className="text-[12px] text-gray-400">
                 <span className="inline-flex items-center gap-1.5">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                  All changes saved automatically
+                  Backend sync active
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-[13px] font-semibold text-gray-600 shadow-sm transition-all duration-150 hover:border-gray-300 hover:bg-gray-50"
+                  onClick={handleReset}
+                  disabled={isPending}
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-[13px] font-semibold text-gray-600 shadow-sm transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Reset to Defaults
+                  {isPending ? "Resetting..." : "Reset to Defaults"}
                 </button>
                 <button
                   type="button"
-                  className="rounded-xl bg-orange-500 px-6 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-orange-200/60 transition-all duration-150 hover:bg-orange-600 hover:shadow-md hover:shadow-orange-200/60"
+                  onClick={handleSave}
+                  disabled={isPending}
+                  className="flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-orange-200/60 transition-all duration-150 hover:bg-orange-600 hover:shadow-md hover:shadow-orange-200/60 disabled:opacity-50"
                 >
-                  Save Preferences
+                  {isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Preferences"
+                  )}
                 </button>
               </div>
             </div>

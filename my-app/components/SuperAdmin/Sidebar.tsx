@@ -257,61 +257,16 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        <div className="pb-4">
-          <Link
-            href="/logout"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 text-red-500 hover:text-red-600 transition-colors"
+        <div className="pb-4 mt-auto border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-<<<<<<< HEAD
-            <Download size={16} />
-            Reports
+            <LogOut size={18} />
+            <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
           </button>
-
-          <div className="mt-8 space-y-5">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setSupportMenuOpen((v) => !v)}
-                className="flex items-center gap-3 text-gray-600 hover:text-[#F97316]"
-              >
-                <CircleHelp size={17} />
-                <span className="text-xs uppercase tracking-[0.18em]">Support</span>
-              </button>
-
-              {supportMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setSupportMenuOpen(false)}
-                  />
-                  <div className="absolute bottom-full left-0 z-50 mb-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-                    <SupportMenuItem icon={BookOpen} label="Documentation" />
-                    <SupportMenuItem icon={MessageCircle} label="Contact Engineering" />
-                    <SupportMenuItem icon={Activity} label="System Status" />
-                    <SupportMenuItem icon={Sparkles} label="What's New" />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="flex items-center gap-3 text-red-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <LogOut size={17} />
-              <span className="text-xs uppercase tracking-[0.18em]">
-                {isLoggingOut ? "Logging out..." : "Logout"}
-              </span>
-            </button>
-          </div>
-=======
-            <LogOut size={17} />
-            <span className="text-xs uppercase tracking-[0.18em]">Logout</span>
-          </Link>
->>>>>>> a7e6a4bbe7ff448eb98b60ed1df0475440ec702a
         </div>
       </aside>
     </>

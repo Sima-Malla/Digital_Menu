@@ -95,6 +95,15 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
             needsOnboarding: false, // Admins skip onboarding since they just created the business.
           },
         });
+
+        // Notify SuperAdmin of new self-service business signup
+        import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+          createSuperAdminNotification({
+            title: `New Business Signup: ${data.businessName}`,
+            message: `New business '${data.businessName}' was registered by ${data.fullName} (${data.email}).`,
+            type: "business_added",
+          }).catch(console.error);
+        });
       });
     } catch (err) {
       console.error("Admin signup failed:", err);

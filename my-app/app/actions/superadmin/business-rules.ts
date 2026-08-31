@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/log-event";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 
 const PATH = "/settings/business";
 
@@ -100,6 +101,12 @@ export async function saveBusinessRules(data: BusinessRulesData): Promise<SaveRe
       event: "Business Rules Updated",
       module: "Settings",
       status: "Success",
+    });
+
+    await createSuperAdminNotification({
+      title: "Business Rules & Tiers Updated",
+      message: "Platform business verification rules, commission tiers, or payout limits were updated.",
+      type: "system_alert",
     });
 
     revalidatePath(PATH);

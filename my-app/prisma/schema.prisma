@@ -50,6 +50,8 @@ model Business {
 
   businessHours BusinessHours[]
   specialHours  SpecialHours[]
+  notificationPreference BusinessNotificationPreference?
+  notifications          BusinessNotification[]
 }
 
 model BusinessHours {
@@ -534,3 +536,60 @@ model SentNotification {
   @@index([templateKey])
   @@index([createdAt])
 }
+
+model BusinessNotificationPreference {
+  businessId   BigInt   @id
+  emailChannel Boolean  @default(true)
+  smsChannel   Boolean  @default(false)
+  pushChannel  Boolean  @default(true)
+
+  newOrders       Boolean @default(true)
+  orderUpdates    Boolean @default(true)
+  customerReviews Boolean @default(true)
+  staffActivity   Boolean @default(true)
+  promotions      Boolean @default(false)
+  systemAlerts    Boolean @default(true)
+
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart   String  @default("22:00")
+  quietHoursEnd     String  @default("07:00")
+
+  contactEmail String?
+  contactPhone String?
+
+  updatedAt DateTime @updatedAt
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model BusinessNotification {
+  id         BigInt   @id @default(autoincrement())
+  businessId BigInt
+  title      String
+  message    String
+  type       String   // "new_order" | "order_update" | "payment" | "review" | "staff" | "system"
+  target     String   @default("all") // "admin" | "staff" | "all"
+  orderId    BigInt?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([target])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model SuperAdminNotification {
+  id        BigInt   @id @default(autoincrement())
+  title     String
+  message   String
+  type      String   // "business_added" | "business_suspended" | "business_deleted" | "support_report" | "system_alert"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+}
+

@@ -8,6 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { getSession } from "@/lib/session";
 import { inviteStaffSchema } from "@/lib/validations/team";
+import { createBusinessNotification } from "@/lib/notifications";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -116,6 +117,13 @@ export async function inviteStaffAction(
       },
     });
 
+    await createBusinessNotification({
+      businessId,
+      title: "New Staff Member Added",
+      message: `${data.fullName} was added to the team as ${data.position}.`,
+      type: "staff",
+    });
+
     revalidatePath(SETTING_TEAM_PATH);
     return { success: true, message: "Staff member added.", tempPassword };
   } catch (err) {
@@ -139,6 +147,14 @@ export async function updateStaffPositionAction(staffId: string, position: strin
     where: { id: BigInt(staffId) },
     data: { position, role: newRole },
   });
+
+  await createBusinessNotification({
+    businessId,
+    title: "Staff Position Updated",
+    message: `${member.fullName}'s position was updated to ${position}.`,
+    type: "staff",
+  });
+
   revalidatePath(SETTING_TEAM_PATH);
 }
 
@@ -150,10 +166,20 @@ export async function toggleStaffActiveAction(staffId: string) {
   if (member.id === callerId) throw new Error("You can't deactivate your own account.");
   if (member.role === "owner") throw new Error("The business owner can't be deactivated.");
 
+  const newStatus = !member.isActive;
+
   await getPrisma().staff.update({
     where: { id: BigInt(staffId) },
-    data: { isActive: !member.isActive },
+    data: { isActive: newStatus },
   });
+
+  await createBusinessNotification({
+    businessId,
+    title: "Staff Status Changed",
+    message: `${member.fullName}'s account is now ${newStatus ? "active" : "inactive"}.`,
+    type: "staff",
+  });
+
   revalidatePath(SETTING_TEAM_PATH);
 }
 
@@ -166,5 +192,13 @@ export async function removeStaffAction(staffId: string) {
   if (member.role === "owner") throw new Error("The business owner can't be removed.");
 
   await getPrisma().staff.delete({ where: { id: BigInt(staffId) } });
+
+  await createBusinessNotification({
+    businessId,
+    title: "Staff Member Removed",
+    message: `${member.fullName} was removed from the team.`,
+    type: "staff",
+  });
+
   revalidatePath(SETTING_TEAM_PATH);
 }

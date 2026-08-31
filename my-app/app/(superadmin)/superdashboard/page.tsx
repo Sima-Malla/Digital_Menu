@@ -17,6 +17,7 @@ import {
   type QueueBusiness,
   type BusinessPerformance,
 } from "@/app/actions/superadmin/superadmin-dashboard";
+import SuperAdminNotificationBell from "@/components/SuperAdmin/SuperAdminNotificationBell";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -124,11 +125,9 @@ export default function Dashboard() {
               className="w-full outline-none"
             />
           </div>
+
           <div className="flex items-center justify-between gap-4 sm:justify-start">
-            <button className="relative shrink-0">
-              <Bell size={22} />
-              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500"></span>
-            </button>
+            <SuperAdminNotificationBell />
             <div className="flex items-center gap-3">
               <Image src="/man.png" width={42} height={42} alt="Admin" className="rounded-full" style={{ width: "42px", height: "42px" }} />
               <div className="hidden sm:block">
