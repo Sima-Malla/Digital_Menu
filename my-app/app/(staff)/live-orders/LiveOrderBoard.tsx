@@ -12,13 +12,15 @@ import {
   notifyGuest,
 } from "../../actions/LiveOrders";
 
+import NotificationBell from "@/components/NotificationBell";
+
 const tagStyle: Record<string, string> = {
   PICKUP: "bg-orange-100 text-orange-600",
   DELIVERY: "bg-blue-100 text-blue-600",
   KITCHEN: "bg-gray-100 text-gray-600",
 };
 
-function TopBar() {
+function TopBar({ search, onSearchChange }: { search: string; onSearchChange: (v: string) => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white px-6 py-4 lg:px-8">
       <h1 className="text-lg font-extrabold text-orange-600">Live Orders</h1>
@@ -27,19 +29,13 @@ function TopBar() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search order ID..."
             className="w-56 rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-600 outline-none focus:border-orange-300"
           />
         </div>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-full bg-orange-600 text-white hover:bg-orange-700">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-            3
-          </span>
-        </button>
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
       </div>
     </div>
   );
@@ -231,8 +227,24 @@ export default function LiveOrdersBoard({
   const [preparingOrders, setPreparingOrders] = useState(initialPreparing);
   const [readyOrders, setReadyOrders] = useState(initialReady);
   const [delayedOrders, setDelayedOrders] = useState(initialDelayed);
+  const [search, setSearch] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const filterOrder = (o: Order) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase().trim();
+    return (
+      o.id.toLowerCase().includes(term) ||
+      (o.customer && o.customer.toLowerCase().includes(term)) ||
+      (o.meta && o.meta.toLowerCase().includes(term))
+    );
+  };
+
+  const filteredNew = newOrders.filter(filterOrder);
+  const filteredPreparing = preparingOrders.filter(filterOrder);
+  const filteredReady = readyOrders.filter(filterOrder);
+  const filteredDelayed = delayedOrders.filter(filterOrder);
 
   function handleAccept(id: string) {
     const order = newOrders.find((o) => o.id === id);
@@ -290,14 +302,14 @@ export default function LiveOrdersBoard({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <TopBar />
+      <TopBar search={search} onSearchChange={setSearch} />
 
       <main className="flex-1 overflow-x-auto px-6 py-6 lg:px-8">
         <div className="grid min-w-[900px] grid-cols-4 gap-5">
           <div>
-            <ColumnHeader dot="bg-orange-500" label="New" count={newOrders.length} />
+            <ColumnHeader dot="bg-orange-500" label="New" count={filteredNew.length} />
             <div className="flex flex-col gap-4">
-              {newOrders.map((order) => (
+              {filteredNew.map((order) => (
                 <NewOrderCard
                   key={order.id}
                   order={order}
@@ -309,9 +321,9 @@ export default function LiveOrdersBoard({
           </div>
 
           <div>
-            <ColumnHeader dot="bg-green-700" label="Preparing" count={preparingOrders.length} />
+            <ColumnHeader dot="bg-green-700" label="Preparing" count={filteredPreparing.length} />
             <div className="flex flex-col gap-4">
-              {preparingOrders.map((order) => (
+              {filteredPreparing.map((order) => (
                 <PreparingOrderCard
                   key={order.id}
                   order={order}
@@ -323,9 +335,9 @@ export default function LiveOrdersBoard({
           </div>
 
           <div>
-            <ColumnHeader dot="bg-green-400" label="Ready" count={readyOrders.length} />
+            <ColumnHeader dot="bg-green-400" label="Ready" count={filteredReady.length} />
             <div className="flex flex-col gap-4">
-              {readyOrders.map((order) => (
+              {filteredReady.map((order) => (
                 <ReadyOrderCard
                   key={order.id}
                   order={order}
@@ -337,9 +349,9 @@ export default function LiveOrdersBoard({
           </div>
 
           <div>
-            <ColumnHeader dot="bg-red-500" label="Delayed" count={delayedOrders.length} />
+            <ColumnHeader dot="bg-red-500" label="Delayed" count={filteredDelayed.length} />
             <div className="flex flex-col gap-4">
-              {delayedOrders.map((order) => (
+              {filteredDelayed.map((order) => (
                 <DelayedOrderCard
                   key={order.id}
                   order={order}
