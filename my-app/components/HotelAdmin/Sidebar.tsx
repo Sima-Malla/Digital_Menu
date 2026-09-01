@@ -86,7 +86,7 @@ export default function Sidebar() {
   const logoSrc = business?.logoUrl || "/hotel.png";
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-gray-100 bg-white px-4 py-6 lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-gray-100 bg-white px-4 py-6 lg:flex">
       <div>
         {/* ── Logo / Brand ──────────────────────────────── */}
         <div className="flex items-center gap-3 px-2">

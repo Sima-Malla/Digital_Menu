@@ -67,31 +67,13 @@ export default function LoginPage() {
             Enter your credentials to access your dashboard.
           </p>
 
-          {/* Google login */}
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className="mt-8 flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white py-3.5 text-sm font-semibold text-neutral-800 shadow-sm hover:bg-neutral-50"
-          >
-            <GoogleIcon className="h-5 w-5" />
-            Login with Google
-          </button>
-
-          <div className="my-7 flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200" />
-            <span className="text-xs font-semibold tracking-wide text-neutral-400">
-              OR EMAIL
-            </span>
-            <div className="h-px flex-1 bg-neutral-200" />
-          </div>
-
           {!state.success && state.message && (
-            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-6 mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {state.message}
             </div>
           )}
 
-          <form action={formAction} className="space-y-5">
+          <form action={formAction} className="mt-8 space-y-5">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-neutral-800">
                 Email or Username
@@ -114,9 +96,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-sm font-semibold text-neutral-800">
                   Password
                 </label>
-                <Link href="/forgot-password" className="text-sm font-medium text-orange-600 hover:underline">
-                  Forgot Password?
-                </Link>
+                {/* <Link href="/forgot-password" className="text-sm font-medium text-orange-600 hover:underline">
+                  Forgot Password? */}
+                {/* </Link> */}
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />

@@ -7,7 +7,14 @@ import { prisma, findOrder, updateOrderStatus } from "@/lib/orders";
 
 import { createBusinessNotification } from "@/lib/notifications";
 
-const ORDERS_PATH = "/orders"; // update to match your actual route
+function revalidateOrderPaths() {
+  revalidatePath("/live-orders");
+  revalidatePath("/sorder");
+  revalidatePath("/staffdashboard");
+  revalidatePath("/orders");
+  revalidatePath("/allorders");
+  revalidatePath("/dashboard");
+}
 
 async function requireBusinessId(): Promise<bigint | null> {
   const session = await getSession();
@@ -34,7 +41,7 @@ export async function acceptOrder(orderId: string) {
     orderId: id,
   });
 
-  revalidatePath(ORDERS_PATH);
+  revalidateOrderPaths();
   return { success: true };
 }
 
@@ -57,7 +64,7 @@ export async function markAsReady(orderId: string) {
     orderId: id,
   });
 
-  revalidatePath(ORDERS_PATH);
+  revalidateOrderPaths();
   return { success: true };
 }
 
@@ -96,7 +103,7 @@ export async function completeOrder(orderId: string) {
     orderId: id,
   });
 
-  revalidatePath(ORDERS_PATH);
+  revalidateOrderPaths();
   return { success: true };
 }
 
@@ -131,7 +138,7 @@ export async function escalateOrder(orderId: string) {
     orderId: id,
   });
 
-  revalidatePath(ORDERS_PATH);
+  revalidateOrderPaths();
   return { success: true };
 }
 
@@ -157,5 +164,6 @@ export async function notifyGuest(orderId: string) {
     orderId: id,
   });
 
+  revalidateOrderPaths();
   return { success: true };
 }

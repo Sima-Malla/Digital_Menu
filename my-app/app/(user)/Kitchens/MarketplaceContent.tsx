@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
+import { useSaved } from "@/components/SavedContext";
 
 const FAVORITES_STORAGE_KEY = "kitchens-favorites-v1";
 
@@ -58,34 +59,8 @@ export default function MarketplaceContent({
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recommended");
   const [page, setPage] = useState(1);
-  const [showSavedOnly, setShowSavedOnly] = useState(false);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setFavoriteIds(parsed.filter((id) => typeof id === "string"));
-      }
-    } catch {
-      // Ignore storage errors and continue with an empty favorites list.
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favoriteIds));
-    } catch {
-      // Ignore storage write errors; the UI still works without persistence.
-    }
-  }, [favoriteIds]);
-
-  const toggleFavorite = (id: string) => {
-    setFavoriteIds((prev) =>
-      prev.includes(id) ? prev.filter((favoriteId) => favoriteId !== id) : [...prev, id]
-    );
-  };
+  const { favoriteIds, toggleFavorite } = useSaved();
 
   const toggleType = (val: string) => {
     setSelectedTypes((prev) =>
@@ -97,15 +72,11 @@ export default function MarketplaceContent({
   const clearFilters = () => {
     setSelectedTypes([]);
     setSearch("");
-    setShowSavedOnly(false);
     setPage(1);
   };
 
   const filtered = useMemo(() => {
     let list = businesses;
-    if (showSavedOnly) {
-      list = list.filter((b) => favoriteIds.includes(b.id));
-    }
     if (selectedTypes.length > 0) {
       list = list.filter((b) => selectedTypes.includes(b.type));
     }
@@ -119,13 +90,12 @@ export default function MarketplaceContent({
       );
     }
     return list;
-  }, [businesses, favoriteIds, selectedTypes, search, showSavedOnly]);
+  }, [businesses, selectedTypes, search]);
 
   const sorted = useMemo(() => sortBusinesses(filtered, sortKey), [filtered, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const savedCount = businesses.filter((b) => favoriteIds.includes(b.id)).length;
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] text-[#231C16]">
@@ -141,20 +111,6 @@ export default function MarketplaceContent({
       <div className="flex flex-col gap-8 px-6 pb-16 md:flex-row md:px-10">
         {/* Sidebar */}
         <aside className="w-full shrink-0 md:w-56">
-          <FilterGroup title="Saved Businesses">
-            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[#231C16]">
-              <input
-                type="checkbox"
-                checked={showSavedOnly}
-                onChange={() => {
-                  setShowSavedOnly((prev) => !prev);
-                  setPage(1);
-                }}
-                className="h-4 w-4 cursor-pointer accent-orange-700"
-              />
-              Show only saved ({savedCount})
-            </label>
-          </FilterGroup>
 
           <FilterGroup title="Business Type">
             {businessTypes.length === 0 ? (
@@ -185,11 +141,6 @@ export default function MarketplaceContent({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <p>{sorted.length} businesses found</p>
-              {showSavedOnly && (
-                <span className="rounded-full bg-orange-100 px-2 py-0.5 font-semibold text-orange-700">
-                  Saved view
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2">
               <label htmlFor="sort" className="text-xs text-gray-500">
@@ -214,9 +165,7 @@ export default function MarketplaceContent({
           {/* Grid */}
           {paged.length === 0 ? (
             <p className="py-16 text-center text-sm text-gray-400">
-              {showSavedOnly
-                ? "You haven’t saved any businesses yet. Click the heart on a restaurant card to save it."
-                : "No businesses match your filters."}
+              No businesses match your filters.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

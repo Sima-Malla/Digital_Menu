@@ -130,7 +130,7 @@ export default function Sidebar() {
           overflow-y-auto border-r border-orange-100 bg-white px-5 py-8 sm:px-6
           transition-transform duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}
-          lg:w-64 lg:translate-x-0
+          lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:translate-x-0
         `}
       >
         <div>

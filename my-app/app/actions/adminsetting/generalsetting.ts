@@ -32,6 +32,8 @@ export async function saveGeneralSettingsAction(data: GeneralSettings) {
 
     revalidatePath(SETTINGS_PATH);
     revalidatePath("/dashboard");
+    revalidatePath("/Home");
+    revalidatePath("/");
 
     // Log event for System Logs and notify SuperAdmin of business updates
     import("@/lib/log-event").then(({ logEvent }) => {

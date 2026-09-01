@@ -41,8 +41,15 @@ const TRENDING_WINDOW_DAYS = 30;
 function toImageSrc(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
-  if (trimmed.startsWith("/") || /^https?:\/\//i.test(trimmed)) {
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("data:image/") ||
+    /^https?:\/\//i.test(trimmed)
+  ) {
     return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
   }
   return null;
 }
