@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { X, Heart, Trash2, MapPin, Coffee, Utensils, Hotel, ArrowRight, Store } from "lucide-react";
 import type { PublicBusinessListing } from "@/lib/queries/businesses";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 export type SavedPlace = PublicBusinessListing;
 
@@ -95,64 +96,75 @@ export default function SavedRoomsDrawer({
               </Link>
             </div>
           ) : (
-            savedBusinesses.map((b) => (
-              <div
-                key={b.id}
-                className="group relative flex gap-4 rounded-xl border border-neutral-100 bg-neutral-50/80 p-3.5 shadow-sm transition hover:border-orange-200 hover:bg-white hover:shadow-md"
-              >
-                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-200">
-                  <Image
-                    src={b.imageUrl || "/hotel.png"}
-                    alt={b.name}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-
-                <div className="flex flex-1 flex-col justify-between">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-bold text-sm text-neutral-900 line-clamp-1">
-                        {b.name}
-                      </h4>
-                      {onRemovePlace && (
-                        <button
-                          onClick={() => onRemovePlace(b.id)}
-                          className="text-neutral-400 hover:text-red-500 transition p-0.5"
-                          title="Remove from saved"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${getCategoryBadgeClass(b.type)}`}>
-                        {getCategoryIcon(b.type)}
-                        {b.type}
-                      </span>
-                    </div>
-
-                    {b.address && (
-                      <p className="mt-1.5 text-[11px] text-neutral-500 truncate flex items-center gap-1">
-                        <MapPin className="h-3 w-3 shrink-0 text-neutral-400" />
-                        {b.address}
-                      </p>
+            savedBusinesses.map((b) => {
+              const imageSrc = toValidImageSrc(b.imageUrl);
+              return (
+                <div
+                  key={b.id}
+                  className="group relative flex gap-4 rounded-xl border border-neutral-100 bg-neutral-50/80 p-3.5 shadow-sm transition hover:border-orange-200 hover:bg-white hover:shadow-md"
+                >
+                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-800">
+                    {imageSrc ? (
+                      <Image
+                        src={imageSrc}
+                        alt={b.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-700 via-orange-600 to-stone-900 p-2 text-center">
+                        <span className="text-xs font-black uppercase text-white/90 drop-shadow">
+                          {b.name}
+                        </span>
+                      </div>
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-end pt-2 border-t border-neutral-100">
-                    <Link
-                      href={`/Menu/${b.id}`}
-                      onClick={onClose}
-                      className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-orange-600 transition"
-                    >
-                      View Menu <Store className="h-3 w-3" />
-                    </Link>
+                  <div className="flex flex-1 flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-sm text-neutral-900 line-clamp-1">
+                          {b.name}
+                        </h4>
+                        {onRemovePlace && (
+                          <button
+                            onClick={() => onRemovePlace(b.id)}
+                            className="text-neutral-400 hover:text-red-500 transition p-0.5"
+                            title="Remove from saved"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${getCategoryBadgeClass(b.type)}`}>
+                          {getCategoryIcon(b.type)}
+                          {b.type}
+                        </span>
+                      </div>
+
+                      {b.address && (
+                        <p className="mt-1.5 text-[11px] text-neutral-500 truncate flex items-center gap-1">
+                          <MapPin className="h-3 w-3 shrink-0 text-neutral-400" />
+                          {b.address}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-end pt-2 border-t border-neutral-100">
+                      <Link
+                        href={`/Menu/${b.id}`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-orange-600 transition"
+                      >
+                        View Menu <Store className="h-3 w-3" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

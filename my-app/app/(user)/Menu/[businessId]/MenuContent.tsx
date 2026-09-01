@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, ShoppingBag, MapPin, Utensils, Plus, Menu as
 import { OrderProvider, useOrder, type CartItem } from "@/components/OrderContext";
 import CheckoutModal from "@/components/CheckoutModal";
 import Sidebar from "@/components/SideBar";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type MenuItem = {
@@ -31,11 +32,18 @@ const FALLBACK_IMG = "/vegmomo.jpg";
 function MenuItemRow({ item }: { item: MenuItem }) {
   const { items, addItem, incrementQty, decrementQty } = useOrder();
   const cartItem = items.find((i) => i.menuItemId === item.id);
+  const imageSrc = toValidImageSrc(item.imageUrl);
 
   return (
     <div className="flex items-start gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-        <Image src={item.imageUrl || FALLBACK_IMG} alt={item.name} fill sizes="80px" className="object-cover" />
+        {imageSrc ? (
+          <Image src={imageSrc} alt={item.name} fill sizes="80px" className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-800 font-bold text-xs p-1 text-center">
+            {item.name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
@@ -54,7 +62,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
                 menuItemId: item.id,
                 name: item.name,
                 category: item.category,
-                image: item.imageUrl || FALLBACK_IMG,
+                image: item.imageUrl || "",
                 price: item.price,
               })
             }
@@ -62,7 +70,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
           >
             <Plus className="h-4 w-4" />
           </button>
-        ) : (
+        ) : (  
           <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
             <button onClick={() => decrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100">−</button>
             <span className="text-xs font-semibold text-gray-800">{cartItem.quantity}</span>
@@ -211,6 +219,8 @@ function MenuInner({
   businessType,
   businessAddress,
   businessPhone,
+  bannerUrl,
+  logoUrl,
   categories,
   items,
   reviews,
@@ -221,6 +231,8 @@ function MenuInner({
   businessType: string;
   businessAddress: string;
   businessPhone: string;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
   categories: string[];
   items: MenuItem[];
   reviews: Review[];
@@ -241,6 +253,7 @@ function MenuInner({
       : list;
 
   const visibleItems = filtered(items.filter((i) => i.category === activeCategory));
+  const heroImage = toValidImageSrc(bannerUrl) ?? toValidImageSrc(logoUrl);
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -252,17 +265,22 @@ function MenuInner({
         businessPhone={businessPhone}
       />
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-gray-200">
-          <Image
-            src="/menubanner.png"
-            alt="Restaurant banner"
-            fill
-            priority
-            className="object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "/banner.png";
-            }}
-          />
+        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-neutral-900">
+          {heroImage ? (
+            <Image
+              src={heroImage}
+              alt={businessName}
+              fill
+              priority
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-amber-800 via-orange-700 to-stone-900 p-6 text-center">
+              <h1 className="text-3xl font-black uppercase tracking-wider text-white drop-shadow-md">
+                {businessName}
+              </h1>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 p-6">
             <h1 className="text-2xl font-bold text-white sm:text-3xl">{businessName}</h1>
@@ -278,14 +296,6 @@ function MenuInner({
                 </span>
               )}
             </div>
-          </div>
-          <div className="absolute bottom-4 right-4 flex gap-2">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-lg hover:bg-orange-600 active:scale-95 transition-transform"
-            >
-              <MenuIcon className="h-3.5 w-3.5" /> More Options
-            </button>
           </div>
         </div>
       </div>
@@ -310,8 +320,8 @@ function MenuInner({
           </aside>
 
           <main className="min-w-0 flex-1">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="relative flex-1">
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -323,6 +333,18 @@ function MenuInner({
               </div>
               <button className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:border-orange-300">
                 <SlidersHorizontal className="h-4 w-4" /> Filters
+              </button>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                 
+                 
+                </span>
+                <MenuIcon className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                <span className="tracking-wide">More Options</span>
+                
               </button>
             </div>
 
@@ -377,6 +399,8 @@ export default function MenuContent(props: {
   businessType: string;
   businessAddress: string;
   businessPhone: string;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
   categories: string[];
   items: MenuItem[];
   reviews: Review[];
