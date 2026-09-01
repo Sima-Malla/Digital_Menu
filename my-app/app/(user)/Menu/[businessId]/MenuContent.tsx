@@ -70,7 +70,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
           >
             <Plus className="h-4 w-4" />
           </button>
-        ) : (
+        ) : (  
           <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
             <button onClick={() => decrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100">−</button>
             <span className="text-xs font-semibold text-gray-800">{cartItem.quantity}</span>
@@ -297,14 +297,6 @@ function MenuInner({
               )}
             </div>
           </div>
-          <div className="absolute bottom-4 right-4 flex gap-2">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-lg hover:bg-orange-600 active:scale-95 transition-transform"
-            >
-              <MenuIcon className="h-3.5 w-3.5" /> More Options
-            </button>
-          </div>
         </div>
       </div>
 
@@ -328,8 +320,8 @@ function MenuInner({
           </aside>
 
           <main className="min-w-0 flex-1">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="relative flex-1">
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -341,6 +333,18 @@ function MenuInner({
               </div>
               <button className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:border-orange-300">
                 <SlidersHorizontal className="h-4 w-4" /> Filters
+              </button>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                 
+                 
+                </span>
+                <MenuIcon className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                <span className="tracking-wide">More Options</span>
+                
               </button>
             </div>
 
