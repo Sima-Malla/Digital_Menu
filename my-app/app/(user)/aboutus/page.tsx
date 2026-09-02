@@ -11,12 +11,19 @@ export default async function AboutUsPage() {
 
   return (
     <div className="min-h-screen bg-white text-[#1a1a1a]">
-    
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative h-[420px] w-full overflow-hidden">
-        <Image src="/about-hero.jpg" alt="" fill priority className="object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+      <section className="relative h-[420px] w-full overflow-hidden bg-gradient-to-br from-orange-900 via-orange-700 to-amber-600">
+        <Image
+          src="/back.png"
+          alt=""
+          fill
+          priority
+          className="object-cover opacity-90"
+        />
+        {/* Soft highlight so the gradient still looks intentional if the photo is missing/broken */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_50%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent" />
         <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-center px-6 lg:px-10">
           <h1 className="max-w-xl text-4xl font-extrabold leading-tight text-white sm:text-5xl">
             The Future of <span className="text-orange-400">Hospitality</span>
@@ -26,20 +33,6 @@ export default async function AboutUsPage() {
             and cafes. We empower local businesses with digital tools while providing an effortless
             discovery and ordering experience for customers.
           </p>
-          {/* <div className="mt-7 flex flex-wrap gap-3">
-            <Link
-              href="/partners"
-              className="rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600"
-            >
-              Join as a Partner
-            </Link>
-            <Link
-              href="/Kitchens"
-              className="rounded-full border border-white/70 px-6 py-3 text-sm font-bold text-white hover:bg-white/10"
-            >
-              Explore Marketplace
-            </Link>
-          </div> */}
         </div>
       </section>
 
@@ -64,14 +57,14 @@ export default async function AboutUsPage() {
               their guests.
             </p>
           </div>
-          <div className="relative h-72 w-full overflow-hidden rounded-2xl sm:h-80">
+          <div className="relative h-72 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 to-amber-50 sm:h-80">
             <Image src="/Image+Shadow.png" alt="" fill className="object-cover" />
           </div>
         </div>
       </section>
 
       {/* ── Stats (real data) ────────────────────────────── */}
-      <section className="bg-orange-500 py-12">
+      <section className="bg-gradient-to-r from-orange-600 to-orange-500 py-12">
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 px-6 sm:grid-cols-3 lg:px-10">
           <StatCard value={formatStat(stats.partnerBusinesses)} label="Partner Businesses" />
           <StatCard value={formatStat(stats.monthlyOrders)} label="Monthly Orders" />
@@ -80,7 +73,7 @@ export default async function AboutUsPage() {
       </section>
 
       {/* ── Ecosystem ────────────────────────────────────── */}
-      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
+      {/* <section className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
         <h2 className="text-center text-2xl font-extrabold text-gray-900">Ecosystem for Everyone</h2>
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
@@ -134,9 +127,7 @@ export default async function AboutUsPage() {
             </Link>
           </div>
         </div>
-      </section>
-
-   
+      </section> */}
 
       <Footer />
     </div>
