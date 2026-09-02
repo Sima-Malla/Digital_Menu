@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, BookOpen, Info, HelpCircle, X, Phone, MessageSquare,
+  Info, HelpCircle, X, Phone, MessageSquare,
   Star, Loader2, CheckCircle2, Settings, type LucideIcon,
 } from "lucide-react";
 import { sendSupportMessageAction } from "@/app/actions/support";
@@ -222,10 +222,8 @@ export default function Sidebar({
   const isMenuPage = !!businessId;
 
   const generalNav: { label: string; href: string; icon: LucideIcon }[] = [
-    { label: "Home", href: "/Home", icon: Home },
-    { label: "Restaurants", href: "/Kitchens", icon: BookOpen },
-    { label: "User Guide", href: "/UserGuidance", icon: HelpCircle },
-    { label: "About Us", href: "/aboutus", icon: Info },
+ 
+    
   ];
 
   useEffect(() => {

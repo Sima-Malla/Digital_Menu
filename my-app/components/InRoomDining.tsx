@@ -76,9 +76,9 @@ export default function InRoomDining() {
 
             {/* CTA Button */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button className="rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white transition-all hover:bg-orange-700 hover:shadow-lg">
+              {/* <button className="rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white transition-all hover:bg-orange-700 hover:shadow-lg">
                 Order In-Room Now
-              </button>
+              </button> */}
              
             </div>
           </div>
