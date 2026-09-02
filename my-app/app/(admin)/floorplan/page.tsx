@@ -12,5 +12,5 @@ export default async function AreaManagementPage() {
 
   const areas = await getAreasForBusiness(BigInt(session.businessId));
 
-  return <AreaManagementClient initialAreas={areas} />;
+  return <AreaManagementClient initialAreas={areas} businessId={session.businessId} />;
 }

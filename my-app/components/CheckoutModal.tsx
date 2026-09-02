@@ -26,6 +26,17 @@ export default function CheckoutModal({ onClose }: { onClose: () => void }) {
 
   const [orderType, setOrderType] = useState<"dine-in" | "pickup" | "delivery">("dine-in");
   const [locationLabel, setLocationLabel] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const unitParam = params.get("unit") || "";
+      const areaParam = params.get("area") || "";
+      if (unitParam) {
+        setLocationLabel(areaParam ? `${areaParam} - ${unitParam}` : unitParam);
+      }
+    }
+  }, []);
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");

@@ -238,7 +238,7 @@ function MenuInner({
   reviews: Review[];
   avgRating: number;
 }) {
-  const [activeCategory, setActiveCategory] = useState(categories[0] ?? "");
+  const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [search, setSearch] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -252,7 +252,11 @@ function MenuInner({
         )
       : list;
 
-  const visibleItems = filtered(items.filter((i) => i.category === activeCategory));
+  const visibleItems = filtered(
+    activeCategory === "ALL" || !activeCategory
+      ? items
+      : items.filter((i) => i.category === activeCategory)
+  );
   const heroImage = toValidImageSrc(bannerUrl) ?? toValidImageSrc(logoUrl);
 
   return (
@@ -305,9 +309,19 @@ function MenuInner({
           <aside className="hidden w-44 shrink-0 lg:block">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Menu Categories</p>
             <nav className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("ALL")}
+                className={`rounded-lg px-3 py-2 text-left text-sm transition ${
+                  activeCategory === "ALL" ? "bg-orange-50 font-semibold text-orange-500" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                All Items
+              </button>
               {categories.map((cat) => (
                 <button
                   key={cat}
+                  type="button"
                   onClick={() => setActiveCategory(cat)}
                   className={`rounded-lg px-3 py-2 text-left text-sm transition ${
                     activeCategory === cat ? "bg-orange-50 font-semibold text-orange-500" : "text-gray-600 hover:bg-gray-100"
@@ -320,7 +334,7 @@ function MenuInner({
           </aside>
 
           <main className="min-w-0 flex-1">
-            <div className="mb-6 flex flex-wrap items-center gap-3">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
@@ -338,18 +352,46 @@ function MenuInner({
                 onClick={() => setSidebarOpen(true)}
                 className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
               >
-                <span className="relative flex h-2.5 w-2.5">
-                 
-                 
-                </span>
                 <MenuIcon className="h-4 w-4 transition-transform group-hover:rotate-12" />
                 <span className="tracking-wide">More Options</span>
-                
               </button>
             </div>
 
+            {/* Mobile Category Scroll Bar */}
+            {categories.length > 0 && (
+              <div className="mb-5 flex overflow-x-auto gap-2 pb-2 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory("ALL")}
+                  className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+                    activeCategory === "ALL"
+                      ? "bg-orange-500 text-white shadow-md"
+                      : "bg-white text-gray-700 border border-gray-200"
+                  }`}
+                >
+                  All Items
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+                      activeCategory === cat
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "bg-white text-gray-700 border border-gray-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div>
-              <h2 className="mb-4 text-lg font-bold text-gray-900">{activeCategory}</h2>
+              <h2 className="mb-4 text-lg font-bold text-gray-900">
+                {activeCategory === "ALL" ? "All Menu Items" : activeCategory}
+              </h2>
               {items.length === 0 ? (
                 <p className="text-sm text-gray-400">This restaurant hasn&apos;t added any menu items yet.</p>
               ) : (
