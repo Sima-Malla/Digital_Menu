@@ -18,7 +18,6 @@ const tagStyle: Record<string, string> = {
   KITCHEN: "bg-gray-100 text-gray-600",
 };
 
-import NotificationBell from "@/components/NotificationBell";
 
 function TopBar() {
   return (
@@ -33,7 +32,7 @@ function TopBar() {
             className="w-56 rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-600 outline-none focus:border-orange-300"
           />
         </div>
-        <NotificationBell />
+        
       </div>
     </div>
   );

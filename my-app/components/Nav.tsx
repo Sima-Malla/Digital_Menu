@@ -129,7 +129,7 @@ export default function Nav({
             {isLoggedIn ? (
               <div className="group relative hidden md:block">
                 <Link
-                  href="/account"
+                  href="/login"
                   aria-label="Account"
                   className="flex h-8 w-8 items-center justify-center rounded-full border border-[#B87333]/30 text-[#5C4A3D] transition hover:border-[#7A2E22] hover:text-[#7A2E22]"
                 >

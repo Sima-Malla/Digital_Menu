@@ -49,7 +49,7 @@ const settingsSubItems = [
   { label: "Security Logs", href: "/setting/security-logs", icon: FileText },
 ];
 
-const SUPPORT_HREF = "/support";
+const SUPPORT_HREF = "/setting/support";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -90,26 +90,20 @@ export default function Sidebar() {
       <div>
         {/* ── Logo / Brand ──────────────────────────────── */}
         <div className="flex items-center gap-3 px-2">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-100 shadow-sm">
             <Image
               src={logoSrc}
               alt={businessName}
-              width={40}
-              height={40}
+              width={56}
+              height={56}
               className="h-full w-full object-cover"
             />
           </div>
-          <div>
-            <Link href="/" className="inline-flex shrink-0 items-center">
-              <img
-                src="/logo.png"
-                alt="MenuTap"
-                className="h-9 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-extrabold uppercase tracking-wide text-gray-900">
               {businessName}
             </p>
+            <p className="text-[11px] font-medium text-orange-500">Admin Panel</p>
           </div>
         </div>
 

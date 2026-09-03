@@ -361,7 +361,7 @@ function MenuInventory({
                     {item.category}
                   </span>
                 </td>
-                <td className="py-3 font-semibold text-orange-600">${item.price}</td>
+                <td className="py-3 font-semibold text-orange-600">Rs. {item.price}</td>
                 <td className="py-3">
                   <StatusToggle
                     active={item.isActive}

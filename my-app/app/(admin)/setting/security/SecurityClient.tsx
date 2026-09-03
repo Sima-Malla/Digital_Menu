@@ -258,7 +258,7 @@ export default function SecurityClient({ initialData }: { initialData: SecurityD
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FC]">
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl px-8 py-8">
+        <div className="mx-auto max-w-[1080px] px-6 py-8">
           {/* Breadcrumb */}
           <div className="mb-2 flex items-center gap-1 text-sm text-gray-500">
             <span>Settings</span>

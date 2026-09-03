@@ -7,7 +7,6 @@ import {
   Star,
   Calendar,
   ChevronDown,
-  Download,
   TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
@@ -120,13 +119,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
               Last 30 Days
               <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
             </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-orange-200/60 transition hover:bg-orange-600"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </button>
+
           </div>
         </div>
 

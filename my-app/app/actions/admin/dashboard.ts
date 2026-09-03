@@ -56,6 +56,19 @@ export type DashboardData = {
 };
 
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const NEPAL_OFFSET_MS = (5 * 60 + 45) * 60 * 1000;
+
+function getNepalDayBounds() {
+  const nowNepal = new Date(Date.now() + NEPAL_OFFSET_MS);
+  const nepalMidnight =
+    Date.UTC(nowNepal.getUTCFullYear(), nowNepal.getUTCMonth(), nowNepal.getUTCDate()) -
+    NEPAL_OFFSET_MS;
+  return {
+    todayStart: new Date(nepalMidnight),
+    todayEnd: new Date(nepalMidnight + 86400000),
+    sevenDaysAgo: new Date(nepalMidnight - 6 * 86400000),
+  };
+}
 
 export async function getDashboardData(): Promise<DashboardData | null> {
   const businessId = await getBusinessId();
@@ -66,12 +79,24 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     select: { businessName: true },
   });
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart.getTime() + 86400000);
+  const { todayStart, todayEnd, sevenDaysAgo } = getNepalDayBounds();
 
-  // 7 days ago (start of that day)
-  const sevenDaysAgo = new Date(todayStart.getTime() - 6 * 86400000);
+  // DEBUG — terminal ma hernu
+  const allTodayOrders = await prisma.order.findMany({
+    where: { businessId, orderedAt: { gte: todayStart, lt: todayEnd } },
+    select: { id: true, status: true, paymentStatus: true, totalAmount: true, orderedAt: true },
+  });
+  console.log("=== DASHBOARD DEBUG ===");
+  console.log("todayStart (UTC):", todayStart.toISOString());
+  console.log("todayEnd   (UTC):", todayEnd.toISOString());
+  console.log("All orders today:", JSON.stringify(allTodayOrders.map(o => ({
+    id: o.id.toString(),
+    status: o.status,
+    paymentStatus: o.paymentStatus,
+    amount: o.totalAmount.toString(),
+    orderedAt: o.orderedAt.toISOString(),
+  })), null, 2));
+  console.log("======================");
 
   const [
     todaySalesAgg,
@@ -82,27 +107,35 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     topItems,
     recentOrdersRaw,
   ] = await Promise.all([
-    // Today's completed sales
     prisma.order.aggregate({
-      where: { businessId, status: "completed", orderedAt: { gte: todayStart, lt: todayEnd } },
+      where: {
+        businessId,
+        orderedAt: { gte: todayStart, lt: todayEnd },
+        OR: [
+          { status: "completed" },
+          { paymentStatus: "paid" },
+        ],
+      },
       _sum: { totalAmount: true },
     }),
-    // Active orders (new + preparing + ready)
     prisma.order.count({
       where: { businessId, status: { in: ["new", "preparing", "ready"] } },
     }),
-    // Live (new only)
     prisma.order.count({
       where: { businessId, status: "new" },
     }),
-    // Total menu items
     prisma.menuItem.count({ where: { businessId, isActive: true } }),
-    // Last 7 days orders for chart
     prisma.order.findMany({
-      where: { businessId, orderedAt: { gte: sevenDaysAgo, lt: todayEnd } },
+      where: {
+        businessId,
+        orderedAt: { gte: sevenDaysAgo, lt: todayEnd },
+        OR: [
+          { status: "completed" },
+          { paymentStatus: "paid" },
+        ],
+      },
       select: { orderedAt: true, totalAmount: true },
     }),
-    // Top 3 menu items by order count (all time)
     prisma.orderItem.groupBy({
       by: ["menuItemId"],
       where: { order: { businessId } },
@@ -111,7 +144,6 @@ export async function getDashboardData(): Promise<DashboardData | null> {
       orderBy: { _count: { menuItemId: "desc" } },
       take: 3,
     }),
-    // Recent 5 orders
     prisma.order.findMany({
       where: { businessId },
       include: { customer: true, items: true },
@@ -120,15 +152,18 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     }),
   ]);
 
-  // Build weekly sales — ordered Mon to Sun for the last 7 days
   const salesByDay: { day: string; date: Date; value: number }[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(sevenDaysAgo.getTime() + i * 86400000);
     salesByDay.push({ day: DAYS[d.getDay()], date: d, value: 0 });
   }
   for (const o of weeklyOrders) {
-    const orderDate = new Date(o.orderedAt.getFullYear(), o.orderedAt.getMonth(), o.orderedAt.getDate());
-    const entry = salesByDay.find((e) => e.date.getTime() === orderDate.getTime());
+    const nepalTime = new Date(o.orderedAt.getTime() + NEPAL_OFFSET_MS);
+    const orderDayStart = new Date(
+      Date.UTC(nepalTime.getUTCFullYear(), nepalTime.getUTCMonth(), nepalTime.getUTCDate()) -
+        NEPAL_OFFSET_MS
+    );
+    const entry = salesByDay.find((e) => e.date.getTime() === orderDayStart.getTime());
     if (entry) entry.value += Number(o.totalAmount);
   }
   const weeklySales: WeeklySalesEntry[] = salesByDay.map(({ day, value }) => ({
@@ -136,7 +171,6 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     value: Math.round(value),
   }));
 
-  // Resolve popular dishes with menu item details
   const menuItemIds = topItems.map((t) => t.menuItemId);
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: menuItemIds } },
@@ -155,7 +189,6 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     };
   });
 
-  // Recent orders
   const avatarColors = [
     "bg-orange-100 text-orange-600",
     "bg-green-100 text-green-600",

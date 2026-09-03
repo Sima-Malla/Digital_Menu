@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bell, CircleHelp, Download, Search, Eye, Pencil, Trash2,
+ Search, Eye, Pencil, Trash2,
   ShoppingBag, DollarSign, Activity, AlertTriangle, ChevronLeft, ChevronRight,
   X, Loader2, Printer,
 } from "lucide-react";
@@ -10,7 +10,6 @@ import {
   getAdminOrders, getAdminOrderStats, getAdminOrderDetail,
   updateAdminOrderAction, deleteAdminOrder, AdminOrder, AdminOrderDetail,
 } from "@/app/actions/admin/allorders";
-import NotificationBell from "@/components/NotificationBell";
 
 const statusColor: Record<string, string> = {
   New: "bg-blue-100 text-blue-700",
@@ -240,19 +239,13 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <header className="sticky top-0 z-20 border-b bg-white">
+      <header className=" top-0 z-20 border-b bg-white">
         <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">All Orders</h1>
             <p className="mt-1 text-sm text-gray-500">Monitor and manage your orders.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button className="flex h-11 items-center gap-2 rounded-lg bg-[#F97316] px-5 text-white hover:bg-[#e06610] transition">
-              <Download size={18} /> Export
-            </button>
-            <NotificationBell />
-            <button className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-100"><CircleHelp size={18} /></button>
-          </div>
+        
         </div>
       </header>
 

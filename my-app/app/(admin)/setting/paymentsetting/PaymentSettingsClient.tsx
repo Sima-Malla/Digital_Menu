@@ -143,7 +143,7 @@ export default function PaymentSettingsClient({ initialData }: { initialData: Pa
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[720px] px-8 py-8">
+        <div className="mx-auto max-w-[1080px] px-6 py-8">
           <div className="mb-8">
             <div className="flex items-center gap-3.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 shadow-sm shadow-orange-200/60">

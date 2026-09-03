@@ -152,9 +152,9 @@ export default function GeneralSettingsClient({ initialSettings }: { initialSett
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F7F8FA]">
+    <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[720px] px-8 py-8">
+        <div className="mx-auto max-w-[1080px] px-6 py-8">
           {toast && (
             <div
               role="status"
