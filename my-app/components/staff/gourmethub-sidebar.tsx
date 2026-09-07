@@ -62,7 +62,7 @@ export default function GourmetHubSidebar() {
 
   const staffName = staff?.fullName ?? "Loading...";
   const businessName = staff?.businessName ?? "Loading...";
-  const profileImage = staff?.logoUrl || "/logo.png";
+  const profileImage = staff?.photoUrl || staff?.logoUrl || "/logo.png";
 
   return (
     <>
@@ -99,7 +99,7 @@ export default function GourmetHubSidebar() {
           flex-col border-r border-slate-100 bg-white px-5 py-6
           transition-transform duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}
-          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shrink-0
+          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shrink-0 lg:overflow-y-auto
         `}
       >
         {/* Mobile header */}
@@ -121,19 +121,7 @@ export default function GourmetHubSidebar() {
           </button>
         </div>
 
-        {/* Desktop logo */}
-        <Link
-          href="/"
-          className="hidden shrink-0 items-center lg:inline-flex"
-        >
-          <img
-            src="/logo.png"
-            alt="MenuTap"
-            className="h-9 w-auto object-contain"
-          />
-        </Link>
-
-        {/* Staff Profile */}
+{/* Staff Profile */}
         <div className="mt-6 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <img
             src={profileImage}

@@ -96,6 +96,7 @@ model Staff {
   isActive        Boolean  @default(true)
   position        String   @default("Waiter")
   needsOnboarding Boolean  @default(true)
+  photoUrl        String?
   notificationPrefs Json?
   business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 

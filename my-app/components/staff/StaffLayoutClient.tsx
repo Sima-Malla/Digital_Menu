@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import GourmetHubSidebar from "@/components/staff/gourmethub-sidebar";
-import TopBar from "@/components/staff/TopBar";
+import TopBar from "@/components/admin/TopBar";
 
 export default function StaffLayoutClient({
   businessName,
@@ -20,14 +20,11 @@ export default function StaffLayoutClient({
   }
 
   return (
-    // flex-col: stacks TopBar ABOVE the sidebar+content row, full width
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <TopBar businessName={businessName} profileImage={profileImage} />
-
-      {/* This inner row is where sidebar + main actually sit side-by-side */}
-      <div className="flex flex-1 min-h-0">
-        <GourmetHubSidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <GourmetHubSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar businessName={businessName} profileImage={profileImage} />
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

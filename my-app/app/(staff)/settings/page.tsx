@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   UploadCloud,
@@ -57,6 +57,10 @@ export default function StaffSettingsPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -137,11 +141,36 @@ export default function StaffSettingsPage() {
 
   async function handleSaveProfile() {
     setSavingProfile(true);
-    const res = await updateStaffProfile({ fullName, phone });
+    let photoUrl: string | undefined;
+
+    if (photoFile) {
+      setUploadingPhoto(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", photoFile);
+        const res = await fetch("/api/upload-staff-photo", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.url) photoUrl = data.url;
+        else throw new Error(data.error || "Upload failed");
+      } catch (e) {
+        alert("Photo upload failed. Please try again.");
+        setUploadingPhoto(false);
+        setSavingProfile(false);
+        return;
+      }
+      setUploadingPhoto(false);
+    }
+
+    const res = await updateStaffProfile({ fullName, phone, photoUrl });
     setSavingProfile(false);
 
     if (res.success) {
       setStaff((prev) => (prev ? { ...prev, fullName, phone } : prev));
+      if (photoUrl) setPhotoPreview(photoUrl);
+      setPhotoFile(null);
       setEditingProfile(false);
     } else {
       alert(res.message || "Failed to save profile.");
@@ -188,7 +217,7 @@ export default function StaffSettingsPage() {
   }
 
   const notificationKeys = POSITION_NOTIFICATIONS[staff.position] ?? DEFAULT_NOTIFICATIONS;
-  const profileImage = brand?.logoUrl || "/logo.png";
+  const profileImage = photoPreview || brand?.logoUrl || "/logo.png";
 
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
@@ -204,14 +233,32 @@ export default function StaffSettingsPage() {
           <Section title="My Profile">
             <div className="flex items-center gap-4">
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                <Image src={profileImage} alt={brand?.businessName || staff.fullName} fill className="object-cover" />
+                <Image src={photoPreview || profileImage} alt={staff.fullName} fill className="object-cover" />
               </div>
               {editingProfile && (
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-orange-300">
-                  <UploadCloud className="h-3.5 w-3.5" />
-                  Change Photo
-                  <input type="file" accept="image/png, image/jpeg" className="hidden" disabled />
-                </label>
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPhotoFile(file);
+                        setPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-orange-400 hover:text-orange-500"
+                  >
+                    <UploadCloud className="h-3.5 w-3.5" />
+                    {photoFile ? "Photo selected" : "Change Photo"}
+                  </button>
+                </>
               )}
             </div>
 
@@ -255,11 +302,11 @@ export default function StaffSettingsPage() {
 
             <button
               onClick={() => (editingProfile ? handleSaveProfile() : setEditingProfile(true))}
-              disabled={savingProfile}
+              disabled={savingProfile || uploadingPhoto}
               className="mt-5 flex items-center gap-1.5 rounded-full bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-orange-600 disabled:opacity-60"
             >
-              {savingProfile && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {editingProfile ? "Save Profile" : "Edit Profile"}
+              {(savingProfile || uploadingPhoto) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {uploadingPhoto ? "Uploading…" : savingProfile ? "Saving…" : editingProfile ? "Save Profile" : "Edit Profile"}
             </button>
           </Section>
 

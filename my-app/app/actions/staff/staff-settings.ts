@@ -55,6 +55,7 @@ export async function getStaffProfile(): Promise<StaffProfile | null> {
 export async function updateStaffProfile(payload: {
   fullName: string;
   phone: string;
+  photoUrl?: string;
 }): Promise<ApiResult> {
   const session = await getSession();
   if (!session) {
@@ -71,7 +72,11 @@ export async function updateStaffProfile(payload: {
   try {
     await prisma.staff.update({
       where: { id: BigInt(session.userId) },
-      data: { fullName, phone: phone || null },
+      data: {
+        fullName,
+        phone: phone || null,
+        ...(payload.photoUrl ? { photoUrl: payload.photoUrl } : {}),
+      },
     });
 
     revalidatePath("/settings");

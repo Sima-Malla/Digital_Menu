@@ -19,6 +19,7 @@ export type StaffSidebarSummary = {
   role: string;
   businessName: string;
   logoUrl: string | null;
+  photoUrl: string | null;
 };
 
 export async function getStaffSidebarSummary(staffId: bigint): Promise<StaffSidebarSummary | null> {
@@ -28,6 +29,7 @@ export async function getStaffSidebarSummary(staffId: bigint): Promise<StaffSide
       fullName: true,
       position: true,
       role: true,
+      photoUrl: true,
       business: { select: { businessName: true, logoUrl: true } },
     },
   });
@@ -40,5 +42,6 @@ export async function getStaffSidebarSummary(staffId: bigint): Promise<StaffSide
     role: staff.role,
     businessName: staff.business.businessName,
     logoUrl: staff.business.logoUrl,
+    photoUrl: staff.photoUrl ?? null,
   };
 }
