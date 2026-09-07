@@ -97,7 +97,7 @@ function TrendingCard({
         </div>
 
         <Link
-          href={`/kitchens/${business.id}`}
+          href={`/Menu/${business.id}`}
           className="mt-3 block w-full rounded-lg bg-orange-500 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-orange-600"
         >
           View Menu
