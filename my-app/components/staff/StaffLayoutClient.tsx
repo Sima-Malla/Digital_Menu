@@ -23,7 +23,7 @@ export default function StaffLayoutClient({
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <GourmetHubSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar businessName={businessName} profileImage={profileImage} />
+        <TopBar businessName={businessName} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
