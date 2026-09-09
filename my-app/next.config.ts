@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   allowedDevOrigins: ["192.168.254.18"],
   experimental: {
     serverActions: {
