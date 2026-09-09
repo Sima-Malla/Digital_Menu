@@ -85,11 +85,9 @@ export default function Footer() {
         <div className="flex flex-col gap-12 sm:flex-row sm:gap-20 lg:gap-28">
           {/* Brand */}
           <div className="max-w-xs">
-            <Image
+            <img
               src="/logo.png"
               alt="GourmetFlow"
-              width={140}
-              height={40}
               className="h-9 w-auto object-contain"
             />
             <p className="mt-3 text-sm leading-relaxed text-neutral-300">

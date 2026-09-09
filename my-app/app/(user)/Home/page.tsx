@@ -1,7 +1,8 @@
-import { getSession } from "@/lib/session";
 import HomeContent from "./HomeContent";
+import { getTrendingBusinesses } from "@/lib/queries/trending";
 
 export default async function Home() {
-  const session = await getSession();
-  return <HomeContent session={session} />;
+  const trendingBusinesses = await getTrendingBusinesses();
+
+  return <HomeContent trendingBusinesses={trendingBusinesses} />;
 }

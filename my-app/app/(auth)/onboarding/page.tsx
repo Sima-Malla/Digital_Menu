@@ -14,13 +14,8 @@ export default function OnboardingPage() {
     initialState
   );
 
-  // Fields the user has edited since the last server response — hide their
-  // stale error immediately, even before resubmission.
   const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
 
-  // Reset editedFields the moment a NEW state arrives — done synchronously
-  // during render (not in a useEffect) so there's no stale intermediate
-  // frame where old edits incorrectly mask a fresh error from this response.
   const prevStateRef = useRef(state);
   if (prevStateRef.current !== state) {
     prevStateRef.current = state;
@@ -146,7 +141,6 @@ export default function OnboardingPage() {
   );
 }
 
-/* ─── Shared bits ─────────────────────────────────────────── */
 function inputCls(error?: string) {
   return `mt-1 w-full rounded-lg border px-3 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 outline-none focus:ring-1 ${
     error

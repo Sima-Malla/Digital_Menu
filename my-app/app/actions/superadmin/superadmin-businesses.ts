@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logEvent } from "@/lib/log-event";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 
 export type SuperadminBusiness = {
   id: number;
@@ -13,6 +14,7 @@ export type SuperadminBusiness = {
   owner: string;
   email: string;
   phone: string;
+  location: string;
   plan: string;
   status: string;
   revenue: string;
@@ -25,65 +27,68 @@ type GetBusinessesParams = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return `Rs. ${amount.toLocaleString("en-IN")}`;
 }
 
 export async function getSuperadminBusinesses(
   params: GetBusinessesParams = {}
 ): Promise<SuperadminBusiness[]> {
-  const { search, status, plan } = params;
+  try {
+    const { search, status, plan } = params;
 
-  const where: Record<string, unknown> = {};
-  if (status) where.status = status;
-  if (plan) where.plan = plan;
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (plan) where.plan = plan;
 
-  if (search) {
-    where.OR = [
-      { businessName: { contains: search, mode: "insensitive" } },
-      { ownerName: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
-    ];
+    if (search) {
+      where.OR = [
+        { businessName: { contains: search, mode: "insensitive" } },
+        { ownerName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { businessAddress: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const businesses = await prisma.business.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (businesses.length === 0) return [];
+
+    const businessIds = businesses.map((b) => b.id);
+
+    // One aggregate query for all businesses instead of N+1.
+    const revenueRows = await prisma.order.groupBy({
+      by: ["businessId"],
+      where: {
+        businessId: { in: businessIds },
+        status: { notIn: ["cancelled", "Cancelled", "rejected", "Rejected"] },
+      },
+      _sum: { totalAmount: true },
+    });
+
+    const revenueMap = new Map<string, number>();
+    for (const row of revenueRows) {
+      revenueMap.set(row.businessId.toString(), Number(row._sum.totalAmount ?? 0));
+    }
+
+    return businesses.map((b) => ({
+      id: Number(b.id),
+      logo: b.logoUrl || "🍽️",
+      name: b.businessName,
+      owner: b.ownerName || "—",
+      email: b.email || "",
+      phone: b.businessPhone || "",
+      location: b.businessAddress || "",
+      plan: b.plan,
+      status: b.status,
+      revenue: formatCurrency(revenueMap.get(b.id.toString()) ?? 0),
+    }));
+  } catch (error) {
+    console.error("Failed to load superadmin businesses:", error);
+    return [];
   }
-
-  const businesses = await prisma.business.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (businesses.length === 0) return [];
-
-  const businessIds = businesses.map((b) => b.id);
-
-  // One aggregate query for all businesses instead of N+1.
-  const revenueRows = await prisma.order.groupBy({
-    by: ["businessId"],
-    where: {
-      businessId: { in: businessIds },
-      paymentStatus: "paid",
-    },
-    _sum: { totalAmount: true },
-  });
-
-  const revenueMap = new Map<string, number>();
-  for (const row of revenueRows) {
-    revenueMap.set(row.businessId.toString(), Number(row._sum.totalAmount ?? 0));
-  }
-
-  return businesses.map((b) => ({
-    id: Number(b.id),
-    logo: b.logoUrl || "🍽️",
-    name: b.businessName,
-    owner: b.ownerName || "—",
-    email: b.email || "",
-    phone: b.businessPhone || "",
-    plan: b.plan,
-    status: b.status,
-    revenue: formatCurrency(revenueMap.get(b.id.toString()) ?? 0),
-  }));
 }
 
 type CreateBusinessInput = {
@@ -92,9 +97,41 @@ type CreateBusinessInput = {
   owner: string;
   email: string;
   phone: string;
+  location?: string;
   plan: string;
   status: string;
 };
+
+/**
+ * Applies Business Rules (Auto Approve / Require Verification / Default
+ * Status) to decide the actual status a new business gets, regardless of
+ * whatever status the create form defaulted to.
+ *
+ * Precedence: Require Verification always wins — a business can't be
+ * auto-approved into Active if verification is required, since no
+ * documents have been reviewed yet at creation time. Only when
+ * verification is OFF does Auto Approve get to set it Active directly.
+ */
+async function resolveInitialStatus(): Promise<{ status: string; reason: string }> {
+  const rules = await prisma.businessRule.findFirst();
+
+  if (!rules) {
+    return { status: "Pending", reason: "No business rules configured — defaulted to Pending" };
+  }
+
+  if (rules.requireVerification) {
+    return {
+      status: rules.defaultBusinessStatus,
+      reason: "Require Verification is on — auto-approve skipped",
+    };
+  }
+
+  if (rules.autoApproveBusinesses) {
+    return { status: "Active", reason: "Auto Approve Businesses is on" };
+  }
+
+  return { status: rules.defaultBusinessStatus, reason: "Using default business status" };
+}
 
 export async function createBusinessAction(input: CreateBusinessInput) {
   try {
@@ -109,15 +146,29 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       return { success: false, message: "A business with this email already exists." };
     }
 
+    const { status: resolvedStatus, reason } = await resolveInitialStatus();
+
     const created = await prisma.business.create({
       data: {
         businessName: input.name.trim(),
         ownerName: input.owner.trim(),
         email: input.email.trim(),
         businessPhone: input.phone?.trim() || null,
+        businessAddress: input.location?.trim() || null,
         logoUrl: input.logo || "🍽️",
         plan: input.plan || "Basic",
-        status: input.status || "Pending",
+        status: resolvedStatus,
+        ...(input.location?.trim()
+          ? {
+              locations: {
+                create: {
+                  label: input.location.trim(),
+                  type: "dine-in",
+                  status: "active",
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -126,11 +177,17 @@ export async function createBusinessAction(input: CreateBusinessInput) {
       module: "Businesses",
       status: "Success",
       business: created.businessName,
-      details: `Owner: ${created.ownerName ?? "—"} · Plan: ${created.plan}`,
+      details: `Owner: ${created.ownerName ?? "—"} · Location: ${created.businessAddress ?? "—"} · Plan: ${created.plan} · Status: ${resolvedStatus} (${reason})`,
+    });
+
+    await createSuperAdminNotification({
+      title: `New Business Added: ${created.businessName}`,
+      message: `Business '${created.businessName}' was registered by ${created.ownerName ?? "Owner"} (${created.email}). Plan: ${created.plan}, Status: ${resolvedStatus}.`,
+      type: "business_added",
     });
 
     revalidatePath("/superadmin/businesses");
-    return { success: true, message: "Business created." };
+    return { success: true, message: `Business created with status: ${resolvedStatus}.` };
   } catch (err) {
     console.error("createBusinessAction error:", err);
     return { success: false, message: "Failed to create business." };
@@ -143,6 +200,7 @@ type UpdateBusinessInput = Partial<{
   owner: string;
   email: string;
   phone: string;
+  location: string;
   plan: string;
   status: string;
 }>;
@@ -170,6 +228,7 @@ export async function updateBusinessAction(id: number, input: UpdateBusinessInpu
         ...(input.owner !== undefined && { ownerName: input.owner.trim() }),
         ...(input.email !== undefined && { email: input.email.trim() }),
         ...(input.phone !== undefined && { businessPhone: input.phone.trim() }),
+        ...(input.location !== undefined && { businessAddress: input.location.trim() }),
         ...(input.logo !== undefined && { logoUrl: input.logo }),
         ...(input.plan !== undefined && { plan: input.plan }),
         ...(input.status !== undefined && { status: input.status }),
@@ -186,6 +245,12 @@ export async function updateBusinessAction(id: number, input: UpdateBusinessInpu
         status: "Completed",
         business: updated.businessName,
         isSecurityEvent: SENSITIVE_STATUSES.has(input.status!),
+      });
+
+      await createSuperAdminNotification({
+        title: `Business ${input.status}: ${updated.businessName}`,
+        message: `Status for business '${updated.businessName}' was changed from ${before!.status} to ${input.status}.`,
+        type: SENSITIVE_STATUSES.has(input.status!) ? "business_suspended" : "system_alert",
       });
     } else {
       await logEvent({
@@ -233,6 +298,12 @@ export async function deleteBusinessAction(id: number) {
       status: "Completed",
       business: existing?.businessName,
       isSecurityEvent: true,
+    });
+
+    await createSuperAdminNotification({
+      title: `Business Deleted: ${existing?.businessName || `ID ${id}`}`,
+      message: `Business '${existing?.businessName || id}' was deleted from the platform.`,
+      type: "business_deleted",
     });
 
     revalidatePath("/superadmin/businesses");

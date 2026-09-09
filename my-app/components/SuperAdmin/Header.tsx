@@ -3,6 +3,8 @@
 import { Bell, Search } from "lucide-react";
 import Image from "next/image";
 
+import SuperAdminNotificationBell from "./SuperAdminNotificationBell";
+
 export default function Header() {
   return (
     <header className="bg-white border-b px-8 py-4 flex items-center justify-between">
@@ -26,11 +28,7 @@ export default function Header() {
         </div>
 
         {/* Notification */}
-        <button className="relative">
-          <Bell size={22} />
-
-          <span className="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full"></span>
-        </button>
+        <SuperAdminNotificationBell />
 
         {/* Profile */}
         <div className="flex items-center gap-3">

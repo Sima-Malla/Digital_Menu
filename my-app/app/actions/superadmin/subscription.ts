@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { createSuperAdminNotification } from "@/lib/superadmin-notifications";
 // import { requireSuperAdmin } from "@/lib/session"; // TODO: wire real auth
 
 type ActionResult<T> = { data?: T; error?: string };
@@ -49,6 +50,12 @@ export async function createPlan(
     data: { ...parsed.data, sortOrder: count },
   });
 
+  await createSuperAdminNotification({
+    title: "New Subscription Plan Created",
+    message: `Subscription plan '${plan.name}' (${plan.cycle}) was created.`,
+    type: "system_alert",
+  });
+
   revalidatePath("/settings/subscription");
   return { data: { id: plan.id.toString() } };
 }
@@ -63,6 +70,12 @@ export async function updatePlan(
 
   await prisma.subscriptionPlan.update({ where: { id }, data: parsed.data });
 
+  await createSuperAdminNotification({
+    title: "Subscription Plan Updated",
+    message: `Plan '${input.name}' pricing or cycle configuration was updated.`,
+    type: "system_alert",
+  });
+
   revalidatePath("/settings/subscription");
   return { data: true };
 }
@@ -74,6 +87,12 @@ export async function deletePlan(id: bigint): Promise<ActionResult<true>> {
   if (plan.isDefault) return { error: "Can't delete the default plan — set another plan as default first." };
 
   await prisma.subscriptionPlan.delete({ where: { id } });
+
+  await createSuperAdminNotification({
+    title: "Subscription Plan Deleted",
+    message: `Plan '${plan.name}' was deleted.`,
+    type: "system_alert",
+  });
 
   revalidatePath("/settings/subscription");
   return { data: true };
@@ -88,6 +107,12 @@ export async function setDefaultPlan(id: bigint): Promise<ActionResult<true>> {
     prisma.subscriptionPlan.updateMany({ data: { isDefault: false }, where: {} }),
     prisma.subscriptionPlan.update({ where: { id }, data: { isDefault: true } }),
   ]);
+
+  await createSuperAdminNotification({
+    title: "Default Subscription Plan Changed",
+    message: `'${plan.name}' is now set as the default subscription plan.`,
+    type: "system_alert",
+  });
 
   revalidatePath("/settings/subscription");
   return { data: true };
@@ -131,6 +156,12 @@ export async function updateSubscriptionSettings(
     where: { id: 1 },
     update: parsed.data,
     create: { id: 1, ...parsed.data },
+  });
+
+  await createSuperAdminNotification({
+    title: "Subscription Rules Updated",
+    message: "Trial days, tax rate, or grace period settings were updated.",
+    type: "system_alert",
   });
 
   revalidatePath("/settings/subscription");

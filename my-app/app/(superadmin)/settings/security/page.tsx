@@ -1,170 +1,131 @@
 "use client";
 
-import { useState } from "react";
-import {
-  KeyRound,
-  ShieldCheck,
-  Clock3,
-  Network,
-  History,
-  Terminal,
-  Plus,
-  Trash2,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-} from "lucide-react";
-
-interface ApiKey {
-  id: string;
-  label: string;
-  key: string;
-  created: string;
-  lastUsed: string;
-}
-
-interface AllowedIp {
-  id: string;
-  address: string;
-  label: string;
-}
+import { useEffect, useState, useTransition } from "react";
+import { ShieldCheck, Clock3, History, Check, AlertTriangle } from "lucide-react";
+import { getSecuritySettings, updateSecuritySettings } from "@/app/actions/superadmin/security";
 
 export default function SecuritySettingsPage() {
+  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-
-  // Password policy
-  const [minLength, setMinLength] = useState(8);
-  const [requireUppercase, setRequireUppercase] = useState(true);
-  const [requireNumber, setRequireNumber] = useState(true);
-  const [requireSpecialChar, setRequireSpecialChar] = useState(false);
-  const [passwordExpiryDays, setPasswordExpiryDays] = useState(90);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   // 2FA
   const [enforce2FA, setEnforce2FA] = useState(true);
   const [twoFAMethod, setTwoFAMethod] = useState("Authenticator App");
 
   // Session & login limits
-  const [sessionTimeout, setSessionTimeout] = useState(30);
-  const [maxLoginAttempts, setMaxLoginAttempts] = useState(5);
-  const [autoBlockMinutes, setAutoBlockMinutes] = useState(15);
-
-  // IP whitelist
-  const [ipWhitelistEnabled, setIpWhitelistEnabled] = useState(false);
-  const [allowedIps, setAllowedIps] = useState<AllowedIp[]>([
-    { id: "1", address: "192.168.1.22", label: "Office - Kathmandu" },
-  ]);
+  const [sessionTimeout, setSessionTimeout] = useState<number>(30);
+  const [maxLoginAttempts, setMaxLoginAttempts] = useState<number>(5);
+  const [autoBlockMinutes, setAutoBlockMinutes] = useState<number>(15);
 
   // Audit log retention
-  const [retentionPeriod, setRetentionPeriod] = useState("90 days");
+  const [retentionPeriod, setRetentionPeriod] = useState("180 days");
 
-  // API keys
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([
-    { id: "1", label: "Production Server", key: "sk_live_••••••••••••8F2A", created: "01 Jun 2026", lastUsed: "2h ago" },
-    { id: "2", label: "Staging", key: "sk_test_••••••••••••11C3", created: "12 Mar 2026", lastUsed: "5d ago" },
-  ]);
-  const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const s = await getSecuritySettings();
+      setEnforce2FA(s.enforce2FA);
+      setTwoFAMethod(s.twoFAMethod);
+      setSessionTimeout(s.sessionTimeoutMinutes);
+      setMaxLoginAttempts(s.maxLoginAttempts);
+      setAutoBlockMinutes(s.autoBlockMinutes);
+      setRetentionPeriod(s.auditRetentionPeriod);
+      setLoading(false);
+    })();
+  }, []);
+
+  function validateInput(field?: string) {
+    const errs: Record<string, string> = { ...errors };
+
+    if (!field || field === "sessionTimeout") {
+      if (isNaN(sessionTimeout) || sessionTimeout < 1 || sessionTimeout > 1440) {
+        errs.sessionTimeout = "Must be 1–1440 mins";
+      } else {
+        delete errs.sessionTimeout;
+      }
+    }
+
+    if (!field || field === "maxLoginAttempts") {
+      if (isNaN(maxLoginAttempts) || maxLoginAttempts < 1 || maxLoginAttempts > 20) {
+        errs.maxLoginAttempts = "Must be 1–20 attempts";
+      } else {
+        delete errs.maxLoginAttempts;
+      }
+    }
+
+    if (!field || field === "autoBlockMinutes") {
+      if (isNaN(autoBlockMinutes) || autoBlockMinutes < 1 || autoBlockMinutes > 1440) {
+        errs.autoBlockMinutes = "Must be 1–1440 mins";
+      } else {
+        delete errs.autoBlockMinutes;
+      }
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setServerError(null);
+    if (!validateInput()) {
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await updateSecuritySettings({
+        enforce2FA,
+        twoFAMethod: twoFAMethod as "Authenticator App" | "SMS" | "Email",
+        sessionTimeoutMinutes: sessionTimeout,
+        maxLoginAttempts,
+        autoBlockMinutes,
+        auditRetentionPeriod: retentionPeriod as "30 days" | "90 days" | "180 days" | "1 year" | "Indefinite",
+      });
+
+      if (res.error) {
+        setServerError("Failed to save security settings. Please check your inputs.");
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    });
   }
 
-  function addIp() {
-    setAllowedIps((ips) => [...ips, { id: crypto.randomUUID(), address: "", label: "" }]);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">
+        Loading security settings...
+      </div>
+    );
   }
 
-  function updateIp(id: string, field: "address" | "label", value: string) {
-    setAllowedIps((ips) => ips.map((ip) => (ip.id === id ? { ...ip, [field]: value } : ip)));
-  }
-
-  function removeIp(id: string) {
-    setAllowedIps((ips) => ips.filter((ip) => ip.id !== id));
-  }
-
-  function toggleReveal(id: string) {
-    setRevealedKeys((r) => ({ ...r, [id]: !r[id] }));
-  }
-
-  function copyKey(id: string, key: string) {
-    navigator.clipboard?.writeText(key).catch(() => {});
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 1500);
-  }
-
-  function revokeKey(id: string) {
-    setApiKeys((keys) => keys.filter((k) => k.id !== id));
-  }
-
-  function generateKey() {
-    setApiKeys((keys) => [
-      ...keys,
-      {
-        id: crypto.randomUUID(),
-        label: "New API Key",
-        key: `sk_live_••••••••••••${Math.random().toString(16).slice(2, 6).toUpperCase()}`,
-        created: "Just now",
-        lastUsed: "Never",
-      },
-    ]);
-  }
+  const hasValidationErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
-            Security
-          </h1>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Security</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Password policy, authentication, access control, and audit settings for the platform.
+            Two-factor authentication, session limits, and audit settings for the platform.
           </p>
         </div>
 
-        <div className="space-y-6">
-          {/* Password Policy */}
-          <Card title="Password Policy" icon={KeyRound} description="Rules enforced when any admin or user sets a password.">
-            <div className="space-y-1 divide-y divide-slate-100">
-              <SettingRow label="Minimum Length">
-                <input
-                  type="number"
-                  value={minLength}
-                  onChange={(e) => setMinLength(Number(e.target.value))}
-                  className="input w-24"
-                />
-              </SettingRow>
-              <SettingRow label="Require Uppercase Letter">
-                <Toggle checked={requireUppercase} onChange={() => setRequireUppercase((v) => !v)} />
-              </SettingRow>
-              <SettingRow label="Require Number">
-                <Toggle checked={requireNumber} onChange={() => setRequireNumber((v) => !v)} />
-              </SettingRow>
-              <SettingRow label="Require Special Character">
-                <Toggle checked={requireSpecialChar} onChange={() => setRequireSpecialChar((v) => !v)} />
-              </SettingRow>
-              <SettingRow
-                label="Password Expiry (days)"
-                description="Force a password reset after this many days. 0 disables expiry."
-              >
-                <input
-                  type="number"
-                  value={passwordExpiryDays}
-                  onChange={(e) => setPasswordExpiryDays(Number(e.target.value))}
-                  className="input w-24"
-                />
-              </SettingRow>
-            </div>
-          </Card>
+        {serverError && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle size={16} />
+            {serverError}
+          </div>
+        )}
 
+        <div className="space-y-6">
           {/* Two-Factor Authentication */}
           <Card title="Two-Factor Authentication" icon={ShieldCheck} description="Extra verification step for admin accounts.">
             <div className="divide-y divide-slate-100">
-              <SettingRow
-                label="Enforce 2FA for Admins"
-                description="All admin accounts must set up 2FA to sign in."
-              >
+              <SettingRow label="Enforce 2FA for Admins" description="All admin accounts must set up 2FA to sign in.">
                 <Toggle checked={enforce2FA} onChange={() => setEnforce2FA((v) => !v)} />
               </SettingRow>
               <SettingRow label="Preferred Method">
@@ -186,78 +147,67 @@ export default function SecuritySettingsPage() {
           <Card title="Session & Login Limits" icon={Clock3} description="Controls how long sessions last and how failed logins are handled.">
             <div className="divide-y divide-slate-100">
               <SettingRow label="Session Timeout (minutes)">
-                <input
-                  type="number"
-                  value={sessionTimeout}
-                  onChange={(e) => setSessionTimeout(Number(e.target.value))}
-                  className="input w-24"
-                />
+                <div className="text-right">
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={sessionTimeout}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setSessionTimeout(val);
+                      validateInput("sessionTimeout");
+                    }}
+                    className={`input w-28 ${errors.sessionTimeout ? "border-red-400 focus:border-red-500 focus:ring-red-100" : ""}`}
+                  />
+                  {errors.sessionTimeout && (
+                    <p className="mt-1 text-xs font-medium text-red-600">{errors.sessionTimeout}</p>
+                  )}
+                </div>
               </SettingRow>
+
               <SettingRow label="Max Failed Login Attempts">
-                <input
-                  type="number"
-                  value={maxLoginAttempts}
-                  onChange={(e) => setMaxLoginAttempts(Number(e.target.value))}
-                  className="input w-24"
-                />
+                <div className="text-right">
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={maxLoginAttempts}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setMaxLoginAttempts(val);
+                      validateInput("maxLoginAttempts");
+                    }}
+                    className={`input w-28 ${errors.maxLoginAttempts ? "border-red-400 focus:border-red-500 focus:ring-red-100" : ""}`}
+                  />
+                  {errors.maxLoginAttempts && (
+                    <p className="mt-1 text-xs font-medium text-red-600">{errors.maxLoginAttempts}</p>
+                  )}
+                </div>
               </SettingRow>
+
               <SettingRow
                 label="Auto-block Duration (minutes)"
                 description="How long an account stays blocked after exceeding failed attempts."
               >
-                <input
-                  type="number"
-                  value={autoBlockMinutes}
-                  onChange={(e) => setAutoBlockMinutes(Number(e.target.value))}
-                  className="input w-24"
-                />
-              </SettingRow>
-            </div>
-          </Card>
-
-          {/* IP Whitelisting */}
-          <Card title="IP Whitelisting" icon={Network} description="Restrict admin login to specific IP addresses.">
-            <div className="space-y-4">
-              <SettingRow label="Enable IP Whitelisting">
-                <Toggle checked={ipWhitelistEnabled} onChange={() => setIpWhitelistEnabled((v) => !v)} />
-              </SettingRow>
-
-              {ipWhitelistEnabled && (
-                <div className="space-y-2 rounded-lg bg-slate-50 p-3">
-                  {allowedIps.map((ip) => (
-                    <div key={ip.id} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={ip.address}
-                        onChange={(e) => updateIp(ip.id, "address", e.target.value)}
-                        placeholder="192.168.1.1"
-                        className="input flex-1 font-mono text-xs"
-                      />
-                      <input
-                        type="text"
-                        value={ip.label}
-                        onChange={(e) => updateIp(ip.id, "label", e.target.value)}
-                        placeholder="Label (e.g. Office)"
-                        className="input flex-1"
-                      />
-                      <button
-                        onClick={() => removeIp(ip.id)}
-                        aria-label="Remove IP"
-                        className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={addIp}
-                    className="flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
-                  >
-                    <Plus size={15} />
-                    Add IP address
-                  </button>
+                <div className="text-right">
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={autoBlockMinutes}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setAutoBlockMinutes(val);
+                      validateInput("autoBlockMinutes");
+                    }}
+                    className={`input w-28 ${errors.autoBlockMinutes ? "border-red-400 focus:border-red-500 focus:ring-red-100" : ""}`}
+                  />
+                  {errors.autoBlockMinutes && (
+                    <p className="mt-1 text-xs font-medium text-red-600">{errors.autoBlockMinutes}</p>
+                  )}
                 </div>
-              )}
+              </SettingRow>
             </div>
           </Card>
 
@@ -277,59 +227,9 @@ export default function SecuritySettingsPage() {
               </select>
             </Field>
           </Card>
-
-          {/* API Key Management */}
-          <Card title="API Key Management" icon={Terminal} description="Keys used by external services to access the platform API.">
-            <div className="space-y-3">
-              {apiKeys.map((k) => (
-                <div key={k.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3.5">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-800">{k.label}</p>
-                    <button
-                      onClick={() => revokeKey(k.id)}
-                      className="text-xs font-medium text-red-500 hover:text-red-600"
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded-md bg-white px-2.5 py-1.5 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
-                      {revealedKeys[k.id] ? k.key.replace(/•/g, "x") : k.key}
-                    </code>
-                    <button
-                      onClick={() => toggleReveal(k.id)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600"
-                      aria-label="Toggle key visibility"
-                    >
-                      {revealedKeys[k.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                    <button
-                      onClick={() => copyKey(k.id, k.key)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600"
-                      aria-label="Copy key"
-                    >
-                      {copiedId === k.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-400">
-                    Created {k.created} · Last used {k.lastUsed}
-                  </p>
-                </div>
-              ))}
-
-              <button
-                onClick={generateKey}
-                className="flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
-              >
-                <Plus size={15} />
-                Generate new API key
-              </button>
-            </div>
-          </Card>
         </div>
       </div>
 
-      {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <p className="text-xs text-slate-400">
@@ -337,25 +237,31 @@ export default function SecuritySettingsPage() {
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
                 <Check size={14} /> Changes saved
               </span>
+            ) : hasValidationErrors ? (
+              <span className="text-red-600 font-medium">Please fix validation errors before saving.</span>
             ) : (
               "Unsaved changes are not applied until you save."
             )}
           </p>
           <div className="flex gap-3">
-            <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
               Discard
             </button>
             <button
               onClick={handleSave}
-              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700"
+              disabled={isPending || hasValidationErrors}
+              className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-60"
             >
-              Save Changes
+              {isPending ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Shared input styling */}
       <style jsx global>{`
         .input {
           width: 100%;
@@ -376,20 +282,7 @@ export default function SecuritySettingsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-function Card({
-  title,
-  description,
-  children,
-  icon: Icon,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-  icon?: React.ElementType;
-}) {
+function Card({ title, description, children, icon: Icon }: { title: string; description?: string; children: React.ReactNode; icon?: React.ElementType }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-2">
@@ -402,15 +295,7 @@ function Card({
   );
 }
 
-function SettingRow({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
+function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
       <div className="pr-4">
@@ -422,13 +307,7 @@ function SettingRow({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-slate-600">{label}</label>
@@ -440,21 +319,26 @@ function Field({
 function Toggle({
   checked,
   onChange,
+  disabled = false,
+  danger = false,
 }: {
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
+  danger?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-orange-600" : "bg-slate-300"
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked ? (danger ? "bg-red-600" : "bg-orange-600") : "bg-slate-300"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>

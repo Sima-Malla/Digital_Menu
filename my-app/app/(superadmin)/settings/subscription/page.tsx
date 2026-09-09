@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Layers,
   Clock,
-  Receipt,
   ShieldAlert,
   Plus,
   Trash2,
@@ -46,7 +45,8 @@ export default function SubscriptionSettingsPage() {
   const [trialDays, setTrialDays] = useState(14);
   const [requireCardForTrial, setRequireCardForTrial] = useState(false);
 
-  // Billing & invoicing
+  // Billing & invoicing — hidden from the UI for now, but the values still
+  // load/save so nothing breaks if this section comes back later.
   const [taxRate, setTaxRate] = useState(13);
   const [invoicePrefix, setInvoicePrefix] = useState("INV-");
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
@@ -107,7 +107,6 @@ export default function SubscriptionSettingsPage() {
     startTransition(async () => {
       const res = await deletePlan(BigInt(id));
       if (res.error && removed) {
-        // couldn't delete (e.g. it's the default plan) — restore it
         setPlans((ps) => [...ps, removed]);
       }
     });
@@ -166,7 +165,7 @@ export default function SubscriptionSettingsPage() {
             Subscription
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Plan tiers, trial period, billing, and grace period for the platform's own subscription.
+            Plan tiers, trial period, and grace period for the platform's own subscription.
           </p>
         </div>
 
@@ -306,42 +305,9 @@ export default function SubscriptionSettingsPage() {
             </div>
           </Card>
 
-          {/* Billing & Invoicing */}
-          <Card
-            title="Billing & Invoicing"
-            icon={Receipt}
-            description="Tax and invoice settings applied to subscription billing."
-          >
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Tax Rate (%)">
-                <input
-                  type="number"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Number(e.target.value))}
-                  className="input"
-                />
-              </Field>
-              <Field label="Invoice Number Prefix">
-                <input
-                  type="text"
-                  value={invoicePrefix}
-                  onChange={(e) => setInvoicePrefix(e.target.value)}
-                  className="input"
-                />
-              </Field>
-              <div className="sm:col-span-2">
-                <SettingRow
-                  label="Auto-generate Invoices"
-                  description="Create and send an invoice automatically on every billing cycle."
-                >
-                  <Toggle
-                    checked={autoGenerateInvoice}
-                    onChange={() => setAutoGenerateInvoice((v) => !v)}
-                  />
-                </SettingRow>
-              </div>
-            </div>
-          </Card>
+          {/* Billing & Invoicing — removed from the UI for now (optional).
+              State + save logic is still here so re-adding the Card later
+              is a one-block change, not a rewire. */}
 
           {/* Grace Period */}
           <Card
@@ -469,39 +435,29 @@ function SettingRow({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-medium text-slate-600">{label}</label>
-      {children}
-    </div>
-  );
-}
-
 function Toggle({
   checked,
   onChange,
+  disabled = false,
+  danger = false,
 }: {
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
+  danger?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-orange-600" : "bg-slate-300"
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked ? (danger ? "bg-red-600" : "bg-orange-600") : "bg-slate-300"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>

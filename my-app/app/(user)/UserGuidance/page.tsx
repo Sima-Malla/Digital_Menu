@@ -1,6 +1,5 @@
 "use client";
 
-import Nav from "@/components/Nav";
 import GuidanceHero from "@/components/guidance/Guidancehero";
 import StepsSection from "@/components/guidance/Stepssection";
 import DietaryAndGroupSection from "@/components/guidance/Dietaryandgroupsection";
@@ -12,8 +11,7 @@ import Footer from "@/components/Footer";
 export default function GuidancePage() {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
-      <Nav />
-      <GuidanceHero />
+      {/* <GuidanceHero /> */}
       <StepsSection />
       <DietaryAndGroupSection />
       <SupportAndEcoSection />

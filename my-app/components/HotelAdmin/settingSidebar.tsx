@@ -28,7 +28,7 @@ export default function SettingsSidebar() {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-100 bg-white lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-gray-100 bg-white lg:flex">
       {/* ── Header (click to toggle dropdown) ───────────── */}
       <button
         type="button"

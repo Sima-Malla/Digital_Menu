@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Nav from "@/components/Nav";
+import Image from "next/image";
 import Footer from "@/components/Footer";
-import type { SessionPayload } from "@/lib/session";
 import { ChevronLeft, ChevronRight, ChevronDown, X, Heart } from "lucide-react";
+import { useSaved } from "@/components/SavedContext";
+import { toValidImageSrc } from "@/lib/image-utils";
+
+const FAVORITES_STORAGE_KEY = "kitchens-favorites-v1";
 
 // Color the business-type badge consistently per type so cards feel
 // as colorful as the old mock UI, without inventing per-business data.
@@ -17,16 +20,15 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 const DEFAULT_BADGE_COLOR = "bg-orange-700";
 
 /* ─── Types ──────────────────────────────────────────────── */
-// Matches exactly what the Business table provides today.
-// rating / chips / tag / price tier / image are NOT in the schema yet —
-// add columns to `Business` (e.g. rating, imageUrl, priceTier, cuisine)
-// if you want those back in the UI.
 type BusinessListing = {
   id: string;
   name: string;
   type: string;
   address: string;
   phone: string;
+  imageUrl?: string | null;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
 };
 
 type SortKey = "recommended" | "name-asc" | "name-desc";
@@ -50,17 +52,16 @@ function sortBusinesses(list: BusinessListing[], key: SortKey): BusinessListing[
 export default function MarketplaceContent({
   businesses,
   businessTypes,
-  session,
 }: {
   businesses: BusinessListing[];
   businessTypes: string[];
-  session: SessionPayload | null;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recommended");
   const [page, setPage] = useState(1);
+
+  const { favoriteIds, toggleFavorite } = useSaved();
 
   const toggleType = (val: string) => {
     setSelectedTypes((prev) =>
@@ -99,12 +100,6 @@ export default function MarketplaceContent({
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] text-[#231C16]">
-      <Nav
-        session={session}
-        menuOpen={sidebarOpen}
-        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
-
       {/* Hero */}
       <div className="px-6 pb-5 pt-9 md:px-10">
         <h1 className="text-3xl font-extrabold md:text-4xl">Discover Culinary Excellence</h1>
@@ -117,6 +112,7 @@ export default function MarketplaceContent({
       <div className="flex flex-col gap-8 px-6 pb-16 md:flex-row md:px-10">
         {/* Sidebar */}
         <aside className="w-full shrink-0 md:w-56">
+
           <FilterGroup title="Business Type">
             {businessTypes.length === 0 ? (
               <p className="text-xs text-gray-400">No businesses listed yet</p>
@@ -144,7 +140,9 @@ export default function MarketplaceContent({
         <main className="min-w-0 flex-1">
           {/* Results bar + sort */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-gray-500">{sorted.length} businesses found</p>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <p>{sorted.length} businesses found</p>
+            </div>
             <div className="flex items-center gap-2">
               <label htmlFor="sort" className="text-xs text-gray-500">
                 Sort by
@@ -173,7 +171,12 @@ export default function MarketplaceContent({
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {paged.map((b) => (
-                <BusinessCard key={b.id} b={b} />
+                <BusinessCard
+                  key={b.id}
+                  b={b}
+                  isFavorite={favoriteIds.includes(b.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
               ))}
             </div>
           )}
@@ -234,16 +237,37 @@ function Checkbox({
   );
 }
 
-function BusinessCard({ b }: { b: BusinessListing }) {
+function BusinessCard({
+  b,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  b: BusinessListing;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
+}) {
   const badgeColor = TYPE_BADGE_COLORS[b.type] ?? DEFAULT_BADGE_COLOR;
+  const imageSrc = toValidImageSrc(b.imageUrl) ?? toValidImageSrc(b.bannerUrl) ?? toValidImageSrc(b.logoUrl);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Banner — swap the src for a per-business <Image> once Business has an imageUrl column */}
-      <div
-        className="relative h-40 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hotel.png')" }}
-      >
+      {/* Banner */}
+      <div className="relative h-40 overflow-hidden bg-neutral-800">
+        {imageSrc ? (
+          <Image
+            src={imageSrc}
+            alt={b.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-700 via-orange-600 to-stone-900 p-4 text-center">
+            <span className="text-xl font-black uppercase tracking-wider text-white/90 drop-shadow">
+              {b.name}
+            </span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         {b.type && (
           <span
@@ -252,9 +276,26 @@ function BusinessCard({ b }: { b: BusinessListing }) {
             {b.type}
           </span>
         )}
-        <div className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90">
-          <Heart className="h-3.5 w-3.5 text-orange-700" />
-        </div>
+        <button
+          type="button"
+          aria-label={isFavorite ? `Remove ${b.name} from saved favorites` : `Save ${b.name} to favorites`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite(b.id);
+          }}
+          className={`absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border transition ${
+            isFavorite
+              ? "border-red-500 bg-red-500 text-white shadow-sm"
+              : "border-white/60 bg-white/90 text-orange-700 hover:bg-white"
+          }`}
+        >
+          <Heart
+            className="h-3.5 w-3.5"
+            fill={isFavorite ? "currentColor" : "none"}
+            strokeWidth={isFavorite ? 2.5 : 2}
+          />
+        </button>
         <p className="absolute bottom-2.5 left-3 text-base font-bold text-white drop-shadow">
           {b.name}
         </p>

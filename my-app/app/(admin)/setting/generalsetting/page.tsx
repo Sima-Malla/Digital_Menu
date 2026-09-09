@@ -6,7 +6,10 @@ import GeneralSettingsClient from "./generalSettingsClient";
 
 export default async function GeneralSettingsPage() {
   const session = await getSession();
-  if (!session?.businessId) {
+  if (!session || (session.role !== "owner" && session.role !== "manager")) {
+    redirect("/login");
+  }
+  if (!session.businessId) {
     redirect("/login");
   }
 

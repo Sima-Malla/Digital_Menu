@@ -116,7 +116,11 @@ export default function TeamClient({ initialStaff }: { initialStaff: StaffMember
   const changePosition = (id: string, position: string) => {
     setBusyId(id);
     startTransition(async () => {
-      await updateStaffPositionAction(id, position);
+      try {
+        await updateStaffPositionAction(id, position);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Something went wrong.");
+      }
       setBusyId(null);
       router.refresh();
     });
@@ -154,7 +158,7 @@ export default function TeamClient({ initialStaff }: { initialStaff: StaffMember
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F8FA]">
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[1180px] px-8 py-8">
+        <div className="mx-auto max-w-[1080px] px-6 py-8">
           <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">
             <span>Settings</span>
             <ChevronRight className="h-3 w-3" />

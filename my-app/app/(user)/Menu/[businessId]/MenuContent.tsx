@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Search, SlidersHorizontal, Share2, Heart, ShoppingBag, MapPin, Clock, Utensils, Plus } from "lucide-react";
-import Nav from "@/components/Nav";
+import { Search, SlidersHorizontal, ShoppingBag, MapPin, Utensils, Plus, Menu as MenuIcon, Star } from "lucide-react";
 import { OrderProvider, useOrder, type CartItem } from "@/components/OrderContext";
 import CheckoutModal from "@/components/CheckoutModal";
-import type { SessionPayload } from "@/lib/session";
+import Sidebar from "@/components/SideBar";
+import { toValidImageSrc } from "@/lib/image-utils";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type MenuItem = {
@@ -18,17 +18,32 @@ type MenuItem = {
   imageUrl: string | null;
 };
 
+type Review = {
+  id: string;
+  name: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+};
+
 const FALLBACK_IMG = "/vegmomo.jpg";
 
 /* ─── Row-style menu item card ───────────────────────────── */
 function MenuItemRow({ item }: { item: MenuItem }) {
   const { items, addItem, incrementQty, decrementQty } = useOrder();
   const cartItem = items.find((i) => i.menuItemId === item.id);
+  const imageSrc = toValidImageSrc(item.imageUrl);
 
   return (
     <div className="flex items-start gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-        <Image src={item.imageUrl || FALLBACK_IMG} alt={item.name} fill sizes="80px" className="object-cover" />
+        {imageSrc ? (
+          <Image src={imageSrc} alt={item.name} fill sizes="80px" className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-800 font-bold text-xs p-1 text-center">
+            {item.name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
@@ -47,7 +62,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
                 menuItemId: item.id,
                 name: item.name,
                 category: item.category,
-                image: item.imageUrl || FALLBACK_IMG,
+                image: item.imageUrl || "",
                 price: item.price,
               })
             }
@@ -55,7 +70,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
           >
             <Plus className="h-4 w-4" />
           </button>
-        ) : (
+        ) : (  
           <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
             <button onClick={() => decrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100">−</button>
             <span className="text-xs font-semibold text-gray-800">{cartItem.quantity}</span>
@@ -126,25 +141,107 @@ function OrderPanel({ onCheckout }: { onCheckout: () => void }) {
   );
 }
 
+/* ─── Reviews section ───────────────────────────────────────── */
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star key={s} className="h-3.5 w-3.5" strokeWidth={1.5}
+          fill={rating >= s ? "#FBBF24" : "none"}
+          color={rating >= s ? "#FBBF24" : "#D1D5DB"} />
+      ))}
+    </div>
+  );
+}
+
+function ReviewsSection({ reviews, avgRating }: { reviews: Review[]; avgRating: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? reviews : reviews.slice(0, 4);
+  return (
+    <section className="mt-10 border-t border-gray-100 pt-8">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Guest Reviews</h2>
+          {reviews.length > 0 && (
+            <div className="mt-1 flex items-center gap-2">
+              <StarRow rating={Math.round(avgRating)} />
+              <span className="text-sm font-semibold text-gray-700">{avgRating.toFixed(1)}</span>
+              <span className="text-xs text-gray-400">({reviews.length} review{reviews.length !== 1 ? "s" : ""})</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {reviews.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-10 text-center">
+          <Star className="mx-auto h-8 w-8 text-gray-200" />
+          <p className="mt-3 text-sm font-medium text-gray-400">No reviews yet</p>
+          <p className="mt-1 text-xs text-gray-300">Be the first to share your experience!</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {visible.map((r) => (
+              <div key={r.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+                      {r.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{r.name}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                  <StarRow rating={r.rating} />
+                </div>
+                {r.comment && <p className="mt-3 text-sm leading-relaxed text-gray-600">{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+          {reviews.length > 4 && (
+            <button onClick={() => setShowAll((v) => !v)}
+              className="mt-4 w-full rounded-full border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">
+              {showAll ? "Show less" : `Show all ${reviews.length} reviews`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 /* ─── Page content ────────────────────────────────────────── */
 function MenuInner({
+  businessId,
   businessName,
   businessType,
   businessAddress,
+  businessPhone,
+  bannerUrl,
+  logoUrl,
   categories,
   items,
-  session,
+  reviews,
+  avgRating,
 }: {
+  businessId: string;
   businessName: string;
   businessType: string;
   businessAddress: string;
+  businessPhone: string;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
   categories: string[];
   items: MenuItem[];
-  session: SessionPayload | null;
+  reviews: Review[];
+  avgRating: number;
 }) {
-  const [activeCategory, setActiveCategory] = useState(categories[0] ?? "");
+  const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [search, setSearch] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filtered = (list: MenuItem[]) =>
     search.trim()
@@ -155,24 +252,40 @@ function MenuInner({
         )
       : list;
 
-  const visibleItems = filtered(items.filter((i) => i.category === activeCategory));
+  const visibleItems = filtered(
+    activeCategory === "ALL" || !activeCategory
+      ? items
+      : items.filter((i) => i.category === activeCategory)
+  );
+  const heroImage = toValidImageSrc(bannerUrl) ?? toValidImageSrc(logoUrl);
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <Nav session={session} />
-
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        businessId={businessId}
+        businessName={businessName}
+        businessPhone={businessPhone}
+      />
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-gray-200">
-          <Image
-            src="/menubanner.png"
-            alt="Restaurant banner"
-            fill
-            priority
-            className="object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "/banner.png";
-            }}
-          />
+        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-neutral-900">
+          {heroImage ? (
+            <Image
+              src={heroImage}
+              alt={businessName}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-amber-800 via-orange-700 to-stone-900 p-6 text-center">
+              <h1 className="text-3xl font-black uppercase tracking-wider text-white drop-shadow-md">
+                {businessName}
+              </h1>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 p-6">
             <h1 className="text-2xl font-bold text-white sm:text-3xl">{businessName}</h1>
@@ -189,14 +302,6 @@ function MenuInner({
               )}
             </div>
           </div>
-          <div className="absolute bottom-4 right-4 flex gap-2">
-            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-              <Share2 className="h-3.5 w-3.5" /> Share
-            </button>
-            <button className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow hover:bg-white">
-              <Heart className="h-3.5 w-3.5" /> Save
-            </button>
-          </div>
         </div>
       </div>
 
@@ -205,9 +310,19 @@ function MenuInner({
           <aside className="hidden w-44 shrink-0 lg:block">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Menu Categories</p>
             <nav className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("ALL")}
+                className={`rounded-lg px-3 py-2 text-left text-sm transition ${
+                  activeCategory === "ALL" ? "bg-orange-50 font-semibold text-orange-500" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                All Items
+              </button>
               {categories.map((cat) => (
                 <button
                   key={cat}
+                  type="button"
                   onClick={() => setActiveCategory(cat)}
                   className={`rounded-lg px-3 py-2 text-left text-sm transition ${
                     activeCategory === cat ? "bg-orange-50 font-semibold text-orange-500" : "text-gray-600 hover:bg-gray-100"
@@ -220,8 +335,8 @@ function MenuInner({
           </aside>
 
           <main className="min-w-0 flex-1">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="relative flex-1">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -234,10 +349,50 @@ function MenuInner({
               <button className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:border-orange-300">
                 <SlidersHorizontal className="h-4 w-4" /> Filters
               </button>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
+              >
+                <MenuIcon className="h-4 w-4 transition-transform group-hover:rotate-12" />
+                <span className="tracking-wide">More Options</span>
+              </button>
             </div>
 
+            {/* Mobile Category Scroll Bar */}
+            {categories.length > 0 && (
+              <div className="mb-5 flex overflow-x-auto gap-2 pb-2 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory("ALL")}
+                  className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+                    activeCategory === "ALL"
+                      ? "bg-orange-500 text-white shadow-md"
+                      : "bg-white text-gray-700 border border-gray-200"
+                  }`}
+                >
+                  All Items
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+                      activeCategory === cat
+                        ? "bg-orange-500 text-white shadow-md"
+                        : "bg-white text-gray-700 border border-gray-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div>
-              <h2 className="mb-4 text-lg font-bold text-gray-900">{activeCategory}</h2>
+              <h2 className="mb-4 text-lg font-bold text-gray-900">
+                {activeCategory === "ALL" ? "All Menu Items" : activeCategory}
+              </h2>
               {items.length === 0 ? (
                 <p className="text-sm text-gray-400">This restaurant hasn&apos;t added any menu items yet.</p>
               ) : (
@@ -248,6 +403,7 @@ function MenuInner({
                 </div>
               )}
             </div>
+            <ReviewsSection reviews={reviews} avgRating={avgRating} />
           </main>
 
           <div className="hidden w-60 shrink-0 lg:block">
@@ -285,9 +441,13 @@ export default function MenuContent(props: {
   businessName: string;
   businessType: string;
   businessAddress: string;
+  businessPhone: string;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
   categories: string[];
   items: MenuItem[];
-  session: SessionPayload | null;
+  reviews: Review[];
+  avgRating: number;
 }) {
   return (
     <OrderProvider businessId={props.businessId}>

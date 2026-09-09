@@ -43,6 +43,7 @@ import {
   Phone,
   QrCode,
   Download,
+  ExternalLink,
 } from "lucide-react";
 
 type ViewMode = "grid" | "list" | "visual";
@@ -123,7 +124,13 @@ function Checkbox({ checked, onToggle, label }: { checked: boolean; onToggle: ()
 
 /* ─── Page ────────────────────────────────────────────────── */
 
-export default function AreaManagementClient({ initialAreas }: { initialAreas: Area[] }) {
+export default function AreaManagementClient({
+  initialAreas,
+  businessId = "1",
+}: {
+  initialAreas: Area[];
+  businessId?: string;
+}) {
   const [areas, setAreas] = useState<Area[]>(initialAreas);
   const [activeType, setActiveType] = useState<AreaType>("dining");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -151,11 +158,18 @@ export default function AreaManagementClient({ initialAreas }: { initialAreas: A
     window.setTimeout(() => setToast(null), 3000);
   };
 
-  /* ── QR codes (unchanged, purely client-side) ───────────── */
+  /* ── QR codes (points to actual restaurant menu page) ───────────── */
 
   const buildOrderUrl = (area: Area, unit: SubUnit) => {
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    if (!baseUrl && typeof window !== "undefined") {
+      baseUrl = window.location.origin;
+    }
+    baseUrl = baseUrl.replace(/\/$/, "");
+
+    const bId = businessId || "1";
     const params = new URLSearchParams({ type: area.type, area: area.name, unit: unit.label });
-    return `${ORDER_BASE_URL}?${params.toString()}`;
+    return `${baseUrl}/Menu/${bId}?${params.toString()}`;
   };
 
   const triggerDownload = (dataUrl: string, filename: string) => {

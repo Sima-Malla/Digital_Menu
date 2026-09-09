@@ -5,10 +5,19 @@ import { getSession } from "@/lib/session";
 import TeamClient from "./TeamClient";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({ adapter: new PrismaPg({ connectionString: connectionString ?? "" }) });
+
+function getPrisma(): PrismaClient {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is missing.");
+  }
+  const client = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
+  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;
+  return client;
+}
 
 function timeAgo(date: Date) {
   const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
@@ -26,13 +35,13 @@ export default async function TeamPage() {
     redirect("/login");
   }
 
-  const caller = await prisma.staff.findUnique({
+  const caller = await getPrisma().staff.findUnique({
     where: { id: BigInt(session.userId) },
     select: { businessId: true },
   });
   if (!caller) redirect("/login");
 
-  const staff = await prisma.staff.findMany({
+  const staff = await getPrisma().staff.findMany({
     where: { businessId: caller.businessId },
     orderBy: { fullName: "asc" },
   });

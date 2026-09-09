@@ -31,12 +31,10 @@ const ORDER_TYPES = [
 ] as const;
 
 export default function PosClient({
-  businessId,
   menuItems,
   locations,
   categories,
 }: {
-  businessId: string;
   menuItems: PosMenuItem[];
   locations: PosLocation[];
   categories: string[];
@@ -46,6 +44,7 @@ export default function PosClient({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orderType, setOrderType] = useState<"dine-in" | "pickup" | "delivery">("dine-in");
   const [locationId, setLocationId] = useState("");
+  const [tableNumberInput, setTableNumberInput] = useState("");
   const [isWalkIn, setIsWalkIn] = useState(true); // default ON — most counter orders are walk-ins
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -104,6 +103,35 @@ export default function PosClient({
 
   const totalItems = cart.reduce((n, l) => n + l.quantity, 0);
   const totalPrice = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+
+  const handleTableNumberChange = (value: string) => {
+    setTableNumberInput(value);
+    setError(null);
+
+    if (!value.trim()) {
+      setLocationId("");
+      return;
+    }
+
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) {
+      setLocationId("");
+      return;
+    }
+
+    const normalizedValue = value.trim().replace(/^0+(?=\d)/, "");
+    const matchingLocation = locations
+      .filter((location) => location.type === "dine-in")
+      .find((location) => {
+        const normalizedLabel = location.label.trim().toLowerCase();
+        if (normalizedLabel === normalizedValue) return true;
+
+        const digits = normalizedLabel.match(/\d+/g);
+        return digits ? digits.some((digit) => Number(digit) === numericValue) : false;
+      });
+
+    setLocationId(matchingLocation?.id ?? "");
+  };
 
   const handleSubmit = () => {
     setError(null);
@@ -314,20 +342,19 @@ export default function PosClient({
           </div>
 
           {orderType === "dine-in" && (
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
-            >
-              <option value="">Select a table…</option>
-              {locations
-                .filter((l) => l.type === "dine-in")
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.label}
-                  </option>
-                ))}
-            </select>
+            <div className="mb-3">
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                Table Number
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={tableNumberInput}
+                onChange={(e) => handleTableNumberChange(e.target.value)}
+                placeholder="e.g. 12"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs outline-none focus:border-orange-300"
+              />
+            </div>
           )}
 
           <div className="mb-3">

@@ -49,18 +49,17 @@ type Special = {
   badgeLabel: string;
   scheduleType: "recurring" | "one-time";
   weekday: number | null;
-  date: string | null; // "YYYY-MM-DD"
+  date: string | null; 
   imageUrl: string | null;
 };
 
-const categories = ["Main Course", "Appetizer", "Seafood", "Dessert", "Beverage"];
+const categories = ["Main Course", "Appetizer", "Seafood", "Dessert", "Beverage", "Drink"];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const FALLBACK_IMG = "/vegmomo.jpg";
 
 const menuItemInitial: MenuItemState = { success: false, message: "" };
 const specialInitial: SpecialState = { success: false, message: "" };
 
-/* ─── Toggle switch ──────────────────────────────────────── */
 function StatusToggle({ active, onChange, disabled }: { active: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button
@@ -196,7 +195,7 @@ function ItemDetailsForm({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-gray-400">
-              Price ($)
+              Price (Rs.)
             </label>
             <input
               type="text"
@@ -362,7 +361,7 @@ function MenuInventory({
                     {item.category}
                   </span>
                 </td>
-                <td className="py-3 font-semibold text-orange-600">${item.price}</td>
+                <td className="py-3 font-semibold text-orange-600">Rs. {item.price}</td>
                 <td className="py-3">
                   <StatusToggle
                     active={item.isActive}

@@ -15,6 +15,7 @@ export type CartItem = {
 type CheckoutDetails = {
   orderType: "dine-in" | "pickup" | "delivery";
   locationLabel?: string;
+  isWalkIn?: boolean;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
@@ -84,6 +85,7 @@ export function OrderProvider({
       businessId,
       orderType: details.orderType,
       locationLabel: details.locationLabel || "",
+      isWalkIn: details.isWalkIn ?? false,
       customerName: details.customerName,
       customerPhone: details.customerPhone,
       customerEmail: details.customerEmail || "",

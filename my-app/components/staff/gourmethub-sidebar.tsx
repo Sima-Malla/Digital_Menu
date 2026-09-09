@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -9,46 +9,83 @@ import {
   UtensilsCrossed,
   ClipboardList,
   ListOrdered,
-  BarChart3,
   Settings,
   ShoppingCart,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
+
+import {
+  getStaffSidebarSummaryAction,
+  logoutAction,
+} from "@/app/actions/staff/sidebar";
+import {
+  type StaffSidebarSummary,
+} from "@/lib/staff/sidebar";
 
 const menus = [
   { name: "Dashboard", icon: LayoutGrid, href: "/staffdashboard" },
   { name: "Menu", icon: UtensilsCrossed, href: "/menu-editor" },
   { name: "Live Orders", icon: ClipboardList, href: "/live-orders" },
   { name: "Orders", icon: ListOrdered, href: "/sorder" },
-  { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
-
+  { name: "Point of Sale", icon: ShoppingCart, href: "/pos" },
   { name: "Settings", icon: Settings, href: "/settings" },
 ];
 
 export default function GourmetHubSidebar() {
   const [open, setOpen] = useState(false);
+  const [staff, setStaff] = useState<StaffSidebarSummary | null>(null);
+  const [isLoggingOut, startLogoutTransition] = useTransition();
+
   const pathname = usePathname();
+
+  useEffect(() => {
+    let active = true;
+
+    getStaffSidebarSummaryAction().then((result) => {
+      if (active) {
+        setStaff(result);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleLogout = () => {
+    startLogoutTransition(async () => {
+      await logoutAction();
+    });
+  };
+
+  const staffName = staff?.fullName ?? "Loading...";
+  const businessName = staff?.businessName ?? "Loading...";
+  const profileImage = staff?.photoUrl || staff?.logoUrl || "/logo.png";
 
   return (
     <>
       {/* Mobile top bar */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b bg-white px-5 lg:hidden">
         <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
+          <img
             src="/logo.png"
             alt="MenuTap"
-            width={120}
-            height={30}
-            priority
             className="h-9 w-auto object-contain"
           />
         </Link>
-        <button type="button" onClick={() => setOpen(true)} aria-label="Open menu">
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+        >
           <Menu size={26} />
         </button>
       </div>
 
+      {/* Overlay */}
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 lg:hidden"
@@ -58,57 +95,55 @@ export default function GourmetHubSidebar() {
 
       <aside
         className={`
-          fixed left-0 top-0 z-50 flex h-screen w-64 max-w-[80vw] flex-col
-          border-r border-slate-100 bg-white px-5 py-6
+          fixed left-0 top-0 z-50 flex h-screen w-64 max-w-[80vw]
+          flex-col border-r border-slate-100 bg-white px-5 py-6
           transition-transform duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}
-          lg:relative lg:translate-x-0 lg:shrink-0
+          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shrink-0 lg:overflow-y-auto
         `}
       >
+        {/* Mobile header */}
         <div className="mb-6 flex items-center justify-between lg:hidden">
           <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
-            src="/logo.png"
-            alt="MenuTap"
-            width={120}
-            height={30}
-            priority
-            className="h-9 w-auto object-contain"
-          />
-        </Link>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close menu">
+            <img
+              src="/logo.png"
+              alt="MenuTap"
+              className="h-9 w-auto object-contain"
+            />
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+          >
             <X />
           </button>
         </div>
 
-        <Link href="/" className="inline-flex shrink-0 items-center">
-          <Image
-            src="/logo.png"
-            alt="MenuTap"
-            width={120}
-            height={30}
-            priority
-            className="h-9 w-auto object-contain"
-          />
-        </Link>
-
-        {/* Profile */}
+{/* Staff Profile */}
         <div className="mt-6 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <img
-            src="https://i.pravatar.cc/64?img=12"
-            alt="Hotel Admin"
-            className="h-9 w-9 rounded-full object-cover"
+            src={profileImage}
+            alt={staffName}
+            className="h-9 w-9 rounded-full object-cover shrink-0"
           />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold text-slate-800">Hotel staff</p>
-            <p className="text-xs text-slate-400">Grand Plaza Heights</p>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-sm font-semibold text-slate-800">
+              {staffName}
+            </p>
+            <p className="truncate text-xs text-slate-400">
+              {businessName}
+            </p>
           </div>
         </div>
 
+        {/* Navigation */}
         <nav className="mt-6 space-y-1">
           {menus.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
+
             return (
               <Link
                 key={item.name}
@@ -126,6 +161,20 @@ export default function GourmetHubSidebar() {
             );
           })}
         </nav>
+
+        {/* Logout */}
+        <div className="mt-auto border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LogOut size={18} />
+
+            {isLoggingOut ? "Logging out..." : "Logout"}
+          </button>
+        </div>
       </aside>
     </>
   );

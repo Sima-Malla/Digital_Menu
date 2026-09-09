@@ -5,6 +5,7 @@ import { PrismaClient } from "@/lib/generated/prisma/client";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { parseSignupFormData } from "@/lib/validations/signup";
+import { validatePasswordAgainstPolicy } from "@/app/actions/validate-password";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -61,6 +62,16 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
       };
     }
 
+    // Enforce the platform's live password policy (Super Admin → Security Settings)
+    const policyCheck = await validatePasswordAgainstPolicy(data.password);
+    if (!policyCheck.valid) {
+      return {
+        success: false,
+        message: "Password doesn't meet security requirements.",
+        fieldErrors: { password: policyCheck.errors.join(" ") },
+      };
+    }
+
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
     try {
@@ -81,8 +92,17 @@ export async function signupAction(_prevState: SignupState, formData: FormData):
             email: data.email,
             password: hashedPassword,
             role: "owner",
-            needsOnboarding: false, // Admins skip onboarding since they just created the business. 
+            needsOnboarding: false, // Admins skip onboarding since they just created the business.
           },
+        });
+
+        // Notify SuperAdmin of new self-service business signup
+        import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+          createSuperAdminNotification({
+            title: `New Business Signup: ${data.businessName}`,
+            message: `New business '${data.businessName}' was registered by ${data.fullName} (${data.email}).`,
+            type: "business_added",
+          }).catch(console.error);
         });
       });
     } catch (err) {

@@ -76,12 +76,10 @@ export default function InRoomDining() {
 
             {/* CTA Button */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button className="rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white transition-all hover:bg-orange-700 hover:shadow-lg">
+              {/* <button className="rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white transition-all hover:bg-orange-700 hover:shadow-lg">
                 Order In-Room Now
-              </button>
-              <button className="rounded-lg border border-neutral-300 px-6 py-3 font-semibold text-neutral-900 transition-all hover:border-orange-500 hover:text-orange-500">
-                View Premium Menus
-              </button>
+              </button> */}
+             
             </div>
           </div>
 
@@ -102,6 +100,7 @@ export default function InRoomDining() {
               src="/hotel1.png"
               alt="Hotel Dining Room"
               fill
+              priority
               sizes="(max-width: 1024px) 100vw, 500px"
               className="absolute inset-0 object-cover"
             />
@@ -111,6 +110,7 @@ export default function InRoomDining() {
               src="/hotel1.png"
               alt="Premium Overlay"
               fill
+              priority
               sizes="(max-width: 1024px) 100vw, 500px"
               className="absolute inset-0 object-cover"
             />

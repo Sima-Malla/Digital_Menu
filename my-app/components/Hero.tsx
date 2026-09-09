@@ -34,7 +34,7 @@ export default function Hero() {
           </p>
 
           {/* Search Bar */}
-          <div className="mx-auto mt-12 max-w-2xl">
+          {/* <div className="mx-auto mt-12 max-w-2xl">
             <div className="flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-600" />
@@ -54,19 +54,19 @@ export default function Hero() {
                 />
               </div>
             </div>
-          </div>
+          </div> */}
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
             <Link
               href="/Kitchens"
               className="rounded-full bg-[#D4AF37] px-9 py-4 text-sm font-semibold uppercase tracking-widest text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-[#c19d2e] hover:shadow-xl"
             >
-              Explore Kitchens
+              Explore Businesses
             </Link>
 
-            <button className="rounded-full border border-white/70 px-9 py-4 text-sm font-medium uppercase tracking-widest text-white transition hover:-translate-y-0.5 hover:border-[#D4AF37] hover:text-[#D4AF37]">
+            {/* <button className="rounded-full border border-white/70 px-9 py-4 text-sm font-medium uppercase tracking-widest text-white transition hover:-translate-y-0.5 hover:border-[#D4AF37] hover:text-[#D4AF37]">
               Reserve Table →
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

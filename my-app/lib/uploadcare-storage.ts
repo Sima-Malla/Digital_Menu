@@ -2,7 +2,9 @@ const UPLOADCARE_UPLOAD_URL = "https://upload.uploadcare.com/base/";
 const UPLOADCARE_API_URL = "https://api.uploadcare.com";
 
 function getKeys() {
-  const publicKey = process.env.UPLOADCARE_PUBLIC_KEY;
+  const publicKey =
+    process.env.UPLOADCARE_PUBLIC_KEY ||
+    process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY;
   const secretKey = process.env.UPLOADCARE_SECRET_KEY;
 
   if (!publicKey || !secretKey) {
@@ -28,7 +30,7 @@ function getCdnBase() {
  * returns its public CDN URL. Throws on failure so callers can surface an
  * error to the form instead of silently saving a broken image reference.
  */
-export async function uploadMenuImage(file: File, folder: "dishes" | "specials"): Promise<string> {
+export async function uploadMenuImage(file: File, folder: "dishes" | "specials" | "branding"): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("File must be an image.");
   }

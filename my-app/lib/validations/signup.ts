@@ -17,8 +17,9 @@ const password = z
   .string()
   .min(8, "Password must be at least 8 characters.")
   .max(72, "Password is too long.") // bcrypt silently truncates beyond 72 bytes
-  .regex(/[A-Za-z]/, "Password must include at least one letter.")
-  .regex(/[0-9]/, "Password must include at least one number.");
+  .regex(/[A-Z]/, "Password must include at least one uppercase letter.")
+  .regex(/[0-9]/, "Password must include at least one number.")
+  .regex(/[^A-Za-z0-9]/, "Password must include at least one special character (e.g. !@#$%).");
 
 const phone = z
   .string()

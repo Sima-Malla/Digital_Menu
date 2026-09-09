@@ -12,7 +12,7 @@ CREATE TABLE "Business" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "allowReviews" BOOLEAN NOT NULL DEFAULT true,
     "bannerUrl" TEXT,
-    "currency" TEXT NOT NULL DEFAULT 'USD ($)',
+    "currency" TEXT NOT NULL DEFAULT 'NPR (Rs.)',
     "email" TEXT,
     "facebook" TEXT,
     "instagram" TEXT,

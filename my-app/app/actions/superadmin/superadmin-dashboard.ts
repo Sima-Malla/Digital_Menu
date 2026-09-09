@@ -38,7 +38,6 @@ export type DashboardStats = {
   activeBusinesses: number;
   activeBusinessesSubtitle: string;
   pendingApprovals: number;
-  systemHealth: string;
 };
 
 export type QueueBusiness = {
@@ -63,12 +62,12 @@ export type TypeBreakdown = {
 export type BusinessPerformance = {
   id: number;
   name: string;
+  location: string;
   locationCount: number;
   revenueMTD: string;
   activeOrders: number;
   growth: string;
   positive: boolean;
-  status: "STABLE" | "ACTION REQ";
 };
 
 type ApiResult = { success: boolean; message?: string };
@@ -83,7 +82,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const thisMonthStart = startOfMonth();
     const prevMonthStart = startOfPrevMonth();
 
-    const [totalRevAgg, thisMonthAgg, prevMonthAgg, activeCount, pendingCount] = await Promise.all([
+    const [totalRevAgg, thisMonthAgg, prevMonthAgg, activeCount, pendingCount, typeGroups] = await Promise.all([
       prisma.order.aggregate({ _sum: { totalAmount: true } }),
       prisma.order.aggregate({
         _sum: { totalAmount: true },
@@ -95,31 +94,33 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       }),
       prisma.business.count({ where: { status: "Active" } }),
       prisma.business.count({ where: { status: "Pending" } }),
+      prisma.business.groupBy({ by: ["businessType"] }),
     ]);
 
     const thisMonth = Number(thisMonthAgg._sum.totalAmount ?? 0);
     const prevMonth = Number(prevMonthAgg._sum.totalAmount ?? 0);
     const changePct = prevMonth > 0 ? ((thisMonth - prevMonth) / prevMonth) * 100 : 0;
+    const validTypesCount = typeGroups.filter((t) => t.businessType !== null).length;
 
-    const chainCount = await prisma.business.groupBy({ by: ["businessType"] });
+    const revenueFooter = changePct !== 0
+      ? `${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}% vs previous month`
+      : "Overall Platform Revenue";
 
     return {
-      totalRevenue: `$${Number(totalRevAgg._sum.totalAmount ?? 0).toLocaleString()}`,
-      totalRevenueChange: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(1)}% vs last month`,
+      totalRevenue: `Rs. ${Number(totalRevAgg._sum.totalAmount ?? 0).toLocaleString()}`,
+      totalRevenueChange: revenueFooter,
       activeBusinesses: activeCount,
-      activeBusinessesSubtitle: `Across ${chainCount.length} type${chainCount.length === 1 ? "" : "s"}`,
+      activeBusinessesSubtitle: `Across ${validTypesCount} type${validTypesCount === 1 ? "" : "s"}`,
       pendingApprovals: pendingCount,
-      systemHealth: "99.9%", // infra uptime — not derivable from this schema
     };
   } catch (error) {
     console.error("Failed to load dashboard stats:", error);
     return {
-      totalRevenue: "$0",
+      totalRevenue: "Rs. 0",
       totalRevenueChange: "—",
       activeBusinesses: 0,
       activeBusinessesSubtitle: "—",
       pendingApprovals: 0,
-      systemHealth: "—",
     };
   }
 }
@@ -194,6 +195,7 @@ export async function approveBusinessAction(id: number): Promise<ApiResult> {
 
   try {
     await prisma.business.update({ where: { id: BigInt(id) }, data: { status: "Active" } });
+    revalidatePath("/superdashboard");
     revalidatePath("/superadmin/dashboard");
     return { success: true };
   } catch (error) {
@@ -208,6 +210,7 @@ export async function rejectBusinessAction(id: number): Promise<ApiResult> {
 
   try {
     await prisma.business.update({ where: { id: BigInt(id) }, data: { status: "Suspended" } });
+    revalidatePath("/superdashboard");
     revalidatePath("/superadmin/dashboard");
     return { success: true };
   } catch (error) {
@@ -254,7 +257,7 @@ export async function getBusinessPerformance(): Promise<BusinessPerformance[]> {
       include: { locations: { select: { id: true } } },
     });
 
-    const [thisMonthByBiz, prevMonthByBiz, activeOrdersByBiz, delayedByBiz] = await Promise.all([
+    const [thisMonthByBiz, prevMonthByBiz, activeOrdersByBiz] = await Promise.all([
       prisma.order.groupBy({
         by: ["businessId"],
         where: { orderedAt: { gte: thisMonthStart } },
@@ -270,17 +273,11 @@ export async function getBusinessPerformance(): Promise<BusinessPerformance[]> {
         where: { status: { in: ["new", "preparing", "ready", "delayed"] } },
         _count: { _all: true },
       }),
-      prisma.order.groupBy({
-        by: ["businessId"],
-        where: { OR: [{ status: "delayed" }, { escalated: true }] },
-        _count: { _all: true },
-      }),
     ]);
 
     const thisMonthMap = new Map(thisMonthByBiz.map((r) => [r.businessId.toString(), Number(r._sum.totalAmount ?? 0)]));
     const prevMonthMap = new Map(prevMonthByBiz.map((r) => [r.businessId.toString(), Number(r._sum.totalAmount ?? 0)]));
     const activeOrdersMap = new Map(activeOrdersByBiz.map((r) => [r.businessId.toString(), r._count._all]));
-    const delayedMap = new Map(delayedByBiz.map((r) => [r.businessId.toString(), r._count._all]));
 
     return businesses
       .map((b) => {
@@ -288,17 +285,16 @@ export async function getBusinessPerformance(): Promise<BusinessPerformance[]> {
         const thisMonth = thisMonthMap.get(key) ?? 0;
         const prevMonth = prevMonthMap.get(key) ?? 0;
         const growthPct = prevMonth > 0 ? ((thisMonth - prevMonth) / prevMonth) * 100 : thisMonth > 0 ? 100 : 0;
-        const hasIssues = (delayedMap.get(key) ?? 0) > 0;
 
         return {
           id: Number(b.id),
           name: b.businessName,
+          location: b.businessAddress ?? "—",
           locationCount: b.locations.length,
-          revenueMTD: `$${thisMonth.toLocaleString()}`,
+          revenueMTD: `Rs. ${thisMonth.toLocaleString()}`,
           activeOrders: activeOrdersMap.get(key) ?? 0,
           growth: `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`,
           positive: growthPct >= 0,
-          status: hasIssues ? ("ACTION REQ" as const) : ("STABLE" as const),
           _sortRevenue: thisMonth,
         };
       })

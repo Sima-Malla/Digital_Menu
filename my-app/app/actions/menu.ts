@@ -6,6 +6,7 @@ import { PrismaClient } from "@/lib/generated/prisma/client";
 import { getSession } from "@/lib/session";
 import { menuItemSchema } from "@/lib/validations/menu";
 import { uploadMenuImage, deleteMenuImage } from "@/lib/uploadcare-storage";
+import { createBusinessNotification } from "@/lib/notifications";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
@@ -82,6 +83,13 @@ export async function createMenuItemAction(
     },
   });
 
+  await createBusinessNotification({
+    businessId: session.businessId,
+    title: "New Menu Item Created",
+    message: `Menu item '${parsed.data.name}' (${parsed.data.category}) was added to the menu.`,
+    type: "system",
+  });
+
   revalidatePath(MENU_EDITOR_PATH);
   return { success: true, message: "Dish added." };
 }
@@ -142,6 +150,13 @@ export async function updateMenuItemAction(
     },
   });
 
+  await createBusinessNotification({
+    businessId: session.businessId,
+    title: "Menu Item Updated",
+    message: `Menu item '${parsed.data.name}' was updated.`,
+    type: "system",
+  });
+
   revalidatePath(MENU_EDITOR_PATH);
   return { success: true, message: "Dish updated." };
 }
@@ -158,6 +173,13 @@ export async function deleteMenuItemAction(id: string) {
   await prisma.menuItem.delete({ where: { id: BigInt(id) } });
   await deleteMenuImage(existing.imageUrl);
 
+  await createBusinessNotification({
+    businessId: session.businessId,
+    title: "Menu Item Deleted",
+    message: `Menu item '${existing.name}' was deleted from the menu.`,
+    type: "system",
+  });
+
   revalidatePath(MENU_EDITOR_PATH);
 }
 
@@ -169,9 +191,18 @@ export async function toggleMenuItemActiveAction(id: string) {
     throw new Error("Dish not found.");
   }
 
+  const newActiveState = !existing.isActive;
+
   await prisma.menuItem.update({
     where: { id: BigInt(id) },
-    data: { isActive: !existing.isActive },
+    data: { isActive: newActiveState },
+  });
+
+  await createBusinessNotification({
+    businessId: session.businessId,
+    title: "Menu Item Availability Changed",
+    message: `'${existing.name}' is now ${newActiveState ? "active" : "inactive"}.`,
+    type: "system",
   });
 
   revalidatePath(MENU_EDITOR_PATH);

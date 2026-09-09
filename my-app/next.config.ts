@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["192.168.254.18"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+      allowedOrigins: ["*"],
+    },
+  },
   images: {
     remotePatterns: [
       {
@@ -9,7 +16,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "6d32xwrhac.ucarecd.net",
+        hostname: "*.ucarecd.net",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ucarecdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "ucarecdn.com",
       },
     ],
   },

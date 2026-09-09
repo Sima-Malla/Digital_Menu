@@ -109,6 +109,29 @@ export async function createPosOrderAction(input: {
     revalidatePath("/orders");
     revalidatePath("/pos");
 
+    // Trigger notification for Admin and Staff on POS order placement
+    import("@/lib/notifications").then(({ createBusinessNotification }) => {
+      const customerDisp = input.isWalkIn ? "Walk-in Customer" : (input.customerName.trim() || "Guest");
+      createBusinessNotification({
+        businessId,
+        type: "new_order",
+        title: `New POS Order #${order.id.toString()}`,
+        message: `A new POS ${input.orderType} order worth NPR ${totalAmount.toLocaleString()} was placed for ${customerDisp}.`,
+        target: "all",
+        orderId: order.id,
+      }).catch(console.error);
+    });
+
+    // Notify SuperAdmin about POS order
+    import("@/lib/superadmin-notifications").then(({ createSuperAdminNotification }) => {
+      const customerDisp = input.isWalkIn ? "Walk-in Customer" : (input.customerName.trim() || "Guest");
+      createSuperAdminNotification({
+        title: `New POS Order #${order.id.toString()}`,
+        message: `POS order #${order.id.toString()} (${input.orderType}) worth NPR ${totalAmount.toLocaleString()} placed for ${customerDisp}.`,
+        type: "system_alert",
+      }).catch(console.error);
+    });
+
     return { success: true, orderId: order.id.toString() };
   } catch (err) {
     if (err instanceof Error && err.message === "INVALID_LOCATION") {
