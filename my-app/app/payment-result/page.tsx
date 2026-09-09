@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-export default function PaymentResultPage({
+export default async function PaymentResultPage({
   searchParams,
 }: {
-  searchParams: { status?: string; orderId?: string };
+  searchParams: Promise<{ status?: string; orderId?: string }>;
 }) {
-  const isPaid = searchParams.status === "paid";
+  const params = await searchParams;
+  const isPaid = params.status === "paid";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -19,8 +20,8 @@ export default function PaymentResultPage({
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           {isPaid
-            ? searchParams.orderId
-              ? `Order #${searchParams.orderId} is paid — the kitchen has been notified.`
+            ? params.orderId
+              ? `Order #${params.orderId} is paid — the kitchen has been notified.`
               : "Your payment was received."
             : "No money was deducted. You can try again or pay at the counter."}
         </p>
