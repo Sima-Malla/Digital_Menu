@@ -233,7 +233,7 @@ export default function StaffSettingsPage() {
           <Section title="My Profile">
             <div className="flex items-center gap-4">
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                <Image src={photoPreview || profileImage} alt={staff.fullName} fill className="object-cover" />
+                <Image src={photoPreview || profileImage} alt={staff.fullName} fill sizes="64px" className="object-cover" />
               </div>
               {editingProfile && (
                 <>

@@ -20,7 +20,6 @@ export type PublicBusinessListing = {
 export async function getPublicBusinesses(): Promise<PublicBusinessListing[]> {
   try {
     const businesses = await prisma.business.findMany({
-      where: { listInMarketplace: true },
       select: {
         id: true,
         businessName: true,

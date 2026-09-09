@@ -109,6 +109,7 @@ export default function SavedRoomsDrawer({
                         src={imageSrc}
                         alt={b.name}
                         fill
+                        sizes="96px"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (

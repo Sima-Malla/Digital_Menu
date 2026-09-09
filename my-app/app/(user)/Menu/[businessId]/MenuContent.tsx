@@ -276,6 +276,7 @@ function MenuInner({
               alt={businessName}
               fill
               priority
+              sizes="100vw"
               className="object-cover"
             />
           ) : (

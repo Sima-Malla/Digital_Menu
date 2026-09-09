@@ -100,6 +100,7 @@ export default function InRoomDining() {
               src="/hotel1.png"
               alt="Hotel Dining Room"
               fill
+              priority
               sizes="(max-width: 1024px) 100vw, 500px"
               className="absolute inset-0 object-cover"
             />
@@ -109,6 +110,7 @@ export default function InRoomDining() {
               src="/hotel1.png"
               alt="Premium Overlay"
               fill
+              priority
               sizes="(max-width: 1024px) 100vw, 500px"
               className="absolute inset-0 object-cover"
             />
