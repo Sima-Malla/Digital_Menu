@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  allowedDevOrigins: ["192.168.254.18"],
+  allowedDevOrigins: ["192.168.254.17", "192.168.254.18", "localhost"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
