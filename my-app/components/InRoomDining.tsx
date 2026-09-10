@@ -85,16 +85,6 @@ export default function InRoomDining() {
 
           {/* Right Image */}
           <div className="relative w-full h-80 sm:h-96 lg:h-full overflow-hidden rounded-2xl min-h-[320px]">
-            {/* Container Background */}
-            <Image
-              src="/container.png"
-              alt="Dining Container"
-              fill
-              sizes="(max-width: 1024px) 100vw, 500px"
-              className="object-cover"
-              priority
-            />
-
             {/* Hotel Image */}
             <Image
               src="/hotel1.png"
@@ -102,17 +92,7 @@ export default function InRoomDining() {
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 500px"
-              className="absolute inset-0 object-cover"
-            />
-
-            {/* Overlay for premium effect */}
-            <Image
-              src="/hotel1.png"
-              alt="Premium Overlay"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 500px"
-              className="absolute inset-0 object-cover"
+              className="object-cover"
             />
 
             {/* Gradient Overlay */}
