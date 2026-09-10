@@ -146,8 +146,8 @@ export default function CheckoutModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
-      <div className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center p-0 sm:p-4">
+      <div className="w-full max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white p-5 sm:p-6 shadow-xl sm:rounded-2xl">
         {placedOrderId ? (
           isCodConfirmed ? (
             /* ── COD confirmation ───────────────────────── */

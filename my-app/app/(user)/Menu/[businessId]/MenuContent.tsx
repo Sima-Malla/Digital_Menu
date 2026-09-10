@@ -35,10 +35,10 @@ function MenuItemRow({ item }: { item: MenuItem }) {
   const imageSrc = toValidImageSrc(item.imageUrl);
 
   return (
-    <div className="flex items-start gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+    <div className="flex items-center gap-3 sm:gap-4 rounded-2xl border border-gray-100 bg-white p-3 sm:p-4 shadow-sm transition hover:shadow-md">
+      <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
         {imageSrc ? (
-          <Image src={imageSrc} alt={item.name} fill sizes="80px" className="object-cover" />
+          <Image src={imageSrc} alt={item.name} fill sizes="(max-width: 640px) 64px, 80px" className="object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-800 font-bold text-xs p-1 text-center">
             {item.name.slice(0, 2).toUpperCase()}
@@ -48,10 +48,10 @@ function MenuItemRow({ item }: { item: MenuItem }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">{item.name}</h3>
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</h3>
             <p className="mt-0.5 text-xs leading-relaxed text-gray-500 line-clamp-2">{item.description}</p>
           </div>
-          <span className="shrink-0 text-sm font-bold text-orange-500">Rs. {item.price}</span>
+          <span className="shrink-0 text-xs sm:text-sm font-bold text-orange-500">Rs. {item.price}</span>
         </div>
       </div>
       <div className="shrink-0 self-center">
@@ -66,15 +66,15 @@ function MenuItemRow({ item }: { item: MenuItem }) {
                 price: item.price,
               })
             }
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white shadow transition hover:bg-orange-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white shadow transition hover:bg-orange-600 active:scale-95"
           >
             <Plus className="h-4 w-4" />
           </button>
         ) : (  
-          <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
-            <button onClick={() => decrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100">−</button>
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2 py-1">
+            <button onClick={() => decrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100 active:scale-95">−</button>
             <span className="text-xs font-semibold text-gray-800">{cartItem.quantity}</span>
-            <button onClick={() => incrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100">+</button>
+            <button onClick={() => incrementQty(item.id)} className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-orange-500 text-xs shadow hover:bg-orange-100 active:scale-95">+</button>
           </div>
         )}
       </div>
@@ -86,7 +86,7 @@ function MenuItemRow({ item }: { item: MenuItem }) {
 function OrderPanel({ onCheckout }: { onCheckout: () => void }) {
   const { items, incrementQty, decrementQty, removeItem, totalItems, totalPrice } = useOrder();
   return (
-    <div className="sticky top-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="sticky top-20 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold text-gray-900">Your Order</h2>
         {totalItems > 0 && (
@@ -104,7 +104,7 @@ function OrderPanel({ onCheckout }: { onCheckout: () => void }) {
           <p className="text-xs text-gray-400 max-w-[140px]">Your cart is feeling light. Add some delicious dishes to get started.</p>
         </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
           {items.map((item: CartItem) => (
             <div key={item.menuItemId} className="flex items-center gap-2">
               <Image src={item.image} alt={item.name} width={36} height={36} className="h-9 w-9 rounded-lg object-cover shrink-0" />
@@ -159,7 +159,7 @@ function ReviewsSection({ reviews, avgRating }: { reviews: Review[]; avgRating: 
   const visible = showAll ? reviews : reviews.slice(0, 4);
   return (
     <section className="mt-10 border-t border-gray-100 pt-8">
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Guest Reviews</h2>
           {reviews.length > 0 && (
@@ -196,7 +196,7 @@ function ReviewsSection({ reviews, avgRating }: { reviews: Review[]; avgRating: 
                   </div>
                   <StarRow rating={r.rating} />
                 </div>
-                {r.comment && <p className="mt-3 text-sm leading-relaxed text-gray-600">{r.comment}</p>}
+                {r.comment && <p className="mt-3 text-xs sm:text-sm leading-relaxed text-gray-600">{r.comment}</p>}
               </div>
             ))}
           </div>
@@ -268,8 +268,8 @@ function MenuInner({
         businessName={businessName}
         businessPhone={businessPhone}
       />
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative h-56 w-full overflow-hidden rounded-2xl sm:h-72 bg-neutral-900">
+      <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8">
+        <div className="relative h-44 sm:h-72 w-full overflow-hidden rounded-2xl bg-neutral-900">
           {heroImage ? (
             <Image
               src={heroImage}
@@ -281,15 +281,15 @@ function MenuInner({
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-amber-800 via-orange-700 to-stone-900 p-6 text-center">
-              <h1 className="text-3xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-wider text-white drop-shadow-md">
                 {businessName}
               </h1>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          <div className="absolute bottom-0 left-0 p-6">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">{businessName}</h1>
-            <div className="mt-1.5 flex items-center gap-4 text-xs text-white/80">
+          <div className="absolute bottom-0 left-0 p-4 sm:p-6">
+            <h1 className="text-xl font-bold text-white sm:text-3xl">{businessName}</h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-white/80">
               {businessType && (
                 <span className="flex items-center gap-1">
                   <Utensils className="h-3 w-3" /> {businessType}
@@ -305,9 +305,9 @@ function MenuInner({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
         <div className="flex gap-6 items-start">
-          <aside className="hidden w-44 shrink-0 lg:block">
+          <aside className="hidden w-44 shrink-0 lg:block sticky top-20">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Menu Categories</p>
             <nav className="flex flex-col gap-1">
               <button
@@ -335,23 +335,23 @@ function MenuInner({
           </aside>
 
           <main className="min-w-0 flex-1">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+            <div className="mb-4 flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <div className="relative flex-1 min-w-[160px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search for dishes, ingredients..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-xs sm:text-sm text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                 />
               </div>
-              <button className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:border-orange-300">
+              <button className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-medium text-gray-600 shadow-sm hover:border-orange-300">
                 <SlidersHorizontal className="h-4 w-4" /> Filters
               </button>
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
+                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-xl shadow-orange-500/40 ring-2 ring-white/80 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-orange-500/60 active:scale-95"
               >
                 <MenuIcon className="h-4 w-4 transition-transform group-hover:rotate-12" />
                 <span className="tracking-wide">More Options</span>
@@ -360,7 +360,7 @@ function MenuInner({
 
             {/* Mobile Category Scroll Bar */}
             {categories.length > 0 && (
-              <div className="mb-5 flex overflow-x-auto gap-2 pb-2 lg:hidden">
+              <div className="mb-5 flex overflow-x-auto gap-2 pb-2 lg:hidden scrollbar-none">
                 <button
                   type="button"
                   onClick={() => setActiveCategory("ALL")}
@@ -390,7 +390,7 @@ function MenuInner({
             )}
 
             <div>
-              <h2 className="mb-4 text-lg font-bold text-gray-900">
+              <h2 className="mb-4 text-base sm:text-lg font-bold text-gray-900">
                 {activeCategory === "ALL" ? "All Menu Items" : activeCategory}
               </h2>
               {items.length === 0 ? (
@@ -422,14 +422,17 @@ function MobileCart({ onCheckout }: { onCheckout: () => void }) {
   const { totalItems, totalPrice } = useOrder();
   if (totalItems === 0) return null;
   return (
-    <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 lg:hidden">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-40 max-w-md w-full sm:w-auto lg:hidden">
       <button
         onClick={onCheckout}
-        className="flex items-center gap-3 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-xl"
+        className="flex w-full sm:w-auto items-center justify-between sm:justify-center gap-3 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-xl transition active:scale-98"
       >
-        <ShoppingBag className="h-4 w-4" />
-        {totalItems} item{totalItems > 1 ? "s" : ""} · Rs. {totalPrice}
-        <span className="ml-1 text-orange-400">→ Checkout</span>
+        <div className="flex items-center gap-2">
+          <ShoppingBag className="h-4 w-4 text-orange-400" />
+          <span>{totalItems} item{totalItems > 1 ? "s" : ""}</span>
+        </div>
+        <span>· Rs. {totalPrice}</span>
+        <span className="ml-1 text-orange-400 font-bold">Checkout →</span>
       </button>
     </div>
   );
